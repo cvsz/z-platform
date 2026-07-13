@@ -85,6 +85,100 @@ export class FileWorkspaceAdapter {
   }
 }
 
+function normalizeBaseUrl(value) {
+  if (typeof value !== "string" || !value.trim()) throw new WorkspaceStoreError("workspace metadata url is required");
+  const url = new URL(value);
+  if (!["http:", "https:"].includes(url.protocol)) throw new WorkspaceStoreError("workspace metadata url must be http or https");
+  return url.toString().replace(/\/$/, "");
+}
+
+function encodeWorkspaceId(id) {
+  validateWorkspaceId(id);
+  return encodeURIComponent(id);
+}
+
+export class HttpWorkspaceAdapter {
+  constructor({ baseUrl = process.env.ZAICODER_WORKSPACE_METADATA_URL, token = process.env.Z_PLATFORM_SERVICE_TOKEN, fetchFn = globalThis.fetch, timeoutMs = Number(process.env.ZAICODER_WORKSPACE_METADATA_TIMEOUT_MS || 5000) } = {}) {
+    this.baseUrl = normalizeBaseUrl(baseUrl);
+    this.token = token;
+    this.fetchFn = fetchFn;
+    this.timeoutMs = timeoutMs;
+    if (typeof this.fetchFn !== "function") throw new WorkspaceStoreError("workspace metadata fetch implementation is unavailable");
+  }
+
+  headers(extra = {}) {
+    return {
+      Accept: "application/json",
+      ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+      ...extra,
+    };
+  }
+
+  async request(path, options = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchFn(`${this.baseUrl}${path}`, { ...options, headers: this.headers(options.headers), signal: controller.signal });
+      if (response.status === 404) return null;
+      if (!response.ok) {
+        let message = `workspace metadata request failed with status ${response.status}`;
+        try {
+          const body = await response.json();
+          if (body?.error) message = body.error;
+        } catch {}
+        throw new WorkspaceStoreError(message);
+      }
+      if (response.status === 204) return null;
+      return response.json();
+    } catch (error) {
+      if (error?.name === "AbortError") throw new WorkspaceStoreError("workspace metadata request timed out");
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async listIds() {
+    const payload = await this.request("/workspaces");
+    if (!Array.isArray(payload?.ids)) throw new WorkspaceStoreError("workspace metadata list response is invalid");
+    return payload.ids.filter((id) => WORKSPACE_ID.test(id)).sort();
+  }
+
+  async read(id) {
+    return this.request(`/workspaces/${encodeWorkspaceId(id)}`);
+  }
+
+  async save(record) {
+    validateWorkspaceId(record.id);
+    return this.request(`/workspaces/${encodeWorkspaceId(record.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record),
+    });
+  }
+
+  async delete(id) {
+    await this.request(`/workspaces/${encodeWorkspaceId(id)}`, { method: "DELETE" });
+  }
+}
+
+export function createWorkspaceAdapterFromEnv(env = process.env) {
+  const kind = (env.ZAICODER_WORKSPACE_ADAPTER || "file").toLowerCase();
+  if (kind === "file") return new FileWorkspaceAdapter({ root: env.ZAICODER_WORKSPACE_STORE || ".zaicoder-workspaces" });
+  if (kind === "http") {
+    return new HttpWorkspaceAdapter({
+      baseUrl: env.ZAICODER_WORKSPACE_METADATA_URL,
+      token: env.Z_PLATFORM_SERVICE_TOKEN,
+      timeoutMs: Number(env.ZAICODER_WORKSPACE_METADATA_TIMEOUT_MS || 5000),
+    });
+  }
+  throw new WorkspaceStoreError("unsupported workspace adapter");
+}
+
+export function createWorkspaceStoreFromEnv(env = process.env) {
+  return new WorkspaceStore({ adapter: createWorkspaceAdapterFromEnv(env) });
+}
+
 export class WorkspaceStore {
   constructor({ root = process.env.ZAICODER_WORKSPACE_STORE || ".zaicoder-workspaces", adapter, idGenerator = randomUUID, now = () => new Date().toISOString() } = {}) {
     this.adapter = adapter || new FileWorkspaceAdapter({ root });
