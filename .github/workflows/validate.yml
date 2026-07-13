@@ -25,6 +25,15 @@ jobs:
             echo "Potential credential pattern found."
             exit 1
           fi
+      - name: Reject public browser credential exposure
+        shell: bash
+        run: |
+          set -euo pipefail
+          public_pattern='(VITE_|NEXT_PUBLIC_|PUBLIC_).*(Z_PLATFORM_SERVICE_TOKEN|AI_GATEWAY_PROVIDER_TOKEN|UPSTREAM_API_KEY|PROVIDER_TOKEN)'
+          if git grep -nE -e "$public_pattern" -- 'apps/**' ':(exclude)apps/**/*.test.*' ':(exclude)apps/**/README*'; then
+            echo "Provider or service credential is exposed through a public browser environment variable."
+            exit 1
+          fi
 
   node:
     runs-on: ubuntu-latest
@@ -88,6 +97,70 @@ jobs:
         env:
           Z_PLATFORM_SERVICE_TOKEN: ci-placeholder-not-a-secret
         run: docker compose build
+
+  deployed-smoke:
+    runs-on: ubuntu-latest
+    env:
+      Z_PLATFORM_SERVICE_TOKEN: ci-readiness-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Start isolated Compose deployment
+        run: docker compose up -d --build
+      - name: Wait for every service to become healthy
+        shell: bash
+        run: |
+          set -euo pipefail
+          services=(ai-gateway agent-orchestrator agent-provider workspace-runtime billing-ledger)
+          for attempt in $(seq 1 60); do
+            unhealthy=()
+            for service in "${services[@]}"; do
+              container_id="$(docker compose ps -q "$service")"
+              if [ -z "$container_id" ]; then
+                unhealthy+=("$service:missing")
+                continue
+              fi
+              health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id")"
+              [ "$health" = healthy ] || unhealthy+=("$service:$health")
+            done
+            [ "${#unhealthy[@]}" -eq 0 ] && exit 0
+            echo "waiting for: ${unhealthy[*]}"
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs
+          exit 1
+      - name: Run deployed readiness contracts
+        run: node scripts/staging-smoke.mjs | tee staging-smoke-result.json
+      - name: Restart durable provider and verify persisted state
+        shell: bash
+        run: |
+          set -euo pipefail
+          job_id="$(jq -r .job_id staging-smoke-result.json)"
+          workspace_id="$(jq -r .workspace_id staging-smoke-result.json)"
+          docker compose restart agent-provider agent-orchestrator
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8800/health >/dev/null && curl -fsS http://127.0.0.1:8500/health >/dev/null && break
+            sleep 2
+          done
+          auth="Authorization: Bearer ${Z_PLATFORM_SERVICE_TOKEN}"
+          test "$(curl -fsS -H "$auth" http://127.0.0.1:8500/v1/jobs/$job_id | jq -r .status)" = succeeded
+          test "$(curl -fsS -H "$auth" http://127.0.0.1:8800/workspaces/$workspace_id | jq -r .status)" = active
+          curl -fsS -H "$auth" http://127.0.0.1:8800/events | jq -e --arg id "$job_id" '.events | any(.job_id == $id and .event_type == "agent.job.completed.v1")'
+      - name: Upload deployed smoke evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-smoke-evidence
+          path: staging-smoke-result.json
+          if-no-files-found: error
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Stop deployment
+        if: always()
+        run: docker compose down -v
 
   sbom:
     runs-on: ubuntu-latest
