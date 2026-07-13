@@ -24,8 +24,9 @@ The runtime is adapter-based:
 - `MemoryQueueAdapter` implements enqueue/dequeue semantics and deduplicates job attempts.
 - `MemoryAuditSink` captures versioned lifecycle events for the observability pipeline boundary.
 - `SandboxedWorkerRuntime` executes only approved scoped tool grants and records per-tool status.
+- `HttpJobStore`, `HttpQueueAdapter`, `HttpAuditSink`, `HttpIdentityProvider`, and `HttpSandboxRuntime` connect the orchestrator to operator-approved production providers over private HTTP service boundaries.
 
-Production deployments should replace the memory adapters with database, queue, and observability implementations that preserve the same method contracts.
+Set `AGENT_ORCHESTRATOR_PROVIDER_MODE=production` only after configuring `AGENT_JOB_STORE_URL`, `AGENT_QUEUE_URL`, `AGENT_AUDIT_URL`, `AGENT_IDENTITY_URL`, and `AGENT_SANDBOX_URL`. External traffic remains gated by `AGENT_EXTERNAL_TRAFFIC_ENABLED=true` and should stay disabled until the operator approves identity, network, sandbox, and observability controls.
 
 ## Approval policy
 
@@ -37,4 +38,4 @@ Run `npm test` in this directory to check health reporting, service-token author
 
 ## Current limits
 
-The checked-in adapters are local in-memory implementations for deterministic tests and migration safety. Production still needs operator selection of the database, queue backend, observability sink, identity provider, and sandbox runtime isolation mechanism before external traffic is enabled.
+The checked-in memory adapters remain the default for deterministic tests and migration safety. Production mode requires explicit operator-provided database, queue, observability, identity, and sandbox service URLs before the service can start with production providers.
