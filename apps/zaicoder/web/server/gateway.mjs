@@ -15,17 +15,22 @@ export function validateChatRequest(body) {
 }
 
 function config(env) {
-  const baseUrl = env.Z_PLATFORM_AI_GATEWAY_URL?.replace(/\/$/, "");
+  const baseUrl = env.Z_PLATFORM_AI_GATEWAY_URL?.trim().replace(/\/$/, "");
   const token = env.Z_PLATFORM_SERVICE_TOKEN;
   if (!baseUrl || !token) throw new ChatRequestError("AI gateway is not configured");
   return { baseUrl, token };
+}
+
+function gatewayUrl(baseUrl, path) {
+  const gatewayPath = baseUrl.endsWith("/v1") && path.startsWith("/v1/") ? path.slice(3) : path;
+  return baseUrl + gatewayPath;
 }
 
 async function requestGateway(path, options, { fetchImpl = fetch, env = process.env } = {}) {
   const { baseUrl, token } = config(env);
   let response;
   try {
-    response = await fetchImpl(baseUrl + path, {
+    response = await fetchImpl(gatewayUrl(baseUrl, path), {
       ...options,
       headers: { Authorization: "Bearer " + token, ...options.headers },
       signal: AbortSignal.timeout(60_000),
@@ -39,7 +44,7 @@ async function requestGateway(path, options, { fetchImpl = fetch, env = process.
 
 export async function forwardChat(body, options = {}) {
   const { prompt, model } = validateChatRequest(body);
-  const response = await requestGateway("/chat/completions", {
+  const response = await requestGateway("/v1/chat/completions", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], stream: false }),
@@ -52,7 +57,7 @@ export async function forwardChat(body, options = {}) {
 
 export async function forwardChatStream(body, options = {}) {
   const { prompt, model } = validateChatRequest(body);
-  const response = await requestGateway("/chat/completions", {
+  const response = await requestGateway("/v1/chat/completions", {
     method: "POST",
     headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
     body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], stream: true }),
@@ -64,7 +69,7 @@ export async function forwardChatStream(body, options = {}) {
 export async function forwardFile({ name, type, bytes }, options = {}) {
   if (!SAFE_FILE_NAME.test(name) || name.includes("..")) throw new ChatRequestError("File name is invalid");
   if (!bytes?.length || bytes.length > MAX_FILE_BYTES) throw new ChatRequestError("File must be between 1 byte and 10 MB");
-  const response = await requestGateway("/files", {
+  const response = await requestGateway("/v1/files", {
     method: "POST",
     headers: { "Content-Type": type || "application/octet-stream", "X-Filename": name },
     body: bytes,
