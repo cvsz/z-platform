@@ -312,3 +312,44 @@ test("client cancellation aborts the upstream request", async () => {
   assert.equal(seenSignals.length, 1);
   assert.equal(events[0].event, "request_cancelled");
 });
+
+
+test("chat success emits idempotent AI usage record to billing ledger", async () => {
+  const calls = [];
+  const server = createAiGatewayServer({
+    env: { ...env, Z_PLATFORM_BILLING_LEDGER_URL: "http://ledger" },
+    logger: testLogger([]),
+    idGenerator: () => "req-usage",
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      if (url === "http://ledger/v1/usage") return Response.json({ duplicate: false }, { status: 201 });
+      return Response.json({ model: "hf:test", choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 2, completion_tokens: 3 } });
+    },
+  });
+
+  const response = await request(server, "/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer service-token",
+      "Content-Type": "application/json",
+      "X-Tenant-Id": "tenant-1",
+      "X-Subject-Id": "user-1",
+    },
+    body: JSON.stringify({ messages: [] }),
+  });
+
+  assert.equal(response.status, 200);
+  const ledgerCall = calls.find((call) => call.url === "http://ledger/v1/usage");
+  assert.ok(ledgerCall);
+  assert.equal(ledgerCall.options.headers.Authorization, "Bearer service-token");
+  assert.deepEqual(JSON.parse(ledgerCall.options.body), {
+    usage_id: "req-usage",
+    idempotency_key: "ai-usage:req-usage",
+    tenant_id: "tenant-1",
+    subject_id: "user-1",
+    model: "hf:test",
+    input_tokens: 2,
+    output_tokens: 3,
+    recorded_at: JSON.parse(ledgerCall.options.body).recorded_at,
+  });
+});
