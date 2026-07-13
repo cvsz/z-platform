@@ -27,10 +27,10 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 - AI Gateway attachment adapter registry with OpenAI-compatible and Anthropic message-shape translators plus unit coverage.
 - AI Gateway upstream provider selection wired into chat attachment translation.
 - Hugging Face free/local model catalog exposed through the AI Gateway model list endpoint.
+- AI Gateway upload adapter registry with OpenAI-compatible binary/content pass-through, safe filename normalization, and unsupported-provider failure handling.
 
 ### Remaining
 
-- Add approved-provider binary/content upload adapters for platform file references.
 - Replace the local workspace metadata store with a production durable storage adapter, tenant identity enforcement, and retention cleanup jobs.
 - Execute repository-local tests in CI and verify GitHub Actions results.
 
