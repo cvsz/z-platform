@@ -44,14 +44,23 @@ Source repository: `cvsz/zeaz-platform`
 | ZChat identity and correlation | `apps/zchat` | Forward tenant, conversation, request, and usage-correlation identifiers | complete |
 | ZChat session and streaming | `apps/zchat` | Add streaming proxy, logout, session expiry, and accessibility-oriented UI tests | complete |
 
+## Phase 4 - Generator and workspace migration
+
+| Item | Target | Action | Status |
+|---|---|---|---|
+| Audited generator templates | `tools/zai-factory` | Add safe template manifest, validation, and generator tests | complete |
+| Generated-file ownership | `tools/zai-factory` + `services/workspace-runtime` | Require generated files to declare generator ownership and reject secret-bearing paths | complete |
+| ZOW workspace split | `apps/zow` + `services/workspace-runtime` | Keep ZOW as UI/proxy and move execution decisions to isolated runtime | complete |
+| Shell/deploy approval policy | `services/workspace-runtime` | Require explicit `shell` or `deploy` approval grants before accepting execution requests | complete |
+
 ## Candidate migrations
 
 | Legacy source | Target | Selection rule | Status |
 |---|---|---|---|
 | `apps/zchat` | `apps/zchat` | Retain UI only; replace direct provider keys with platform gateway | complete |
 | `apps/zai-stack` | `services/agent-orchestrator` | Extract policy and job-routing runtime | partial |
-| `apps/zai-factory` | `tools/zai-factory` | Retain audited skills, generators and templates only | partial |
-| `apps/zow` | `apps/zow` + `services/workspace-runtime` | Split UI from sandbox/runtime | pending |
+| `apps/zai-factory` | `tools/zai-factory` | Retain audited skills, generators and templates only | complete |
+| `apps/zow` | `apps/zow` + `services/workspace-runtime` | Split UI from sandbox/runtime | complete |
 | `apps/zwallet` | `apps/zwallet` + `services/billing-ledger` | Keep UI/ledger adapters; exclude signing and production provider config | pending |
 
 ## Status definitions
