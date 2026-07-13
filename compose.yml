@@ -10,11 +10,31 @@ x-node-service: &node-service
   read_only: true
   tmpfs:
     - /tmp
-  environment:
-    HOST: 0.0.0.0
-    Z_PLATFORM_SERVICE_TOKEN: ${Z_PLATFORM_SERVICE_TOKEN:?set Z_PLATFORM_SERVICE_TOKEN in .env}
 
 services:
+  agent-provider:
+    <<: *node-service
+    build:
+      context: .
+      dockerfile: deploy/docker/node-service.Dockerfile
+      args:
+        SERVICE_PATH: services/agent-provider
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8800
+      DATA_DIR: /data
+      Z_PLATFORM_SERVICE_TOKEN: ${Z_PLATFORM_SERVICE_TOKEN:?set Z_PLATFORM_SERVICE_TOKEN in .env}
+    volumes:
+      - agent-provider-data:/data
+    ports:
+      - "127.0.0.1:${AGENT_PROVIDER_PORT:-8800}:8800"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8800/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   billing-ledger:
     <<: *node-service
     build:
@@ -62,11 +82,20 @@ services:
       dockerfile: deploy/docker/node-service.Dockerfile
       args:
         SERVICE_PATH: services/agent-orchestrator
+    depends_on:
+      agent-provider:
+        condition: service_healthy
     environment:
       HOST: 0.0.0.0
       PORT: 8500
       Z_PLATFORM_SERVICE_TOKEN: ${Z_PLATFORM_SERVICE_TOKEN:?set Z_PLATFORM_SERVICE_TOKEN in .env}
-      AGENT_ORCHESTRATOR_PROVIDER_MODE: memory
+      AGENT_ORCHESTRATOR_PROVIDER_MODE: production
+      AGENT_JOB_STORE_URL: http://agent-provider:8800
+      AGENT_QUEUE_URL: http://agent-provider:8800
+      AGENT_AUDIT_URL: http://agent-provider:8800
+      AGENT_IDENTITY_URL: http://agent-provider:8800
+      AGENT_SANDBOX_URL: http://agent-provider:8800
+      AGENT_EXTERNAL_TRAFFIC_ENABLED: "false"
     ports:
       - "127.0.0.1:${AGENT_ORCHESTRATOR_PORT:-8500}:8500"
     healthcheck:
@@ -106,3 +135,6 @@ services:
 networks:
   z-platform-internal:
     driver: bridge
+
+volumes:
+  agent-provider-data:
