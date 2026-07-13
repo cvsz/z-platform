@@ -43,13 +43,11 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 ### Completed
 
 - Defined `agent.job.requested.v1`, `agent.job.approved.v1`, and `agent.job.completed.v1` contracts with JSON schemas and validation tests.
+- Implemented the agent orchestrator job-store, queue, approval, sandbox worker, cancellation, retry, and audit adapter boundaries with lifecycle tests.
 
 ### Remaining
 
-1. Implement a durable job store and queue adapter.
-2. Require explicit tool grants and an approval state for mutating jobs.
-3. Run workers in a sandboxed runtime with resource limits.
-4. Export audit events to the platform observability pipeline.
+- Replace local in-memory migration adapters with operator-approved production database, queue, observability, identity, and sandbox runtime providers before external traffic.
 
 **Done when:** an agent job can be submitted, approved, executed with scoped tools, cancelled, retried idempotently, and audited.
 
