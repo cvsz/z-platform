@@ -25,6 +25,15 @@ Source repository: `cvsz/zeaz-platform`
 | Provider attachment adapters | `services/ai-gateway` | Add adapter registry, provider selection, OpenAI-compatible binary/content upload pass-through, and Anthropic unsupported-upload guardrails | partial |
 | Hugging Face model catalog | `services/ai-gateway` | Add curated free/local model metadata and protected `/v1/models` listing | partial |
 
+## Phase 2 - Agent orchestration
+
+| Item | Target | Action | Status |
+|---|---|---|---|
+| Agent job event contracts | `packages/contracts` | Define requested, approved, and completed lifecycle events with schemas and tests | complete |
+| Durable job store and queue adapter | `services/agent-orchestrator` | Persist job state and enqueue approved execution work | pending |
+| Tool grant approval policy | `services/agent-orchestrator` | Require explicit scoped grants before mutating tool execution | pending |
+| Sandboxed worker runtime | `services/agent-orchestrator` | Execute jobs with resource limits, retries, cancellation, and audit hooks | pending |
+
 ## Candidate migrations
 
 | Legacy source | Target | Selection rule | Status |
