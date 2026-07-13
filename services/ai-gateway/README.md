@@ -13,6 +13,7 @@ The AI Gateway is the only platform service allowed to hold upstream model-provi
 ## Runtime
 
 - `GET /health` reports service status and upstream configuration without exposing secrets.
+- `GET /v1/models` returns the curated Hugging Face free/local model catalog in an OpenAI-compatible list shape.
 - `POST /v1/chat/completions` forwards chat requests to the configured upstream and translates platform attachments through the configured provider adapter.
 - `POST /v1/files` forwards file uploads and preserves the `X-Filename` header.
 
@@ -21,6 +22,12 @@ All non-health routes require `Authorization: Bearer <Z_PLATFORM_SERVICE_TOKEN>`
 Every response includes `X-Request-Id`. Clients may provide `X-Request-Id`; otherwise the gateway generates one. Error responses are structured as `{ "error": "...", "code": "...", "request_id": "..." }`.
 
 Client disconnects and upstream aborts are treated as cancellations. The gateway propagates cancellation to the upstream request and records a redacted `request_cancelled` audit event.
+
+## Hugging Face model catalog
+
+The bundled catalog exposes open-license Hugging Face model IDs with the `hf:` prefix, for example `hf:Qwen/Qwen2.5-7B-Instruct`, `hf:openai/gpt-oss-20b`, and `hf:microsoft/Phi-3-small-8k-instruct`.
+
+Catalog entries are metadata only. They do not deploy infrastructure or grant free hosted inference by themselves. Operators must point `UPSTREAM_BASE_URL` at an approved local runtime, self-hosted Text Generation Inference/vLLM server, Ollama/llama.cpp-compatible service, or Hugging Face endpoint.
 
 ## Attachment translation
 
@@ -41,7 +48,7 @@ Provider-specific binary/content upload adapters remain explicit follow-up work 
 
 ## Validation
 
-Run `npm test` in this directory to check health, service-token authorization, request IDs, structured errors, audit events, attachment reference translation, upstream provider selection, upstream URL normalization, provider credential forwarding, file upload headers, upstream failure handling, and cancellation propagation.
+Run `npm test` in this directory to check health, service-token authorization, Hugging Face model catalog responses, request IDs, structured errors, audit events, attachment reference translation, upstream provider selection, upstream URL normalization, provider credential forwarding, file upload headers, upstream failure handling, and cancellation propagation.
 
 ## Prohibited responsibilities
 
