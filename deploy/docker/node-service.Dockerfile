@@ -10,7 +10,8 @@ COPY ${SERVICE_PATH}/package.json ./package.json
 COPY ${SERVICE_PATH}/ ./
 
 RUN addgroup -S zplatform && adduser -S -G zplatform zplatform \
-    && chown -R zplatform:zplatform /app
+    && mkdir -p /data \
+    && chown -R zplatform:zplatform /app /data
 
 USER zplatform
 
