@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const defaultHost = process.env.HOST || "127.0.0.1";
 const defaultPort = Number(process.env.PORT || 8400);
 const maxRequestBytes = 10 * 1024 * 1024;
+const upstreamTimeoutMs = 60_000;
 
 function sendJson(response, status, payload, requestId) {
   response.writeHead(status, {
@@ -49,7 +50,26 @@ function upstreamUrl(baseUrl, path) {
   return base + upstreamPath;
 }
 
-export async function upstream(path, request, body, env = process.env, fetchImpl = fetch, requestId = randomUUID()) {
+function linkedAbortSignal(sourceSignal, timeoutMs = upstreamTimeoutMs) {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  if (!sourceSignal) return timeoutSignal;
+  return AbortSignal.any([sourceSignal, timeoutSignal]);
+}
+
+function requestAbortSignal(request) {
+  const controller = new AbortController();
+  request.on("aborted", () => controller.abort("client_aborted"));
+  request.on("close", () => {
+    if (!request.complete) controller.abort("client_closed");
+  });
+  return controller.signal;
+}
+
+function isAbortError(error, signal) {
+  return signal?.aborted || error?.name === "AbortError";
+}
+
+export async function upstream(path, request, body, env = process.env, fetchImpl = fetch, requestId = randomUUID(), signal) {
   const base = env.UPSTREAM_BASE_URL?.trim();
   const key = env.UPSTREAM_API_KEY;
   if (!base || !key) throw new Error("Gateway upstream is not configured");
@@ -62,13 +82,14 @@ export async function upstream(path, request, body, env = process.env, fetchImpl
       ...(request.headers["x-filename"] ? { "X-Filename": request.headers["x-filename"] } : {}),
     },
     body,
-    signal: AbortSignal.timeout(60000),
+    signal: linkedAbortSignal(signal),
   });
 }
 
 export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, logger = console, idGenerator = randomUUID } = {}) {
   return createServer(async (request, response) => {
     const requestId = request.headers["x-request-id"] || idGenerator();
+    const clientSignal = requestAbortSignal(request);
     response.setHeader("X-Request-Id", requestId);
 
     if (request.method === "GET" && request.url === "/health") {
@@ -91,7 +112,7 @@ export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, lo
 
     try {
       const body = await readBody(request);
-      const result = await upstream(request.url, request, body, env, fetchImpl, requestId);
+      const result = await upstream(request.url, request, body, env, fetchImpl, requestId, clientSignal);
       if (!result.ok) {
         audit(logger, { event: "upstream_failure", request_id: requestId, path: request.url, upstream_status: result.status, status: 502 });
         return sendJson(response, 502, errorPayload("upstream_failed", "Upstream request failed", requestId), requestId);
@@ -112,6 +133,11 @@ export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, lo
       response.writeHead(200, { "Content-Type": result.headers.get("content-type") || "application/json", "X-Request-Id": requestId });
       response.end(Buffer.from(payload));
     } catch (error) {
+      if (isAbortError(error, clientSignal)) {
+        audit(logger, { event: "request_cancelled", request_id: requestId, path: request.url, status: 499, code: "request_cancelled" });
+        if (!response.headersSent) sendJson(response, 499, errorPayload("request_cancelled", "Request cancelled", requestId), requestId);
+        return;
+      }
       const message = error instanceof Error ? error.message : "Gateway failure";
       audit(logger, { event: "gateway_error", request_id: requestId, path: request.url, status: 500, code: "gateway_failure" });
       sendJson(response, 500, errorPayload("gateway_failure", message, requestId), requestId);
