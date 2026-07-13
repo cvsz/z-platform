@@ -22,8 +22,8 @@ jobs:
           node-version: 20
       - name: Test runnable Node workspaces
         run: |
-          for app in apps/zaicoder/web services/ai-gateway services/agent-orchestrator apps/zchat; do
-            if [ -f "$app/package.json" ]; then (cd "$app" && npm test --if-present); fi
+          for workspace in apps/zaicoder/web services/ai-gateway services/agent-orchestrator apps/zchat tools/zai-factory; do
+            if [ -f "$workspace/package.json" ]; then (cd "$workspace" && npm test --if-present); fi
           done
   python:
     runs-on: ubuntu-latest
