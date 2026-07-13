@@ -85,11 +85,17 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 
 ## Phase 5 — Usage and billing boundary
 
-1. Emit immutable `ai.usage.recorded.v1` events from the AI Gateway.
-2. Validate idempotency keys before creating ledger entries.
-3. Implement credits, limits, and invoice intents in `services/billing-ledger`.
-4. Integrate with `apps/zwallet` only through audited adapters.
-5. Keep wallet signing, swaps, cards, KYC, and MPC out of the AI request path.
+### Completed
+
+- Added immutable `ai.usage.recorded.v1` usage contract and server-side AI Gateway emission.
+- Added idempotent usage recording before ledger entries are accepted.
+- Implemented credits and invoice intents in `services/billing-ledger`.
+- Integrated `apps/zwallet` only through audited billing-ledger adapters.
+- Blocked wallet signing, swaps, cards, KYC, MPC shares, and payment-provider credentials from the AI request path and ZWallet adapter boundary.
+
+### Remaining
+
+- Operator selection of billing currency, tax rules, payment processor, and jurisdiction before production payment collection.
 
 **Done when:** usage can be reconciled to an idempotent ledger record without access to signing authority or payment-card data.
 
