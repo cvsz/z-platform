@@ -24,6 +24,7 @@ services:
       PORT: 8800
       DATA_DIR: /data
       Z_PLATFORM_SERVICE_TOKEN: ${Z_PLATFORM_SERVICE_TOKEN:?set Z_PLATFORM_SERVICE_TOKEN in .env}
+      AGENT_TEST_FAILURE_INJECTION: ${AGENT_TEST_FAILURE_INJECTION:-false}
     volumes:
       - agent-provider-data:/data
     ports:
@@ -127,6 +128,55 @@ services:
       - "127.0.0.1:${AI_GATEWAY_PORT:-8400}:8400"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8400/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  zwallet:
+    <<: *node-service
+    build:
+      context: .
+      dockerfile: deploy/docker/node-service.Dockerfile
+      args:
+        SERVICE_PATH: apps/zwallet
+    depends_on:
+      billing-ledger:
+        condition: service_healthy
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3040
+      Z_PLATFORM_SERVICE_TOKEN: ${Z_PLATFORM_SERVICE_TOKEN:?set Z_PLATFORM_SERVICE_TOKEN in .env}
+      Z_PLATFORM_BILLING_LEDGER_URL: http://billing-ledger:8700
+    ports:
+      - "127.0.0.1:${ZWALLET_PORT:-3040}:3040"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3040/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  zchat:
+    <<: *node-service
+    build:
+      context: .
+      dockerfile: deploy/docker/node-service.Dockerfile
+      args:
+        SERVICE_PATH: apps/zchat
+    depends_on:
+      ai-gateway:
+        condition: service_healthy
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3021
+      Z_PLATFORM_SERVICE_TOKEN: ${Z_PLATFORM_SERVICE_TOKEN:?set Z_PLATFORM_SERVICE_TOKEN in .env}
+      Z_PLATFORM_AI_GATEWAY_URL: http://ai-gateway:8400
+      ZCHAT_SESSION_TTL_SECONDS: ${ZCHAT_SESSION_TTL_SECONDS:-3600}
+    ports:
+      - "127.0.0.1:${ZCHAT_PORT:-3021}:3021"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3021/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 10
