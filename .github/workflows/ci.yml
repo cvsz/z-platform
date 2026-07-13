@@ -26,5 +26,11 @@ jobs:
           node-version: 22
       - name: Install
         run: pnpm install --no-frozen-lockfile
-      - name: Test
+      - name: Test workspace packages
         run: pnpm test
+      - name: Verify ZAI Coder gateway-only coverage
+        run: npm test --prefix apps/zaicoder/web
+      - name: Verify AI Gateway provider coverage
+        run: npm test --prefix services/ai-gateway
+      - name: Verify Agent Orchestrator lifecycle coverage
+        run: npm test --prefix services/agent-orchestrator
