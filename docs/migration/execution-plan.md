@@ -70,10 +70,16 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 
 ## Phase 4 — Generator and workspace migration
 
-1. Move audited templates from ZAI Factory into `tools/zai-factory`.
-2. Define template manifests, validation, and generated-file ownership.
-3. Split ZOW into user-facing workspace UI and isolated execution runtime.
-4. Prohibit generated deployments and shell execution without an explicit approval policy.
+### Completed
+
+- Moved audited generator/template boundaries into `tools/zai-factory` with a safe node-service template.
+- Defined template manifests, validation, and generated-file ownership checks.
+- Split ZOW into a user-facing workspace UI/proxy and isolated `services/workspace-runtime` execution boundary.
+- Prohibited generated deployments and shell execution unless an explicit approval policy grants `deploy` or `shell`.
+
+### Remaining
+
+- Run operator review of additional legacy templates before adding them to `tools/zai-factory/templates`.
 
 **Done when:** a generator produces a validated project in a sandbox with reproducible output and no secret-bearing files.
 
