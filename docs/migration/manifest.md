@@ -10,15 +10,22 @@ Source repository: `cvsz/zeaz-platform`
 | Workspace configuration | root | Create clean pnpm workspace | complete |
 | Architecture and migration docs | docs | Create baseline documentation | complete |
 
+## Phase 1 — AI foundation
+
+| Item | Target | Action | Status |
+|---|---|---|---|
+| ZAI Coder application boundary | `apps/zaicoder` | Establish packaging, safe configuration and gateway contract | complete |
+| AI gateway boundary | `services/ai-gateway` | Establish ownership and safe runtime configuration | complete |
+| Runtime source import | `apps/zaicoder` | Import tested modules after dependency audit and secret scan | pending |
+
 ## Candidate migrations
 
 | Legacy source | Target | Selection rule | Status |
 |---|---|---|---|
-| `apps/zaicoder` | `apps/zaicoder` | Migrate tested web/API components after dependency audit | pending |
 | `apps/zchat` | `apps/zchat` | Retain UI only; replace direct provider keys with platform gateway | pending |
 | `apps/zai-stack` | `services/agent-orchestrator` | Extract policy and job-routing runtime | pending |
 | `apps/zai-factory` | `tools/zai-factory` | Retain generators and templates only | pending |
 | `apps/zow` | `apps/zow` + `services/workspace-runtime` | Split UI from sandbox/runtime | pending |
 | `apps/zwallet` | `apps/zwallet` + `services/billing-ledger` | Keep UI/ledger adapters; exclude signing and production provider config | pending |
 
-A candidate is copied only after its dependency list, test command, secret scan, license status, and rollback plan are recorded.
+A runtime component is copied only after its dependency list, test command, secret scan, license status, and rollback plan are recorded.
