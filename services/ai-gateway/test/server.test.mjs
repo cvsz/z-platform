@@ -99,6 +99,38 @@ test("translates platform attachment references before upstream chat requests", 
   assert.match(translated.messages[0].content, /notes\.txt \(file-1\)/);
 });
 
+test("uses configured provider for attachment translation", async () => {
+  const calls = [];
+  const server = createAiGatewayServer({
+    env: { ...env, UPSTREAM_PROVIDER: "anthropic" },
+    logger: testLogger([]),
+    idGenerator: () => "req-provider",
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return new Response(JSON.stringify({ id: "msg-1" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  });
+
+  const response = await request(server, "/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: "Bearer service-token", "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude",
+      messages: [{ role: "user", content: [{ type: "text", text: "summarize" }] }],
+      attachments: [{ id: "file-1", name: "notes.txt" }],
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const upstreamBody = JSON.parse(calls[0].options.body.toString("utf8"));
+  assert.equal(upstreamBody.attachments, undefined);
+  assert.deepEqual(upstreamBody.metadata.z_platform.attachments, [{ id: "file-1", name: "notes.txt" }]);
+  assert.deepEqual(upstreamBody.messages[0].content[1], { type: "text", text: "Attached platform files:\n- notes.txt (file-1)" });
+});
+
 test("invalid attachment contracts fail before upstream forwarding", async () => {
   const server = createAiGatewayServer({
     env,
