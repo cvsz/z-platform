@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { FileWorkspaceAdapter, WorkspaceStore, WorkspaceStoreError } from "../server/workspace-store.mjs";
+import { FileWorkspaceAdapter, HttpWorkspaceAdapter, WorkspaceStore, WorkspaceStoreError, createWorkspaceAdapterFromEnv } from "../server/workspace-store.mjs";
 
 test("creates workspace metadata with retention", async () => {
   const root = await mkdtemp(join(tmpdir(), "zaicoder-workspaces-"));
@@ -104,4 +104,41 @@ test("cleans up expired workspace metadata through adapter deletion", async () =
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("persists workspace metadata through the HTTP durable adapter", async () => {
+  const requests = [];
+  const adapter = new HttpWorkspaceAdapter({
+    baseUrl: "https://metadata.internal/v1/",
+    token: "service-token",
+    fetchFn: async (url, options = {}) => {
+      requests.push({ url, options });
+      if (url.endsWith("/workspaces")) {
+        return Response.json({ ids: ["zeta", "../bad", "alpha"] });
+      }
+      if (options.method === "PUT") {
+        return Response.json(JSON.parse(options.body));
+      }
+      if (options.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      return Response.json({ id: "workspace-1", owner: "tenant-1", retention_days: 30, files: [] });
+    },
+  });
+
+  assert.deepEqual(await adapter.listIds(), ["alpha", "zeta"]);
+  assert.equal((await adapter.read("workspace-1")).id, "workspace-1");
+  assert.equal((await adapter.save({ id: "workspace-1", owner: "tenant-1", files: [] })).owner, "tenant-1");
+  await adapter.delete("workspace-1");
+
+  assert.equal(requests[0].url, "https://metadata.internal/v1/workspaces");
+  assert.equal(requests[0].options.headers.Authorization, "Bearer service-token");
+  assert.equal(requests[2].options.method, "PUT");
+  assert.equal(requests[3].options.method, "DELETE");
+});
+
+test("creates configured workspace adapters from environment", () => {
+  assert.ok(createWorkspaceAdapterFromEnv({ ZAICODER_WORKSPACE_ADAPTER: "file", ZAICODER_WORKSPACE_STORE: "/tmp/workspaces" }) instanceof FileWorkspaceAdapter);
+  assert.ok(createWorkspaceAdapterFromEnv({ ZAICODER_WORKSPACE_ADAPTER: "http", ZAICODER_WORKSPACE_METADATA_URL: "https://metadata.internal", Z_PLATFORM_SERVICE_TOKEN: "token" }) instanceof HttpWorkspaceAdapter);
+  assert.throws(() => createWorkspaceAdapterFromEnv({ ZAICODER_WORKSPACE_ADAPTER: "bogus" }), /unsupported workspace adapter/);
 });
