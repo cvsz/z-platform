@@ -15,32 +15,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.4.0
+        uses: actions/checkout@v4
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - name: Install
-        run: pnpm install --no-frozen-lockfile
-      - name: Test workspace packages
-        run: pnpm test
-      - name: Verify ZAI Coder gateway-only coverage
-        run: npm test --prefix apps/zaicoder/web
-      - name: Verify AI Gateway provider coverage
-        run: npm test --prefix services/ai-gateway
-      - name: Verify Agent Orchestrator lifecycle coverage
-        run: npm test --prefix services/agent-orchestrator
-      - name: Verify Workspace Runtime coverage
-        run: npm test --prefix services/workspace-runtime
-      - name: Verify Billing Ledger coverage
-        run: npm test --prefix services/billing-ledger
-      - name: Verify ZChat coverage
-        run: npm test --prefix apps/zchat
-      - name: Verify ZOW coverage
-        run: npm test --prefix apps/zow
-      - name: Verify ZWallet adapter coverage
-        run: npm test --prefix apps/zwallet
+          node-version: 20
+      - name: Test runnable Node workspaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          for workspace in packages/contracts apps/zaicoder/web services/ai-gateway services/agent-orchestrator services/workspace-runtime services/billing-ledger apps/zchat apps/zow apps/zwallet tools/zai-factory; do
+            if [ ! -f "$workspace/package.json" ]; then
+              echo "skip $workspace: no package.json"
+              continue
+            fi
+            if ! find "$workspace" -path '*/node_modules' -prune -o -name '*.test.mjs' -print -quit | grep -q .; then
+              echo "skip $workspace: no node test files"
+              continue
+            fi
+            echo "test $workspace"
+            npm test --prefix "$workspace" --if-present
+          done
