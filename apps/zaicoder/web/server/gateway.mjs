@@ -28,6 +28,7 @@ function gatewayRequest(body, env, stream) {
     {
       method: "POST",
       headers: {
+        Accept: stream ? "text/event-stream" : "application/json",
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
