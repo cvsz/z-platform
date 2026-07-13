@@ -15,5 +15,8 @@ This directory contains production operations controls, runbooks, and readiness 
 - [Backup and restore runbook](backups.md)
 - [Incident runbook](incident-runbook.md)
 - [Staging readiness review](staging-readiness.md)
+- [Phase 6 decisions](phase-6-decisions.md)
+- [Phase 6 operator input register](phase-6-operator-inputs.md)
+- [Phase 6 verification commands](phase-6-verification-commands.md)
 
 Production traffic remains blocked until the production master document and staging readiness review are satisfied by the operator.
