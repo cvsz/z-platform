@@ -113,10 +113,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          services=(ai-gateway agent-orchestrator agent-provider workspace-runtime billing-ledger)
           for attempt in $(seq 1 60); do
-            unhealthy="$(docker compose ps --format json | jq -r '.[] | select(.Health != "healthy") | .Service' | tr '\n' ' ')"
-            [ -z "$unhealthy" ] && exit 0
-            echo "waiting for: $unhealthy"
+            unhealthy=()
+            for service in "${services[@]}"; do
+              container_id="$(docker compose ps -q "$service")"
+              if [ -z "$container_id" ]; then
+                unhealthy+=("$service:missing")
+                continue
+              fi
+              health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id")"
+              [ "$health" = healthy ] || unhealthy+=("$service:$health")
+            done
+            [ "${#unhealthy[@]}" -eq 0 ] && exit 0
+            echo "waiting for: ${unhealthy[*]}"
             sleep 2
           done
           docker compose ps
