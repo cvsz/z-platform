@@ -16,20 +16,16 @@ export function validateChatRequest(body) {
   return { prompt, model };
 }
 
-export async function forwardChat(body, {
-  fetchImpl = fetch,
-  env = process.env,
-} = {}) {
+function gatewayRequest(body, env, stream) {
   const { prompt, model } = validateChatRequest(body);
   const baseUrl = env.Z_PLATFORM_AI_GATEWAY_URL?.replace(/\/$/, "");
   const token = env.Z_PLATFORM_SERVICE_TOKEN;
   if (!baseUrl || !token) {
     throw new ChatRequestError("AI gateway is not configured");
   }
-
-  let response;
-  try {
-    response = await fetchImpl(`${baseUrl}/chat/completions`, {
+  return [
+    `${baseUrl}/chat/completions`,
+    {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -38,17 +34,26 @@ export async function forwardChat(body, {
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
-        stream: false,
+        stream,
       }),
       signal: AbortSignal.timeout(60_000),
-    });
+    },
+  ];
+}
+
+async function gatewayFetch(body, { fetchImpl = fetch, env = process.env } = {}, stream) {
+  let response;
+  try {
+    response = await fetchImpl(...gatewayRequest(body, env, stream));
   } catch {
     throw new ChatRequestError("AI gateway request failed");
   }
+  if (!response.ok) throw new ChatRequestError("AI gateway rejected the request");
+  return response;
+}
 
-  if (!response.ok) {
-    throw new ChatRequestError("AI gateway rejected the request");
-  }
+export async function forwardChat(body, options = {}) {
+  const response = await gatewayFetch(body, options, false);
   let payload;
   try {
     payload = await response.json();
@@ -60,4 +65,12 @@ export async function forwardChat(body, {
     throw new ChatRequestError("AI gateway returned an unsupported response");
   }
   return { content };
+}
+
+export async function forwardChatStream(body, options = {}) {
+  const response = await gatewayFetch(body, options, true);
+  if (!response.body) {
+    throw new ChatRequestError("AI gateway returned an empty stream");
+  }
+  return response.body;
 }
