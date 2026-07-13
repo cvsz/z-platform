@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
@@ -49,6 +49,20 @@ export class FileWorkspaceAdapter {
   pathFor(id) {
     validateWorkspaceId(id);
     return join(this.root, `${id}.json`);
+  }
+
+  async listIds() {
+    try {
+      const entries = await readdir(this.root, { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+        .map((entry) => entry.name.slice(0, -5))
+        .filter((id) => WORKSPACE_ID.test(id))
+        .sort();
+    } catch (error) {
+      if (error?.code === "ENOENT") return [];
+      throw error;
+    }
   }
 
   async read(id) {
@@ -128,11 +142,17 @@ export class WorkspaceStore {
     return this.save(next);
   }
 
+  async listIds() {
+    if (typeof this.adapter.listIds !== "function") throw new WorkspaceStoreError("workspace adapter does not support listing");
+    return this.adapter.listIds();
+  }
+
   async cleanupExpired(ids) {
-    if (!Array.isArray(ids)) throw new WorkspaceStoreError("cleanupExpired requires an explicit workspace id list");
+    const workspaceIds = ids === undefined ? await this.listIds() : ids;
+    if (!Array.isArray(workspaceIds)) throw new WorkspaceStoreError("cleanupExpired requires an explicit workspace id list");
     const now = new Date(this.now()).getTime();
     const removed = [];
-    for (const id of ids) {
+    for (const id of workspaceIds) {
       validateWorkspaceId(id);
       const record = await this.adapter.read(id);
       if (!record) continue;
