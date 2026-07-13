@@ -6,6 +6,11 @@ import {
   MemoryAuditSink,
   MemoryJobStore,
   MemoryQueueAdapter,
+  HttpAuditSink,
+  HttpIdentityProvider,
+  HttpJobStore,
+  HttpQueueAdapter,
+  HttpSandboxRuntime,
   SandboxedWorkerRuntime,
   createAgentOrchestratorServer,
 } from "../server.mjs";
@@ -66,8 +71,9 @@ test("health reports execution runtime without auth", async () => {
   assert.deepEqual(await response.json(), {
     status: "ok",
     service: "agent-orchestrator",
-    storage: "adapter",
+    storage: "memory",
     execution_enabled: true,
+    external_traffic_enabled: false,
   });
 });
 
@@ -235,4 +241,79 @@ test("HTTP API supports submit, approve, execute, cancel, retry, and lookup", as
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
+});
+
+
+test("HTTP production providers persist, queue, authorize, execute, and emit audit events", async () => {
+  const requests = [];
+  const jobs = new Map();
+  const queued = [];
+  const fetchFn = async (url, options = {}) => {
+    const body = options.body ? JSON.parse(options.body) : undefined;
+    requests.push({ url, method: options.method || "GET", body, auth: options.headers?.Authorization });
+
+    if (url.includes("/store/jobs/by-idempotency/")) {
+      const found = [...jobs.values()].find((job) => job.tenant_id === "tenant-1" && job.idempotency_key === "idem-1");
+      return found ? Response.json(found) : new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+    }
+    if (url.includes("/store/jobs/") && options.method === "PUT") {
+      jobs.set(body.id, body);
+      return Response.json(body);
+    }
+    if (url.includes("/store/jobs/")) {
+      const id = decodeURIComponent(url.split("/store/jobs/")[1]);
+      const job = jobs.get(id);
+      return job ? Response.json(job) : new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+    }
+    if (url.endsWith("/queue")) {
+      queued.push(body);
+      return Response.json(body);
+    }
+    if (url.endsWith("/queue/next")) {
+      return queued.length ? Response.json(queued.shift()) : new Response(null, { status: 204 });
+    }
+    if (url.endsWith("/audit/events")) {
+      return Response.json({ accepted: true });
+    }
+    if (url.endsWith("/identity/authorize-approval")) {
+      return Response.json({ allowed: true });
+    }
+    if (url.endsWith("/sandbox/execute")) {
+      return Response.json({
+        status: "succeeded",
+        result_refs: [{ type: "artifact", id: "result-1" }],
+        usage: { input_tokens: 1, output_tokens: 1, runtime_ms: 5 },
+        audit: { worker_id: "sandbox-1", attempt: body.attempt, tool_calls: [{ tool: "repo.read", scope: "cvsz/z-platform", mutating: false, status: "succeeded" }] },
+      });
+    }
+    return new Response(JSON.stringify({ error: "unhandled" }), { status: 500 });
+  };
+
+  let nextId = 1;
+  const orchestrator = new AgentOrchestrator({
+    store: new HttpJobStore({ baseUrl: "https://providers.internal/store", token: "service-token", fetchFn }),
+    queue: new HttpQueueAdapter({ baseUrl: "https://providers.internal/queue", token: "service-token", fetchFn }),
+    audit: new HttpAuditSink({ baseUrl: "https://providers.internal/audit", token: "service-token", fetchFn }),
+    identity: new HttpIdentityProvider({ baseUrl: "https://providers.internal/identity", token: "service-token", fetchFn }),
+    worker: new HttpSandboxRuntime({ baseUrl: "https://providers.internal/sandbox", token: "service-token", fetchFn }),
+    idGenerator: () => `job-${nextId++}`,
+    now: () => "2026-07-13T00:00:00.000Z",
+  });
+
+  const submitted = await submit(orchestrator);
+  await orchestrator.approve(submitted.id, { approved_by: "operator-1" });
+  const completed = await orchestrator.runNext();
+
+  assert.equal(completed.status, "succeeded");
+  assert.equal(completed.audit.worker_id, "sandbox-1");
+  assert.ok(requests.some((request) => request.url.endsWith("/identity/authorize-approval")));
+  assert.ok(requests.some((request) => request.url.endsWith("/sandbox/execute")));
+  assert.ok(requests.every((request) => request.auth === "Bearer service-token"));
+});
+
+test("production provider mode requires operator-approved provider URLs", () => {
+  assert.throws(
+    () => createAgentOrchestratorServer({ env: { Z_PLATFORM_SERVICE_TOKEN: "service-token", AGENT_ORCHESTRATOR_PROVIDER_MODE: "production" } }),
+    /missing production provider config/,
+  );
 });
