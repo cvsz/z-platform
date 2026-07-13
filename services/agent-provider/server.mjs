@@ -139,6 +139,9 @@ export async function createAgentProviderServer({ env = process.env, state = new
         if (job.approval_state !== "approved" || !Array.isArray(job.approved_tool_grants)) return send(res, 403, { error: "Approved grants are required" });
         const mutating = job.approved_tool_grants.filter((grant) => grant.mutating);
         if (mutating.length && job.constraints?.sandbox !== "restricted") return send(res, 403, { error: "Mutating jobs require restricted sandbox" });
+        if (env.AGENT_TEST_FAILURE_INJECTION === "true" && job.objective === "readiness:fail-first-attempt" && Number(job.attempt) === 1) {
+          return send(res, 503, { error: "Injected first-attempt failure for readiness verification" });
+        }
         return send(res, 200, {
           status: "succeeded",
           result_refs: [{ type: "agent-result", id: `${job.id}-attempt-${job.attempt}` }],
