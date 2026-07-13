@@ -21,7 +21,7 @@ Source repository: `cvsz/zeaz-platform`
 | Browser gateway proxy and terminal shell | `apps/zaicoder/web` | Add server-side gateway proxy, input validation and basic browser UI | complete |
 | Browser response streaming | `apps/zaicoder/web` | Add end-to-end SSE proxying and browser delta rendering | complete |
 | Browser file upload proxy | `apps/zaicoder/web` | Proxy uploads through the platform gateway without exposing provider credentials | partial |
-| Persistent project/workspace metadata | `apps/zaicoder/web` + workspace runtime | Add retention, ownership, and provider attachment translation | pending |
+| Persistent project/workspace metadata | `apps/zaicoder/web` + workspace runtime | Add local metadata boundary, owner field, retention timestamps, and uploaded-file links | partial |
 
 ## Candidate migrations
 
