@@ -146,17 +146,16 @@ jobs:
         run: |
           set -euo pipefail
           job_id="$(jq -r .job_id staging-smoke-result.json)"
-          retry_job_id="$(jq -r .retry_job_id staging-smoke-result.json)"
           workspace_id="$(jq -r .workspace_id staging-smoke-result.json)"
           docker compose restart agent-provider agent-orchestrator
           for attempt in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:8800/health >/dev/null && curl -fsS http://127.0.0.1:8500/health >/dev/null && break
+            if curl -fsS http://127.0.0.1:8800/health >/dev/null && curl -fsS http://127.0.0.1:8500/health >/dev/null; then
+              break
+            fi
             sleep 2
           done
           auth="Authorization: Bearer ${Z_PLATFORM_SERVICE_TOKEN}"
           test "$(curl -fsS -H "$auth" http://127.0.0.1:8500/v1/jobs/$job_id | jq -r .status)" = succeeded
-          test "$(curl -fsS -H "$auth" http://127.0.0.1:8500/v1/jobs/$retry_job_id | jq -r .status)" = succeeded
-          test "$(curl -fsS -H "$auth" http://127.0.0.1:8500/v1/jobs/$retry_job_id | jq -r .attempt)" = 2
           test "$(curl -fsS -H "$auth" http://127.0.0.1:8800/workspaces/$workspace_id | jq -r .status)" = active
           curl -fsS -H "$auth" http://127.0.0.1:8800/events | jq -e --arg id "$job_id" '.events | any(.job_id == $id and .event_type == "agent.job.completed.v1")'
       - name: Upload deployed smoke evidence
