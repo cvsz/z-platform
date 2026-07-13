@@ -15,7 +15,7 @@ The AI Gateway is the only platform service allowed to hold upstream model-provi
 - `GET /health` reports service status and upstream configuration without exposing secrets.
 - `GET /v1/models` returns the curated Hugging Face free/local model catalog in an OpenAI-compatible list shape.
 - `POST /v1/chat/completions` forwards chat requests to the configured upstream and translates platform attachments through the configured provider adapter.
-- `POST /v1/files` forwards file uploads and preserves the `X-Filename` header.
+- `POST /v1/files` forwards file uploads through the configured provider upload adapter and preserves safe `X-Filename` values.
 
 All non-health routes require `Authorization: Bearer <Z_PLATFORM_SERVICE_TOKEN>`.
 
@@ -35,7 +35,9 @@ Chat clients may send platform attachment references as `attachments: [{ "id": "
 
 `UPSTREAM_PROVIDER` selects the attachment message-shape adapter. Supported values are `openai-compatible`, `openai`, and `anthropic`. OpenAI-compatible providers receive a textual file-reference context on the final user message. Anthropic-style providers receive an appended user content block.
 
-Provider-specific binary/content upload adapters remain explicit follow-up work for each approved upstream provider.
+## Upload adapters
+
+`POST /v1/files` uses a provider upload adapter before upstream forwarding. `openai-compatible` and `openai` support binary/content pass-through with safe filename normalization. `anthropic` currently returns `unsupported_upload_provider` for binary uploads until an approved content upload contract is added.
 
 ## Required environment
 
@@ -48,7 +50,7 @@ Provider-specific binary/content upload adapters remain explicit follow-up work 
 
 ## Validation
 
-Run `npm test` in this directory to check health, service-token authorization, Hugging Face model catalog responses, request IDs, structured errors, audit events, attachment reference translation, upstream provider selection, upstream URL normalization, provider credential forwarding, file upload headers, upstream failure handling, and cancellation propagation.
+Run `npm test` in this directory to check health, service-token authorization, Hugging Face model catalog responses, request IDs, structured errors, audit events, attachment reference translation, upstream provider selection, upstream URL normalization, provider credential forwarding, upload adapter validation, file upload headers, upstream failure handling, and cancellation propagation.
 
 ## Prohibited responsibilities
 
