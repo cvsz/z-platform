@@ -5,11 +5,13 @@ import { Readable } from "node:stream";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ChatRequestError, forwardChat, forwardChatStream, forwardFile } from "./gateway.mjs";
+import { WorkspaceStore, WorkspaceStoreError } from "./workspace-store.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 3005);
 const contentTypes = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8" };
+const workspaceStore = new WorkspaceStore();
 
 function sendJson(response, status, payload) {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
@@ -25,11 +27,17 @@ async function readJson(request) {
   catch (error) { if (error instanceof ChatRequestError) throw error; throw new ChatRequestError("Request body must be valid JSON"); }
 }
 function handleError(response, error) {
-  sendJson(response, error instanceof ChatRequestError ? 400 : 500, { error: error.message || "Unexpected error" });
+  sendJson(response, error instanceof ChatRequestError || error instanceof WorkspaceStoreError ? 400 : 500, { error: error.message || "Unexpected error" });
 }
 
 const server = createServer(async (request, response) => {
   try {
+    if (request.method === "POST" && request.url === "/api/workspaces") return sendJson(response, 200, await workspaceStore.ensure(await readJson(request)));
+    const workspaceMatch = request.url?.match(/^\/api\/workspaces\/([^/]+)$/);
+    if (request.method === "GET" && workspaceMatch) {
+      const workspace = await workspaceStore.read(workspaceMatch[1]);
+      return workspace ? sendJson(response, 200, workspace) : sendJson(response, 404, { error: "Workspace not found" });
+    }
     if (request.method === "POST" && request.url === "/api/chat") return sendJson(response, 200, await forwardChat(await readJson(request)));
     if (request.method === "POST" && request.url === "/api/chat/stream") {
       const stream = await forwardChatStream(await readJson(request));
@@ -39,7 +47,13 @@ const server = createServer(async (request, response) => {
     if (request.method === "POST" && request.url === "/api/files") {
       const name = request.headers["x-filename"];
       if (typeof name !== "string") throw new ChatRequestError("X-Filename header is required");
-      return sendJson(response, 200, await forwardFile({ name, type: request.headers["content-type"], bytes: await readBody(request, 10 * 1024 * 1024) }));
+      const uploaded = await forwardFile({ name, type: request.headers["content-type"], bytes: await readBody(request, 10 * 1024 * 1024) });
+      const workspaceId = request.headers["x-workspace-id"];
+      if (typeof workspaceId === "string" && workspaceId.trim()) {
+        const workspace = await workspaceStore.addFile(workspaceId, uploaded);
+        return sendJson(response, 200, { ...uploaded, workspace_id: workspace.id });
+      }
+      return sendJson(response, 200, uploaded);
     }
   } catch (error) { return handleError(response, error); }
 
