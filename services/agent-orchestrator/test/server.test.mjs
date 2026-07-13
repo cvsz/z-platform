@@ -95,10 +95,12 @@ test("returns duplicate job for same tenant and idempotency key", async () => {
       headers: authHeaders(),
       body: JSON.stringify({ ...payload, task: "different task" }),
     });
+    const firstJob = await first.json();
+    const secondJob = await second.json();
 
     assert.equal(first.status, 202);
     assert.equal(second.status, 200);
-    assert.deepEqual(await second.json(), await first.json());
+    assert.deepEqual(secondJob, firstJob);
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
