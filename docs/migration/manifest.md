@@ -21,7 +21,7 @@ Source repository: `cvsz/zeaz-platform`
 | Browser gateway proxy and terminal shell | `apps/zaicoder/web` | Add server-side gateway proxy, input validation and basic browser UI | complete |
 | Browser response streaming | `apps/zaicoder/web` | Add end-to-end SSE proxying and browser delta rendering | complete |
 | Browser file upload proxy | `apps/zaicoder/web` | Proxy uploads through the platform gateway without exposing provider credentials | partial |
-| Persistent project/workspace metadata | `apps/zaicoder/web` + workspace runtime | Add adapter boundary, file-backed default, owner enforcement, retention timestamps, cleanup hooks, and uploaded-file links | partial |
+| Persistent project/workspace metadata | `apps/zaicoder/web` + workspace runtime | Add adapter boundary, file-backed default, owner enforcement, retention timestamps, cleanup runner, and uploaded-file links | partial |
 | Provider attachment adapters | `services/ai-gateway` | Add adapter registry, provider selection, OpenAI-compatible binary/content upload pass-through, and Anthropic unsupported-upload guardrails | partial |
 | Hugging Face model catalog | `services/ai-gateway` | Add curated free/local model metadata and protected `/v1/models` listing | partial |
 
