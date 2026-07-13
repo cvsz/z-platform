@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createAiGatewayServer } from "../server.mjs";
+import { createAiGatewayServer, translateChatPayload } from "../server.mjs";
 
 async function request(server, path, options = {}) {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -84,6 +84,43 @@ test("chat completions are forwarded to upstream with provider credentials", asy
   assert.equal(calls[0].options.headers["Content-Type"], "application/json");
   assert.equal(calls[0].options.headers["X-Request-Id"], "req-chat");
   assert.equal(events[0].event, "proxy_success");
+});
+
+test("translates platform attachment references before upstream chat requests", async () => {
+  const translated = JSON.parse(translateChatPayload(Buffer.from(JSON.stringify({
+    model: "default",
+    messages: [{ role: "user", content: "summarize" }],
+    attachments: [{ id: "file-1", name: "notes.txt" }],
+  }))).toString("utf8"));
+
+  assert.equal(translated.attachments, undefined);
+  assert.deepEqual(translated.metadata.z_platform.attachments, [{ id: "file-1", name: "notes.txt" }]);
+  assert.match(translated.messages[0].content, /Attached platform files:/);
+  assert.match(translated.messages[0].content, /notes\.txt \(file-1\)/);
+});
+
+test("invalid attachment contracts fail before upstream forwarding", async () => {
+  const server = createAiGatewayServer({
+    env,
+    logger: testLogger([]),
+    idGenerator: () => "req-invalid-attachment",
+    fetchImpl: async () => {
+      throw new Error("should not call upstream");
+    },
+  });
+
+  const response = await request(server, "/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: "Bearer service-token", "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [], attachments: [{ id: "file-1" }] }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    error: "attachments require id and name",
+    code: "invalid_attachments",
+    request_id: "req-invalid-attachment",
+  });
 });
 
 test("upstream url normalization accepts base urls without v1", async () => {
