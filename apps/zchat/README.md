@@ -12,10 +12,10 @@ This version keeps the browser UI thin and routes model calls through the platfo
 
 ## Required environment
 
-- `Z_PLATFORM_AI_GATEWAY_URL`
-- `Z_PLATFORM_SERVICE_TOKEN`
-- `HOST` optional, defaults to `127.0.0.1`
-- `PORT` optional, defaults to `3021`
+- `Z_PLATFORM_AI_GATEWAY_URL`: AI Gateway base URL. Both `http://gateway:8400` and `http://gateway:8400/v1` are accepted.
+- `Z_PLATFORM_SERVICE_TOKEN`: service token used only by this server-side proxy.
+- `HOST` optional, defaults to `127.0.0.1`.
+- `PORT` optional, defaults to `3021`.
 
 ## Migration limits
 
