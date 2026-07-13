@@ -6,7 +6,7 @@
   "scripts": {
     "validate:templates": "node validate-manifest.mjs",
     "validate:skills": "node validate-skills-registry.mjs",
-    "test": "npm run validate:skills"
+    "test": "npm run validate:templates && npm run validate:skills && node --test"
   },
   "engines": {
     "node": ">=20"
