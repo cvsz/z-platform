@@ -62,6 +62,16 @@ Source repository: `cvsz/zeaz-platform`
 | Credits and invoice intents | `services/billing-ledger` | Implement tenant credits and invoice-intent boundary | complete |
 | ZWallet audited adapter | `apps/zwallet` | Forward only credits and invoice intents; reject signing, cards, KYC, MPC, and swaps | complete |
 
+## Phase 6 - Platform operations
+
+| Item | Target | Action | Status |
+|---|---|---|---|
+| CI and security gates | `.github/workflows` + `tools/ops` | Add runtime tests, dependency checks, and secret scanning | complete |
+| SBOM and provenance | `tools/ops` + operations workflow | Generate SPDX SBOM and verify package provenance metadata | complete |
+| Cloudflare Access policies | `docs/operations` | Define service-to-service policy map and deny rules | complete |
+| Observability and runbooks | `docs/operations` | Document health, logs, metrics, traces, backups, restore, and incidents | complete |
+| Staging readiness | `docs/operations/staging-readiness.md` | Add pre-production review checklist | complete |
+
 ## Candidate migrations
 
 | Legacy source | Target | Selection rule | Status |
