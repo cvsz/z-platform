@@ -167,8 +167,150 @@ export class SandboxedWorkerRuntime {
   }
 }
 
+function normalizeBaseUrl(value, name) {
+  if (typeof value !== "string" || !value.trim()) throw new AgentOrchestratorError(`${name} is required`, 500);
+  const url = new URL(value);
+  if (!["http:", "https:"].includes(url.protocol)) throw new AgentOrchestratorError(`${name} must be http or https`, 500);
+  return url.toString().replace(/\/$/, "");
+}
+
+class HttpJsonClient {
+  constructor({ baseUrl, token, fetchFn = globalThis.fetch, timeoutMs = 5000, name }) {
+    this.baseUrl = normalizeBaseUrl(baseUrl, name);
+    this.token = token;
+    this.fetchFn = fetchFn;
+    this.timeoutMs = timeoutMs;
+    if (typeof this.fetchFn !== "function") throw new AgentOrchestratorError("fetch implementation is unavailable", 500);
+  }
+
+  async request(path, options = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchFn(`${this.baseUrl}${path}`, {
+        ...options,
+        headers: {
+          Accept: "application/json",
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+          ...options.headers,
+        },
+        signal: controller.signal,
+      });
+      if (response.status === 404) return null;
+      if (!response.ok) {
+        let message = `provider request failed with status ${response.status}`;
+        try {
+          const payload = await response.json();
+          if (payload?.error) message = payload.error;
+        } catch {}
+        throw new AgentOrchestratorError(message, response.status);
+      }
+      if (response.status === 204) return null;
+      return response.json();
+    } catch (error) {
+      if (error?.name === "AbortError") throw new AgentOrchestratorError("provider request timed out", 504);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+export class HttpJobStore {
+  constructor({ baseUrl = process.env.AGENT_JOB_STORE_URL, token = process.env.Z_PLATFORM_SERVICE_TOKEN, fetchFn, timeoutMs = Number(process.env.AGENT_PROVIDER_TIMEOUT_MS || 5000) } = {}) {
+    this.client = new HttpJsonClient({ baseUrl, token, fetchFn, timeoutMs, name: "AGENT_JOB_STORE_URL" });
+  }
+
+  async findById(id) {
+    return this.client.request(`/jobs/${encodeURIComponent(id)}`);
+  }
+
+  async findByIdempotency(tenantId, idempotencyKey) {
+    return this.client.request(`/jobs/by-idempotency/${encodeURIComponent(tenantId)}/${encodeURIComponent(idempotencyKey)}`);
+  }
+
+  async save(job) {
+    return this.client.request(`/jobs/${encodeURIComponent(job.id)}`, { method: "PUT", body: JSON.stringify(job) });
+  }
+}
+
+export class HttpQueueAdapter {
+  constructor({ baseUrl = process.env.AGENT_QUEUE_URL, token = process.env.Z_PLATFORM_SERVICE_TOKEN, fetchFn, timeoutMs = Number(process.env.AGENT_PROVIDER_TIMEOUT_MS || 5000) } = {}) {
+    this.client = new HttpJsonClient({ baseUrl, token, fetchFn, timeoutMs, name: "AGENT_QUEUE_URL" });
+  }
+
+  async enqueue(item) {
+    return this.client.request("/queue", { method: "POST", body: JSON.stringify(item) });
+  }
+
+  async dequeue() {
+    return this.client.request("/queue/next", { method: "POST" });
+  }
+}
+
+export class HttpAuditSink {
+  constructor({ baseUrl = process.env.AGENT_AUDIT_URL, token = process.env.Z_PLATFORM_SERVICE_TOKEN, fetchFn, timeoutMs = Number(process.env.AGENT_PROVIDER_TIMEOUT_MS || 5000) } = {}) {
+    this.client = new HttpJsonClient({ baseUrl, token, fetchFn, timeoutMs, name: "AGENT_AUDIT_URL" });
+  }
+
+  async emit(event) {
+    return this.client.request("/events", { method: "POST", body: JSON.stringify(event) });
+  }
+}
+
+export class HttpIdentityProvider {
+  constructor({ baseUrl = process.env.AGENT_IDENTITY_URL, token = process.env.Z_PLATFORM_SERVICE_TOKEN, fetchFn, timeoutMs = Number(process.env.AGENT_PROVIDER_TIMEOUT_MS || 5000) } = {}) {
+    this.client = new HttpJsonClient({ baseUrl, token, fetchFn, timeoutMs, name: "AGENT_IDENTITY_URL" });
+  }
+
+  async assertActorCanApprove(actor, job) {
+    const result = await this.client.request("/authorize-approval", { method: "POST", body: JSON.stringify({ actor, job }) });
+    if (!result?.allowed) throw new AgentOrchestratorError("approval actor is not authorized", 403);
+    return result;
+  }
+}
+
+export class HttpSandboxRuntime {
+  constructor({ baseUrl = process.env.AGENT_SANDBOX_URL, token = process.env.Z_PLATFORM_SERVICE_TOKEN, fetchFn, timeoutMs = Number(process.env.AGENT_SANDBOX_TIMEOUT_MS || process.env.AGENT_PROVIDER_TIMEOUT_MS || 30000) } = {}) {
+    this.client = new HttpJsonClient({ baseUrl, token, fetchFn, timeoutMs, name: "AGENT_SANDBOX_URL" });
+  }
+
+  async execute(job) {
+    return this.client.request("/execute", { method: "POST", body: JSON.stringify(job) });
+  }
+}
+
+export function createProductionProvidersFromEnv(env = process.env) {
+  const required = ["AGENT_JOB_STORE_URL", "AGENT_QUEUE_URL", "AGENT_AUDIT_URL", "AGENT_IDENTITY_URL", "AGENT_SANDBOX_URL"];
+  const missing = required.filter((name) => !env[name]);
+  if (missing.length > 0) throw new AgentOrchestratorError(`missing production provider config: ${missing.join(", ")}`, 500);
+  return {
+    store: new HttpJobStore({ baseUrl: env.AGENT_JOB_STORE_URL, token: env.Z_PLATFORM_SERVICE_TOKEN, timeoutMs: Number(env.AGENT_PROVIDER_TIMEOUT_MS || 5000) }),
+    queue: new HttpQueueAdapter({ baseUrl: env.AGENT_QUEUE_URL, token: env.Z_PLATFORM_SERVICE_TOKEN, timeoutMs: Number(env.AGENT_PROVIDER_TIMEOUT_MS || 5000) }),
+    audit: new HttpAuditSink({ baseUrl: env.AGENT_AUDIT_URL, token: env.Z_PLATFORM_SERVICE_TOKEN, timeoutMs: Number(env.AGENT_PROVIDER_TIMEOUT_MS || 5000) }),
+    identity: new HttpIdentityProvider({ baseUrl: env.AGENT_IDENTITY_URL, token: env.Z_PLATFORM_SERVICE_TOKEN, timeoutMs: Number(env.AGENT_PROVIDER_TIMEOUT_MS || 5000) }),
+    worker: new HttpSandboxRuntime({ baseUrl: env.AGENT_SANDBOX_URL, token: env.Z_PLATFORM_SERVICE_TOKEN, timeoutMs: Number(env.AGENT_SANDBOX_TIMEOUT_MS || env.AGENT_PROVIDER_TIMEOUT_MS || 30000) }),
+  };
+}
+
+export function createAgentOrchestratorFromEnv(env = process.env) {
+  if ((env.AGENT_ORCHESTRATOR_PROVIDER_MODE || "memory").toLowerCase() === "production") {
+    return new AgentOrchestrator(createProductionProvidersFromEnv(env));
+  }
+  return new AgentOrchestrator();
+}
+
 export class AgentOrchestrator {
-  constructor({ store = new MemoryJobStore(), queue = new MemoryQueueAdapter(), audit = new MemoryAuditSink(), worker = new SandboxedWorkerRuntime(), idGenerator = randomUUID, now = () => new Date().toISOString() } = {}) {
+  constructor({ store = new MemoryJobStore(), queue = new MemoryQueueAdapter(), audit = new MemoryAuditSink(), identity, worker = new SandboxedWorkerRuntime(), idGenerator = randomUUID, now = () => new Date().toISOString() } = {}) {
+    this.store = store;
+    this.queue = queue;
+    this.audit = audit;
+    this.identity = identity;
+    this.worker = worker;
+    this.idGenerator = idGenerator;
+    this.now = now;
+  }
     this.store = store;
     this.queue = queue;
     this.audit = audit;
@@ -217,6 +359,7 @@ export class AgentOrchestrator {
     const job = await this.get(id);
     if (job.status !== "pending_approval") throw new AgentOrchestratorError("Job is not awaiting approval", 409);
     const approvedBy = requireString(input.approved_by, "approved_by");
+    if (this.identity) await this.identity.assertActorCanApprove({ type: "user", id: approvedBy }, job);
     const grants = normalizeToolGrants(input.tool_grants ?? job.requested_tool_grants);
     assertApprovedGrants(job.requested_tool_grants, grants);
     const next = await this.store.save({
@@ -305,10 +448,11 @@ export class AgentOrchestrator {
 }
 
 export function createAgentOrchestratorServer({ env = process.env, orchestrator, jobs, idGenerator = randomUUID, now = () => new Date().toISOString() } = {}) {
-  const service = orchestrator || new AgentOrchestrator({ store: new MemoryJobStore({ jobs }), idGenerator, now });
+  const providerMode = (env.AGENT_ORCHESTRATOR_PROVIDER_MODE || "memory").toLowerCase();
+  const service = orchestrator || (providerMode === "production" ? createAgentOrchestratorFromEnv(env) : new AgentOrchestrator({ store: new MemoryJobStore({ jobs }), idGenerator, now }));
   return createServer(async (request, response) => {
     if (request.method === "GET" && request.url === "/health") {
-      return json(response, 200, { status: "ok", service: "agent-orchestrator", storage: "adapter", execution_enabled: true });
+      return json(response, 200, { status: "ok", service: "agent-orchestrator", storage: providerMode === "production" ? "production-adapters" : "memory", execution_enabled: true, external_traffic_enabled: env.AGENT_EXTERNAL_TRAFFIC_ENABLED === "true" });
     }
 
     if (!authorized(request, env)) return json(response, 401, { error: "Unauthorized" });
