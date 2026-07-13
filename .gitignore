@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.pnpm-store/
+.terraform/
+*.tfstate
+*.tfstate.*
+secrets/
