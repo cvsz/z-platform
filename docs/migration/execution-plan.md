@@ -40,11 +40,16 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 
 ## Phase 2 — Agent orchestration
 
-1. Define `agent.job.requested.v1`, `agent.job.approved.v1`, and `agent.job.completed.v1`.
-2. Implement a durable job store and queue adapter.
-3. Require explicit tool grants and an approval state for mutating jobs.
-4. Run workers in a sandboxed runtime with resource limits.
-5. Export audit events to the platform observability pipeline.
+### Completed
+
+- Defined `agent.job.requested.v1`, `agent.job.approved.v1`, and `agent.job.completed.v1` contracts with JSON schemas and validation tests.
+
+### Remaining
+
+1. Implement a durable job store and queue adapter.
+2. Require explicit tool grants and an approval state for mutating jobs.
+3. Run workers in a sandboxed runtime with resource limits.
+4. Export audit events to the platform observability pipeline.
 
 **Done when:** an agent job can be submitted, approved, executed with scoped tools, cancelled, retried idempotently, and audited.
 
