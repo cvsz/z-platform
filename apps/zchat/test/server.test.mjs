@@ -43,7 +43,7 @@ test("chat rejects missing prompt before calling the gateway", async () => {
   assert.equal(called, false);
 });
 
-test("chat forwards trimmed prompt through the AI gateway", async () => {
+test("chat forwards trimmed prompt through the AI gateway v1 endpoint", async () => {
   const calls = [];
   const result = await chat(
     { prompt: "  hello  ", model: "fast" },
@@ -58,13 +58,27 @@ test("chat forwards trimmed prompt through the AI gateway", async () => {
   );
 
   assert.deepEqual(result, { content: "world" });
-  assert.equal(calls[0].url, "http://gateway/chat/completions");
+  assert.equal(calls[0].url, "http://gateway/v1/chat/completions");
   assert.equal(calls[0].options.headers.Authorization, "Bearer service-token");
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     model: "fast",
     messages: [{ role: "user", content: "hello" }],
     stream: false,
   });
+});
+
+test("chat does not duplicate v1 when gateway url already includes it", async () => {
+  const calls = [];
+  await chat(
+    { prompt: "hello" },
+    { Z_PLATFORM_AI_GATEWAY_URL: "http://gateway/v1", Z_PLATFORM_SERVICE_TOKEN: "service-token" },
+    async (url) => {
+      calls.push(url);
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 });
+    },
+  );
+
+  assert.equal(calls[0], "http://gateway/v1/chat/completions");
 });
 
 test("api chat returns gateway content", async () => {
