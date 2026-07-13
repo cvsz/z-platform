@@ -22,6 +22,12 @@ Every response includes `X-Request-Id`. Clients may provide `X-Request-Id`; othe
 
 Client disconnects and upstream aborts are treated as cancellations. The gateway propagates cancellation to the upstream request and records a redacted `request_cancelled` audit event.
 
+## Attachment translation
+
+Chat clients may send platform attachment references as `attachments: [{ "id": "...", "name": "..." }]`. The gateway validates the references, removes the client-facing `attachments` field before upstream forwarding, stores the references in `metadata.z_platform.attachments`, and appends a textual file-reference context to the final user message.
+
+Provider-specific binary/content adapters remain explicit follow-up work for each approved upstream provider.
+
 ## Required environment
 
 - `Z_PLATFORM_SERVICE_TOKEN`: internal service token accepted from platform clients.
@@ -32,7 +38,7 @@ Client disconnects and upstream aborts are treated as cancellations. The gateway
 
 ## Validation
 
-Run `npm test` in this directory to check health, service-token authorization, request IDs, structured errors, audit events, upstream URL normalization, provider credential forwarding, file upload headers, upstream failure handling, and cancellation propagation.
+Run `npm test` in this directory to check health, service-token authorization, request IDs, structured errors, audit events, attachment reference translation, upstream URL normalization, provider credential forwarding, file upload headers, upstream failure handling, and cancellation propagation.
 
 ## Prohibited responsibilities
 
