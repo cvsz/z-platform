@@ -55,11 +55,16 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 
 ## Phase 3 — ZChat migration
 
-1. Import only the presentation and conversation-state layers.
-2. Replace direct model/provider configuration with the AI Gateway model catalog.
-3. Use platform identity and tenant scopes.
-4. Add shared conversation IDs and usage correlation.
-5. Validate streaming, accessibility, mobile layout, and logout/session expiry.
+### Completed
+
+- Imported only the thin presentation and conversation-state layers into the platform-owned ZChat shell.
+- Replaced direct model/provider configuration with the AI Gateway model catalog.
+- Added tenant scope headers, shared conversation IDs, request IDs, and usage correlation.
+- Added streaming proxy support, logout/session-expiry handling, and accessible responsive UI structure with test coverage.
+
+### Remaining
+
+- Run deployed-environment accessibility, mobile layout, and session-provider QA after the operator selects the platform identity provider.
 
 **Done when:** ZChat works against the platform gateway and no browser configuration can contain an upstream key.
 
