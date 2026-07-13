@@ -2,7 +2,7 @@
 
 ## Objective
 
-Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-copying legacy architecture, secrets, deployment identifiers, or unsafe financial capabilities.
+Create a clean, secure platform successor to `https://github.com/cvsz/z-platform` without bulk-copying legacy architecture, secrets, deployment identifiers, or unsafe financial capabilities.
 
 ## Operating rules
 
