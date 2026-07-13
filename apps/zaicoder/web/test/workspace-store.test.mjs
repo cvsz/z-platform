@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -75,6 +75,21 @@ test("supports custom durable workspace adapters", async () => {
   assert.equal(records.get("workspace-1").owner, "tenant-1");
 });
 
+test("lists valid file-backed workspace ids", async () => {
+  const root = await mkdtemp(join(tmpdir(), "zaicoder-workspaces-"));
+  try {
+    const adapter = new FileWorkspaceAdapter({ root });
+    await writeFile(join(root, "alpha.json"), "{}\n", "utf8");
+    await writeFile(join(root, "bad..json"), "{}\n", "utf8");
+    await writeFile(join(root, "notes.txt"), "ignore\n", "utf8");
+    await writeFile(join(root, "zeta.json"), "{}\n", "utf8");
+
+    assert.deepEqual(await adapter.listIds(), ["alpha", "zeta"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("cleans up expired workspace metadata through adapter deletion", async () => {
   const root = await mkdtemp(join(tmpdir(), "zaicoder-workspaces-"));
   try {
@@ -83,7 +98,7 @@ test("cleans up expired workspace metadata through adapter deletion", async () =
     await store.save({ id: "expired", owner: "tenant-1", retention_days: 1, created_at: "2026-07-01T00:00:00.000Z", updated_at: "2026-07-01T00:00:00.000Z", expires_at: "2026-07-02T00:00:00.000Z", files: [] });
     await store.save({ id: "active", owner: "tenant-1", retention_days: 30, created_at: "2026-07-13T00:00:00.000Z", updated_at: "2026-07-13T00:00:00.000Z", expires_at: "2026-08-12T00:00:00.000Z", files: [] });
 
-    assert.deepEqual(await store.cleanupExpired(["expired", "active"]), ["expired"]);
+    assert.deepEqual(await store.cleanupExpired(), ["expired"]);
     assert.equal(await store.read("expired"), null);
     assert.equal((await store.read("active")).id, "active");
   } finally {
