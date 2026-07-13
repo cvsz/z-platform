@@ -18,7 +18,8 @@ Source repository: `cvsz/zeaz-platform`
 | AI gateway boundary | `services/ai-gateway` | Establish ownership and safe runtime configuration | complete |
 | Streaming, MCP and model preflight runtime | `apps/zaicoder/backend` | Migrate tested isolated modules and regression tests | complete |
 | Gateway-backed CLI | `apps/zaicoder/backend` | Add OpenAI-compatible client, command entry point and unit tests | complete |
-| Browser-terminal import | `apps/zaicoder/web` | Import remaining UI only after server-route and auth audit | pending |
+| Browser gateway proxy and terminal shell | `apps/zaicoder/web` | Add server-side gateway proxy, input validation and basic browser UI | complete |
+| Advanced browser-terminal capabilities | `apps/zaicoder/web` | Import streaming, files and workspace behavior after component audit | pending |
 
 ## Candidate migrations
 
