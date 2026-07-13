@@ -6,7 +6,7 @@
 |---|---|---|
 | Product UI | `apps/*` | User-facing web, desktop, mobile interfaces |
 | AI gateway | `services/ai-gateway` | Provider routing, quotas, policy enforcement |
-| Agent orchestration | `services/agent-orchestrator` | Task lifecycle, queues, tool policy, and audit events |
+| Agent orchestration | `services/agent-orchestrator` | Task lifecycle, durable store/queue adapters, scoped tool policy, sandbox workers, and audit events |
 | Research | `services/research-worker` | Isolated research jobs and report output |
 | Billing | `services/billing-ledger` | Usage accounting and payment adapter boundary |
 | Shared contracts | `packages/contracts` | Versioned API/event schemas |
