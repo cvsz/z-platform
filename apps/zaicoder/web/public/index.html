@@ -11,6 +11,7 @@
       <header><h1>ZAI Coder</h1><p>Gateway-backed coding assistant</p></header>
       <label>Model <input id="model" value="default" maxlength="120" /></label>
       <label>Prompt <textarea id="prompt" rows="10" maxlength="12000" placeholder="Ask about your code…"></textarea></label>
+      <label class="toggle"><input id="stream" type="checkbox" checked /> Stream response</label>
       <button id="send" type="button">Send</button>
       <pre id="output" aria-live="polite"></pre>
     </main>
