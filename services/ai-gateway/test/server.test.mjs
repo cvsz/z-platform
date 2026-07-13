@@ -64,9 +64,28 @@ test("chat completions are forwarded to upstream with provider credentials", asy
 
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { choices: [{ message: { content: "ok" } }] });
-  assert.equal(calls[0].url, "http://upstream/v1/v1/chat/completions");
+  assert.equal(calls[0].url, "http://upstream/v1/chat/completions");
   assert.equal(calls[0].options.headers.Authorization, "Bearer upstream-key");
   assert.equal(calls[0].options.headers["Content-Type"], "application/json");
+});
+
+test("upstream url normalization accepts base urls without v1", async () => {
+  const calls = [];
+  const server = createAiGatewayServer({
+    env: { ...env, UPSTREAM_BASE_URL: "http://upstream" },
+    fetchImpl: async (url) => {
+      calls.push(url);
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 });
+    },
+  });
+
+  await request(server, "/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: "Bearer service-token", "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [] }),
+  });
+
+  assert.equal(calls[0], "http://upstream/v1/chat/completions");
 });
 
 test("file uploads forward filename header", async () => {
@@ -94,6 +113,7 @@ test("file uploads forward filename header", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { id: "file-1" });
+  assert.equal(calls[0].url, "http://upstream/v1/files");
   assert.equal(calls[0].options.headers["X-Filename"], "notes.txt");
   assert.equal(calls[0].options.headers["Content-Type"], "text/plain");
 });
