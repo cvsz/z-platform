@@ -100,21 +100,21 @@ jobs:
 
   deployed-smoke:
     runs-on: ubuntu-latest
+    env:
+      Z_PLATFORM_SERVICE_TOKEN: ci-readiness-token
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Start isolated Compose deployment
-        env:
-          Z_PLATFORM_SERVICE_TOKEN: ci-readiness-token
         run: docker compose up -d --build
       - name: Wait for every service to become healthy
         shell: bash
         run: |
           set -euo pipefail
           for attempt in $(seq 1 60); do
-            unhealthy="$(docker compose ps --format json | jq -r 'select(.Health != "healthy") | .Service' | tr '\n' ' ')"
+            unhealthy="$(docker compose ps --format json | jq -r '.[] | select(.Health != "healthy") | .Service' | tr '\n' ' ')"
             [ -z "$unhealthy" ] && exit 0
             echo "waiting for: $unhealthy"
             sleep 2
@@ -123,13 +123,9 @@ jobs:
           docker compose logs
           exit 1
       - name: Run deployed readiness contracts
-        env:
-          Z_PLATFORM_SERVICE_TOKEN: ci-readiness-token
         run: node scripts/staging-smoke.mjs | tee staging-smoke-result.json
       - name: Restart durable provider and verify persisted state
         shell: bash
-        env:
-          Z_PLATFORM_SERVICE_TOKEN: ci-readiness-token
         run: |
           set -euo pipefail
           job_id="$(jq -r .job_id staging-smoke-result.json)"
