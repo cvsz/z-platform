@@ -28,6 +28,9 @@ tools/      Developer tooling and generators
 
 This repository does not bulk-copy legacy applications. Each migration must have an owner, dependency inventory, tests, security review, and rollback path.
 
+Provider and model allowlists are tracked explicitly. Secrets, payment credentials, wallet keys, and provider API keys stay outside the repository.
+
+- [Provider list](PROVIDER-LIST.md)
 - [Migration manifest](docs/migration/manifest.md)
 - [Full execution plan](docs/migration/execution-plan.md)
 
