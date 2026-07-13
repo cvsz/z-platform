@@ -13,9 +13,9 @@ This file records the approved AI provider surfaces and model catalog entries fo
 
 | Provider surface | `UPSTREAM_PROVIDER` | Endpoint shape | Credential env | Status | Notes |
 |---|---|---|---|---|---|
-| OpenAI-compatible | `openai-compatible` | `/v1/chat/completions`, `/v1/files` | `UPSTREAM_API_KEY` | active | Default adapter for LiteLLM, OpenAI-compatible local servers, vLLM OpenAI server, TGI OpenAI-compatible fronts, Ollama-compatible proxies, and compatible cloud gateways. |
-| OpenAI-compatible alias | `openai` | `/v1/chat/completions`, `/v1/files` | `UPSTREAM_API_KEY` | active | Same message shape as `openai-compatible`; useful when the operator wants a shorter provider label. |
-| Anthropic message shape | `anthropic` | chat/messages-compatible upstream behind gateway normalization | `UPSTREAM_API_KEY` | partial | Attachment references are translated into appended user content blocks. Direct binary upload/content adapters remain follow-up work. |
+| OpenAI-compatible | `openai-compatible` | `/v1/chat/completions`, `/v1/files` | `UPSTREAM_API_KEY` | active | Default adapter for LiteLLM, OpenAI-compatible local servers, vLLM OpenAI server, TGI OpenAI-compatible fronts, Ollama-compatible proxies, and compatible cloud gateways. Supports binary/content upload pass-through with safe filename normalization. |
+| OpenAI-compatible alias | `openai` | `/v1/chat/completions`, `/v1/files` | `UPSTREAM_API_KEY` | active | Same message and upload shape as `openai-compatible`; useful when the operator wants a shorter provider label. |
+| Anthropic message shape | `anthropic` | chat/messages-compatible upstream behind gateway normalization | `UPSTREAM_API_KEY` | partial | Attachment references are translated into appended user content blocks. Binary file uploads return `unsupported_upload_provider` until an approved Anthropic content upload contract is added. |
 | Hugging Face catalog | `openai-compatible` | metadata via `GET /v1/models`; inference through configured compatible runtime | `UPSTREAM_API_KEY` when using a hosted endpoint | partial | Catalog is bundled metadata for free/local/open-license model candidates. Runtime must be local, self-hosted, or operator-provisioned. |
 
 ## Required Environment
@@ -25,7 +25,7 @@ This file records the approved AI provider surfaces and model catalog entries fo
 | `Z_PLATFORM_SERVICE_TOKEN` | yes | Internal bearer token accepted from trusted platform clients. |
 | `UPSTREAM_BASE_URL` | yes for inference | Approved upstream base URL. Both `http://provider` and `http://provider/v1` are accepted. |
 | `UPSTREAM_API_KEY` | yes for inference | Upstream credential held only by the gateway. For local runtimes, use a local service token or placeholder only when the runtime requires one. |
-| `UPSTREAM_PROVIDER` | no | Attachment/message-shape adapter. Defaults to `openai-compatible`. |
+| `UPSTREAM_PROVIDER` | no | Attachment/message-shape and upload adapter. Defaults to `openai-compatible`. |
 
 ## Hugging Face Free/Local Catalog
 
@@ -60,7 +60,7 @@ These entries are exposed through `GET /v1/models` with `Authorization: Bearer <
 
 ## Follow-Up Work
 
-- Add provider-specific binary/content upload adapters for approved upstreams.
+- Add approved binary/content upload contracts for non-OpenAI-compatible upstreams.
 - Add operator-managed model availability checks.
 - Add tenant-scoped model entitlement policy.
 - Add usage events per provider and model.
