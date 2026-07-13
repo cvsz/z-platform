@@ -20,10 +20,10 @@ Source repository: `cvsz/zeaz-platform`
 | Gateway-backed CLI | `apps/zaicoder/backend` | Add OpenAI-compatible client, command entry point and unit tests | complete |
 | Browser gateway proxy and terminal shell | `apps/zaicoder/web` | Add server-side gateway proxy, input validation and basic browser UI | complete |
 | Browser response streaming | `apps/zaicoder/web` | Add end-to-end SSE proxying and browser delta rendering | complete |
-| Browser file upload proxy | `apps/zaicoder/web` | Proxy uploads through the platform gateway without exposing provider credentials | partial |
+| Browser file upload proxy | `apps/zaicoder/web` | Proxy uploads through the platform gateway without exposing provider credentials | complete |
 | Persistent project/workspace metadata | `apps/zaicoder/web` + workspace runtime | Add adapter boundary, file-backed default, HTTP durable metadata adapter, owner enforcement, retention timestamps, cleanup runner, and uploaded-file links | complete |
-| Provider attachment adapters | `services/ai-gateway` | Add adapter registry, provider selection, OpenAI-compatible binary/content upload pass-through, and Anthropic unsupported-upload guardrails | partial |
-| Hugging Face model catalog | `services/ai-gateway` | Add curated free/local model metadata and protected `/v1/models` listing | partial |
+| Provider attachment adapters | `services/ai-gateway` | Add adapter registry, provider selection, OpenAI-compatible binary/content upload pass-through, and Anthropic unsupported-upload guardrails | complete |
+| Hugging Face model catalog | `services/ai-gateway` | Add curated free/local model metadata and protected `/v1/models` listing | complete |
 
 ## Phase 2 - Agent orchestration
 
@@ -33,6 +33,7 @@ Source repository: `cvsz/zeaz-platform`
 | Durable job store and queue adapter | `services/agent-orchestrator` | Persist job state and enqueue approved execution work through replaceable adapters | complete |
 | Tool grant approval policy | `services/agent-orchestrator` | Require explicit scoped grants before mutating tool execution | complete |
 | Sandboxed worker runtime | `services/agent-orchestrator` | Execute jobs with resource limits, retries, cancellation, and audit hooks | complete |
+| Production provider adapters | `services/agent-orchestrator` | Require operator-approved database, queue, observability, identity, and sandbox providers before external traffic | complete |
 
 ## Candidate migrations
 
