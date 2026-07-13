@@ -3,11 +3,12 @@ import { Readable } from "node:stream";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
+import { translateAttachmentBuffer } from "./attachments.mjs";
+
 const defaultHost = process.env.HOST || "127.0.0.1";
 const defaultPort = Number(process.env.PORT || 8400);
 const maxRequestBytes = 10 * 1024 * 1024;
 const upstreamTimeoutMs = 60_000;
-const maxAttachments = 20;
 
 function sendJson(response, status, payload, requestId) {
   response.writeHead(status, {
@@ -70,58 +71,8 @@ function isAbortError(error, signal) {
   return signal?.aborted || error?.name === "AbortError";
 }
 
-function parseJsonBuffer(buffer) {
-  try {
-    return JSON.parse(buffer.toString("utf8"));
-  } catch {
-    throw Object.assign(new Error("Chat request body must be valid JSON"), { code: "invalid_json" });
-  }
-}
-
-function validateAttachments(attachments) {
-  if (attachments === undefined) return [];
-  if (!Array.isArray(attachments)) throw Object.assign(new Error("attachments must be an array"), { code: "invalid_attachments" });
-  if (attachments.length > maxAttachments) throw Object.assign(new Error("too many attachments"), { code: "invalid_attachments" });
-  return attachments.map((attachment) => {
-    if (!attachment || typeof attachment !== "object" || typeof attachment.id !== "string" || !attachment.id.trim() || typeof attachment.name !== "string" || !attachment.name.trim()) {
-      throw Object.assign(new Error("attachments require id and name"), { code: "invalid_attachments" });
-    }
-    return { id: attachment.id.trim(), name: attachment.name.trim() };
-  });
-}
-
-function appendAttachmentContext(messages, attachments) {
-  if (attachments.length === 0) return messages;
-  const lines = attachments.map((attachment) => `- ${attachment.name} (${attachment.id})`).join("\n");
-  const suffix = `\n\nAttached platform files:\n${lines}`;
-  const copy = messages.map((message) => ({ ...message }));
-  for (let index = copy.length - 1; index >= 0; index -= 1) {
-    if (copy[index]?.role === "user" && typeof copy[index].content === "string") {
-      copy[index].content += suffix;
-      return copy;
-    }
-  }
-  return [...copy, { role: "user", content: `Attached platform files:\n${lines}` }];
-}
-
-export function translateChatPayload(buffer, contentType = "application/json") {
-  if (!contentType.includes("application/json")) return buffer;
-  const payload = parseJsonBuffer(buffer);
-  const attachments = validateAttachments(payload.attachments);
-  if (attachments.length === 0) return buffer;
-  const translated = {
-    ...payload,
-    messages: appendAttachmentContext(Array.isArray(payload.messages) ? payload.messages : [], attachments),
-    metadata: {
-      ...(payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {}),
-      z_platform: {
-        ...((payload.metadata?.z_platform && typeof payload.metadata.z_platform === "object") ? payload.metadata.z_platform : {}),
-        attachments,
-      },
-    },
-  };
-  delete translated.attachments;
-  return Buffer.from(JSON.stringify(translated));
+export function translateChatPayload(buffer, contentType = "application/json", provider = "openai-compatible") {
+  return translateAttachmentBuffer(buffer, contentType, { provider });
 }
 
 export async function upstream(path, request, body, env = process.env, fetchImpl = fetch, requestId = randomUUID(), signal) {
@@ -129,7 +80,8 @@ export async function upstream(path, request, body, env = process.env, fetchImpl
   const key = env.UPSTREAM_API_KEY;
   if (!base || !key) throw new Error("Gateway upstream is not configured");
   const contentType = request.headers["content-type"] || "application/json";
-  const upstreamBody = path === "/v1/chat/completions" ? translateChatPayload(body, contentType) : body;
+  const provider = env.UPSTREAM_PROVIDER?.trim() || "openai-compatible";
+  const upstreamBody = path === "/v1/chat/completions" ? translateChatPayload(body, contentType, provider) : body;
   return fetchImpl(upstreamUrl(base, path), {
     method: "POST",
     headers: {
