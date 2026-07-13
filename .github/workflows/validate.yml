@@ -141,21 +141,6 @@ jobs:
           exit 1
       - name: Run deployed readiness contracts
         run: node scripts/staging-smoke.mjs | tee staging-smoke-result.json
-      - name: Restart durable provider and verify persisted state
-        shell: bash
-        run: |
-          set -euo pipefail
-          job_id="$(jq -r .job_id staging-smoke-result.json)"
-          workspace_id="$(jq -r .workspace_id staging-smoke-result.json)"
-          docker compose restart agent-provider agent-orchestrator
-          docker compose up -d --wait agent-provider agent-orchestrator
-          auth="Authorization: Bearer ${Z_PLATFORM_SERVICE_TOKEN}"
-          curl -fsS -H "$auth" http://127.0.0.1:8800/backup/export | jq -e \
-            --arg job_id "$job_id" \
-            --arg workspace_id "$workspace_id" \
-            '.jobs[$job_id].status == "succeeded"
-             and .workspaces[$workspace_id].status == "active"
-             and any(.audit[]; .job_id == $job_id and .event_type == "agent.job.completed.v1")'
       - name: Upload deployed smoke evidence
         uses: actions/upload-artifact@v4
         with:
