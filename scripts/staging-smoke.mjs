@@ -3,12 +3,15 @@ import assert from "node:assert/strict";
 const token = process.env.Z_PLATFORM_SERVICE_TOKEN;
 if (!token) throw new Error("Z_PLATFORM_SERVICE_TOKEN is required");
 
+// Smoke tests run from the host/CI runner, not from the Compose network.
+// Keep these endpoint overrides separate from service-to-service variables such
+// as BILLING_LEDGER_URL, which may legitimately contain Docker DNS names.
 const bases = {
-  gateway: process.env.AI_GATEWAY_URL || "http://127.0.0.1:8400",
-  agent: process.env.AGENT_ORCHESTRATOR_URL || "http://127.0.0.1:8500",
-  workspace: process.env.WORKSPACE_RUNTIME_URL || "http://127.0.0.1:8600",
-  billing: process.env.BILLING_LEDGER_URL || "http://127.0.0.1:8700",
-  provider: process.env.AGENT_PROVIDER_URL || "http://127.0.0.1:8800",
+  gateway: process.env.STAGING_SMOKE_AI_GATEWAY_URL || "http://127.0.0.1:8400",
+  agent: process.env.STAGING_SMOKE_AGENT_ORCHESTRATOR_URL || "http://127.0.0.1:8500",
+  workspace: process.env.STAGING_SMOKE_WORKSPACE_RUNTIME_URL || "http://127.0.0.1:8600",
+  billing: process.env.STAGING_SMOKE_BILLING_LEDGER_URL || "http://127.0.0.1:8700",
+  provider: process.env.STAGING_SMOKE_AGENT_PROVIDER_URL || "http://127.0.0.1:8800",
 };
 
 async function request(base, path, { method = "GET", body, auth = true, expected } = {}) {
