@@ -32,11 +32,17 @@ async function readBody(request) {
   return Buffer.concat(chunks);
 }
 
+function upstreamUrl(baseUrl, path) {
+  const base = baseUrl.replace(/\/$/, "");
+  const upstreamPath = base.endsWith("/v1") && path.startsWith("/v1/") ? path.slice(3) : path;
+  return base + upstreamPath;
+}
+
 export async function upstream(path, request, body, env = process.env, fetchImpl = fetch) {
-  const base = env.UPSTREAM_BASE_URL?.replace(/\/$/, "");
+  const base = env.UPSTREAM_BASE_URL?.trim();
   const key = env.UPSTREAM_API_KEY;
   if (!base || !key) throw new Error("Gateway upstream is not configured");
-  return fetchImpl(base + path, {
+  return fetchImpl(upstreamUrl(base, path), {
     method: "POST",
     headers: {
       Authorization: "Bearer " + key,
