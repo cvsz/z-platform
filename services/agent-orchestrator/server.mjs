@@ -311,13 +311,6 @@ export class AgentOrchestrator {
     this.idGenerator = idGenerator;
     this.now = now;
   }
-    this.store = store;
-    this.queue = queue;
-    this.audit = audit;
-    this.worker = worker;
-    this.idGenerator = idGenerator;
-    this.now = now;
-  }
 
   async submit(input) {
     const tenantId = requireString(input.tenant_id, "tenant_id");
