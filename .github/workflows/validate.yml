@@ -1,0 +1,40 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  secret-patterns:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject obvious credentials
+        run: |
+          ! rg -n --glob '!**/.env.example' --glob '!docs/**' '(sk-ant-|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|EC|OPENSSH) PRIVATE KEY)' .
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Test runnable Node workspaces
+        run: |
+          for app in apps/zaicoder/web services/ai-gateway services/agent-orchestrator apps/zchat; do
+            if [ -f "$app/package.json" ]; then (cd "$app" && npm test --if-present); fi
+          done
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test ZAI Coder backend
+        run: |
+          cd apps/zaicoder/backend
+          python -m pip install --upgrade pip
+          python -m pip install -e . -r requirements-dev.txt
+          python -m pytest
