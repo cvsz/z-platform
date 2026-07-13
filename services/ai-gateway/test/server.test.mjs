@@ -195,7 +195,7 @@ test("upstream url normalization accepts base urls without v1", async () => {
   assert.equal(calls[0], "http://upstream/v1/chat/completions");
 });
 
-test("file uploads forward filename header", async () => {
+test("file uploads forward filename header through upload adapter", async () => {
   const calls = [];
   const server = createAiGatewayServer({
     env,
@@ -215,7 +215,7 @@ test("file uploads forward filename header", async () => {
     headers: {
       Authorization: "Bearer service-token",
       "Content-Type": "text/plain",
-      "X-Filename": "notes.txt",
+      "X-Filename": " notes.txt ",
       "X-Request-Id": "client-req-file",
     },
     body: "hello",
@@ -228,6 +228,34 @@ test("file uploads forward filename header", async () => {
   assert.equal(calls[0].options.headers["X-Filename"], "notes.txt");
   assert.equal(calls[0].options.headers["Content-Type"], "text/plain");
   assert.equal(calls[0].options.headers["X-Request-Id"], "client-req-file");
+});
+
+test("unsupported upload providers fail before upstream forwarding", async () => {
+  const server = createAiGatewayServer({
+    env: { ...env, UPSTREAM_PROVIDER: "anthropic" },
+    logger: testLogger([]),
+    idGenerator: () => "req-upload-provider",
+    fetchImpl: async () => {
+      throw new Error("should not call upstream");
+    },
+  });
+
+  const response = await request(server, "/v1/files", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer service-token",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt",
+    },
+    body: "hello",
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    error: "binary file upload is not enabled for the anthropic provider",
+    code: "unsupported_upload_provider",
+    request_id: "req-upload-provider",
+  });
 });
 
 test("upstream failures become structured gateway errors", async () => {
