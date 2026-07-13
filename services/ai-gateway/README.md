@@ -13,7 +13,7 @@ The AI Gateway is the only platform service allowed to hold upstream model-provi
 ## Runtime
 
 - `GET /health` reports service status and upstream configuration without exposing secrets.
-- `POST /v1/chat/completions` forwards OpenAI-compatible chat requests to the configured upstream.
+- `POST /v1/chat/completions` forwards chat requests to the configured upstream and translates platform attachments through the configured provider adapter.
 - `POST /v1/files` forwards file uploads and preserves the `X-Filename` header.
 
 All non-health routes require `Authorization: Bearer <Z_PLATFORM_SERVICE_TOKEN>`.
@@ -24,21 +24,24 @@ Client disconnects and upstream aborts are treated as cancellations. The gateway
 
 ## Attachment translation
 
-Chat clients may send platform attachment references as `attachments: [{ "id": "...", "name": "..." }]`. The gateway validates the references, removes the client-facing `attachments` field before upstream forwarding, stores the references in `metadata.z_platform.attachments`, and appends a textual file-reference context to the final user message.
+Chat clients may send platform attachment references as `attachments: [{ "id": "...", "name": "..." }]`. The gateway validates the references, removes the client-facing `attachments` field before upstream forwarding, and stores the references in `metadata.z_platform.attachments`.
 
-Provider-specific binary/content adapters remain explicit follow-up work for each approved upstream provider.
+`UPSTREAM_PROVIDER` selects the attachment message-shape adapter. Supported values are `openai-compatible`, `openai`, and `anthropic`. OpenAI-compatible providers receive a textual file-reference context on the final user message. Anthropic-style providers receive an appended user content block.
+
+Provider-specific binary/content upload adapters remain explicit follow-up work for each approved upstream provider.
 
 ## Required environment
 
 - `Z_PLATFORM_SERVICE_TOKEN`: internal service token accepted from platform clients.
 - `UPSTREAM_BASE_URL`: upstream provider base URL. Both `http://provider` and `http://provider/v1` are accepted.
 - `UPSTREAM_API_KEY`: upstream provider credential held only by the gateway.
+- `UPSTREAM_PROVIDER` optional, defaults to `openai-compatible`.
 - `HOST` optional, defaults to `127.0.0.1`.
 - `PORT` optional, defaults to `8400`.
 
 ## Validation
 
-Run `npm test` in this directory to check health, service-token authorization, request IDs, structured errors, audit events, attachment reference translation, upstream URL normalization, provider credential forwarding, file upload headers, upstream failure handling, and cancellation propagation.
+Run `npm test` in this directory to check health, service-token authorization, request IDs, structured errors, audit events, attachment reference translation, upstream provider selection, upstream URL normalization, provider credential forwarding, file upload headers, upstream failure handling, and cancellation propagation.
 
 ## Prohibited responsibilities
 
