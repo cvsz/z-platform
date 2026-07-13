@@ -18,6 +18,8 @@ The AI Gateway is the only platform service allowed to hold upstream model-provi
 
 All non-health routes require `Authorization: Bearer <Z_PLATFORM_SERVICE_TOKEN>`.
 
+Every response includes `X-Request-Id`. Clients may provide `X-Request-Id`; otherwise the gateway generates one. Error responses are structured as `{ "error": "...", "code": "...", "request_id": "..." }`.
+
 ## Required environment
 
 - `Z_PLATFORM_SERVICE_TOKEN`: internal service token accepted from platform clients.
@@ -28,7 +30,7 @@ All non-health routes require `Authorization: Bearer <Z_PLATFORM_SERVICE_TOKEN>`
 
 ## Validation
 
-Run `npm test` in this directory to check health, service-token authorization, upstream URL normalization, provider credential forwarding, file upload headers, and upstream failure handling.
+Run `npm test` in this directory to check health, service-token authorization, request IDs, structured errors, audit events, upstream URL normalization, provider credential forwarding, file upload headers, and upstream failure handling.
 
 ## Prohibited responsibilities
 
