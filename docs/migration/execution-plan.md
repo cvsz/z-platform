@@ -23,14 +23,15 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 - AI Gateway request IDs, structured error codes, redacted audit events, and cancellation propagation.
 - Generic OpenAI-compatible attachment reference translation for platform file references.
 - Shared AI contracts.
+- ZAI Coder web file-backed workspace metadata boundary with owner fields, retention timestamps, and uploaded-file links.
 
 ### Remaining
 
 - Add provider-specific binary/content attachment adapters for each approved upstream provider.
-- Add persistent project/workspace metadata and retention policy.
+- Replace the local workspace metadata store with a production durable storage adapter, tenant identity enforcement, and retention cleanup jobs.
 - Execute repository-local tests in CI and verify GitHub Actions results.
 
-**Done when:** ZAI Coder web and CLI use only the gateway; browser clients never receive provider secrets; tests cover chat, streaming, file upload, and failure paths.
+**Done when:** ZAI Coder web and CLI use only the gateway; browser clients never receive provider secrets; tests cover chat, streaming, file upload, workspace metadata, and failure paths.
 
 ## Phase 2 — Agent orchestration
 
