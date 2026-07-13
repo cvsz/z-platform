@@ -106,4 +106,3 @@ services:
 networks:
   z-platform-internal:
     driver: bridge
-    internal: false
