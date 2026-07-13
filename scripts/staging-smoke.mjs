@@ -13,25 +13,51 @@ const bases = {
   zchat: process.env.STAGING_SMOKE_ZCHAT_URL || "http://127.0.0.1:3021",
 };
 
-async function request(base, path, { method = "GET", body, auth = true, expected, headers = {} } = {}) {
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function request(base, path, {
+  method = "GET",
+  body,
+  auth = true,
+  expected,
+  headers = {},
+  networkRetries = method === "GET" ? 4 : 0,
+  retryDelayMs = 500,
+} = {}) {
   const requestHeaders = { "Content-Type": "application/json", ...headers };
   if (auth) requestHeaders.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${base}${path}`, {
-    method,
-    headers: requestHeaders,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const text = await response.text();
-  let payload = null;
-  if (text) {
-    try { payload = JSON.parse(text); } catch { payload = text; }
+
+  let lastError;
+  for (let attempt = 0; attempt <= networkRetries; attempt += 1) {
+    try {
+      const response = await fetch(`${base}${path}`, {
+        method,
+        headers: requestHeaders,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      const text = await response.text();
+      let payload = null;
+      if (text) {
+        try { payload = JSON.parse(text); } catch { payload = text; }
+      }
+      if (expected !== undefined) assert.equal(response.status, expected, `${method} ${path}: ${response.status} ${text}`);
+      return { status: response.status, payload, headers: response.headers };
+    } catch (error) {
+      lastError = error;
+      if (attempt >= networkRetries) throw error;
+      await sleep(retryDelayMs * (attempt + 1));
+    }
   }
-  if (expected !== undefined) assert.equal(response.status, expected, `${method} ${path}: ${response.status} ${text}`);
-  return { status: response.status, payload, headers: response.headers };
+  throw lastError;
 }
 
 for (const [name, base] of Object.entries(bases)) {
-  const { payload } = await request(base, "/health", { auth: false, expected: 200 });
+  const { payload } = await request(base, "/health", {
+    auth: false,
+    expected: 200,
+    networkRetries: 20,
+    retryDelayMs: 500,
+  });
   assert.equal(payload.status, "ok", `${name} health must be ok`);
 }
 
@@ -201,7 +227,7 @@ assert.match(zchatPage.payload, /aria-live="polite"/);
 assert.match(zchatPage.payload, /<label for="model">/);
 assert.match(zchatPage.payload, /<label for="prompt">/);
 const zchatCss = await request(bases.zchat, "/styles.css", { auth: false, expected: 200 });
-assert.match(zchatCss.payload, /@media/);
+assert.match(zchatCss.payload, /@media\s*\(max-width:\s*600px\)/);
 const logout = await request(bases.zchat, "/api/logout", { method: "POST", auth: false, body: {}, expected: 200 });
 assert.equal(logout.payload.status, "logged_out");
 assert.match(logout.headers.get("clear-site-data") || "", /storage/);
