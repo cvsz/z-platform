@@ -54,6 +54,26 @@ test("protected routes require service bearer token", async () => {
   assert.equal(events[0].event, "unauthorized");
 });
 
+test("model catalog requires auth and returns Hugging Face models", async () => {
+  const unauthorized = createAiGatewayServer({ env, logger: testLogger([]), idGenerator: () => "req-models-auth" });
+  const unauthorizedResponse = await request(unauthorized, "/v1/models");
+  assert.equal(unauthorizedResponse.status, 401);
+
+  const events = [];
+  const server = createAiGatewayServer({ env, logger: testLogger(events), idGenerator: () => "req-models" });
+  const response = await request(server, "/v1/models", { headers: { Authorization: "Bearer service-token" } });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-request-id"), "req-models");
+  const catalog = await response.json();
+  assert.equal(catalog.object, "list");
+  assert.ok(catalog.data.length >= 10);
+  assert.ok(catalog.data.every((model) => model.object === "model"));
+  assert.ok(catalog.data.every((model) => model.provider === "huggingface"));
+  assert.ok(catalog.data.some((model) => model.id === "hf:Qwen/Qwen2.5-7B-Instruct"));
+  assert.equal(events[0].event, "model_catalog");
+});
+
 test("chat completions are forwarded to upstream with provider credentials", async () => {
   const calls = [];
   const events = [];
