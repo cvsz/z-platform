@@ -13,6 +13,10 @@ It receives only job references and scoped tool grants. It must not receive wall
 
 All non-health endpoints require `Authorization: Bearer <Z_PLATFORM_SERVICE_TOKEN>`.
 
+## Validation
+
+Run `npm test` in this directory to check health reporting, service-token authorization, job creation, tenant-scoped idempotency, approval lifecycle, duplicate approval rejection, and job lookup.
+
 ## Current limits
 
 The current implementation uses in-memory storage and does not execute workers. Durable queue storage, cancellation, retry policy, sandboxed execution, and audit export remain Phase 2 migration work.
