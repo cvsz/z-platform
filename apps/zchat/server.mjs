@@ -19,13 +19,18 @@ async function json(request) {
   return JSON.parse(text);
 }
 
+function chatCompletionsUrl(baseUrl) {
+  const base = baseUrl.replace(/\/$/, "");
+  return base.endsWith("/v1") ? base + "/chat/completions" : base + "/v1/chat/completions";
+}
+
 export async function chat(body, env = process.env, fetchImpl = fetch) {
-  const url = env.Z_PLATFORM_AI_GATEWAY_URL?.replace(/\/$/, "");
+  const url = env.Z_PLATFORM_AI_GATEWAY_URL?.trim();
   const token = env.Z_PLATFORM_SERVICE_TOKEN;
   if (!url || !token) throw new Error("AI gateway is not configured");
   if (typeof body.prompt !== "string" || !body.prompt.trim()) throw new Error("Prompt is required");
 
-  const result = await fetchImpl(url + "/chat/completions", {
+  const result = await fetchImpl(chatCompletionsUrl(url), {
     method: "POST",
     headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
     body: JSON.stringify({
