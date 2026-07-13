@@ -73,4 +73,21 @@ The catalog is metadata only. It does not deploy hosted inference, grant provide
 
 Workspace metadata links platform file references to a project/workspace boundary. Production services must enforce tenant ownership and retention cleanup before this contract is used outside the local Phase 1 runtime.
 
+## ai.usage.recorded.v1
+
+```json
+{
+  "usage_id": "string",
+  "idempotency_key": "string",
+  "tenant_id": "string",
+  "subject_id": "string",
+  "model": "string",
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "recorded_at": "2026-07-14T00:00:00.000Z"
+}
+```
+
+Usage records are immutable billing inputs emitted server-side by the AI Gateway. They must not contain wallet signing data, card data, payment-provider credentials, KYC payloads, MPC shares, or swap routes.
+
 Only the gateway may translate these platform contracts into provider-specific requests.
