@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
 jobs:
   secret-patterns:
     runs-on: ubuntu-latest
@@ -15,11 +20,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pattern='sk-ant-|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|EC|OPENSSH) PRIVATE KEY'
+          pattern='sk-ant-|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|EC|OPENSSH) PRIVATE KEY|hf_[A-Za-z0-9]{20,}|nvapi-[A-Za-z0-9_-]{20,}'
           if git grep -nE -e "$pattern" -- . ':(exclude).github/workflows/validate.yml' ':(exclude)docs/**' ':(exclude)**/.env.example'; then
-            echo "Potential credential pattern found. Remove the value or move non-secret examples into docs or .env.example."
+            echo "Potential credential pattern found."
             exit 1
           fi
+
   node:
     runs-on: ubuntu-latest
     steps:
@@ -31,17 +37,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for workspace in packages/contracts apps/zaicoder/web services/ai-gateway services/agent-orchestrator services/workspace-runtime services/billing-ledger apps/zchat apps/zow apps/zwallet tools/zai-factory; do
+          for workspace in packages/contracts apps/zaicoder/web services/ai-gateway services/agent-orchestrator services/agent-provider services/workspace-runtime services/billing-ledger apps/zchat apps/zow apps/zwallet tools/zai-factory; do
             if [ ! -f "$workspace/package.json" ]; then
               echo "skip $workspace: no package.json"
               continue
             fi
-            if ! find "$workspace" -path '*/node_modules' -prune -o -name '*.test.mjs' -print -quit | grep -q .; then
+            if find "$workspace" -path '*/node_modules' -prune -o -name '*.test.mjs' -print -quit | grep -q .; then
+              (cd "$workspace" && npm test --if-present)
+            else
               echo "skip $workspace: no node test files"
-              continue
             fi
-            (cd "$workspace" && npm test --if-present)
           done
+      - name: Audit Node manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r manifest; do
+            workspace="$(dirname "$manifest")"
+            echo "auditing $workspace"
+            (cd "$workspace" && npm install --package-lock-only --ignore-scripts --no-audit >/dev/null && npm audit --audit-level=high --omit=dev)
+          done < <(find apps packages services tools -name package.json -not -path '*/node_modules/*' | sort)
+
   python:
     runs-on: ubuntu-latest
     steps:
@@ -49,19 +65,48 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Test ZAI Coder backend
+      - name: Test and audit ZAI Coder backend
         shell: bash
         run: |
           set -euo pipefail
-          if [ ! -d apps/zaicoder/backend ]; then
-            echo "skip apps/zaicoder/backend: directory missing"
-            exit 0
-          fi
+          if [ ! -d apps/zaicoder/backend ]; then exit 0; fi
           cd apps/zaicoder/backend
-          if ! find tests -name 'test_*.py' -print -quit | grep -q .; then
-            echo "skip apps/zaicoder/backend: no python tests"
-            exit 0
-          fi
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip pip-audit
           python -m pip install -e . -r requirements-dev.txt
           python -m pytest
+          pip-audit -r requirements-dev.txt
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose configuration
+        env:
+          Z_PLATFORM_SERVICE_TOKEN: ci-placeholder-not-a-secret
+        run: docker compose config --quiet
+      - name: Build local deployment images
+        env:
+          Z_PLATFORM_SERVICE_TOKEN: ci-placeholder-not-a-secret
+        run: docker compose build
+
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: z-platform.spdx.json
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: z-platform-sbom
+          path: z-platform.spdx.json
+          if-no-files-found: error
+      - name: Attest SBOM provenance
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: z-platform.spdx.json
