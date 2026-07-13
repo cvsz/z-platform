@@ -35,11 +35,20 @@ Source repository: `cvsz/zeaz-platform`
 | Sandboxed worker runtime | `services/agent-orchestrator` | Execute jobs with resource limits, retries, cancellation, and audit hooks | complete |
 | Production provider adapters | `services/agent-orchestrator` | Require operator-approved database, queue, observability, identity, and sandbox providers before external traffic | complete |
 
+## Phase 3 - ZChat migration
+
+| Item | Target | Action | Status |
+|---|---|---|---|
+| ZChat presentation shell | `apps/zchat` | Keep thin browser UI and server-side gateway proxy only | complete |
+| ZChat model catalog | `apps/zchat` | Load models from the AI Gateway instead of browser provider config | complete |
+| ZChat identity and correlation | `apps/zchat` | Forward tenant, conversation, request, and usage-correlation identifiers | complete |
+| ZChat session and streaming | `apps/zchat` | Add streaming proxy, logout, session expiry, and accessibility-oriented UI tests | complete |
+
 ## Candidate migrations
 
 | Legacy source | Target | Selection rule | Status |
 |---|---|---|---|
-| `apps/zchat` | `apps/zchat` | Retain UI only; replace direct provider keys with platform gateway | partial |
+| `apps/zchat` | `apps/zchat` | Retain UI only; replace direct provider keys with platform gateway | complete |
 | `apps/zai-stack` | `services/agent-orchestrator` | Extract policy and job-routing runtime | partial |
 | `apps/zai-factory` | `tools/zai-factory` | Retain audited skills, generators and templates only | partial |
 | `apps/zow` | `apps/zow` + `services/workspace-runtime` | Split UI from sandbox/runtime | pending |
