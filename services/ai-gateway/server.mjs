@@ -1,15 +1,26 @@
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const defaultHost = process.env.HOST || "127.0.0.1";
 const defaultPort = Number(process.env.PORT || 8400);
 const maxRequestBytes = 10 * 1024 * 1024;
 
-function sendJson(response, status, payload) {
-  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+function sendJson(response, status, payload, requestId) {
+  response.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    ...(requestId ? { "X-Request-Id": requestId } : {}),
+  });
   response.end(JSON.stringify(payload));
+}
+
+function errorPayload(code, message, requestId) {
+  return { error: message, code, request_id: requestId };
+}
+
+function audit(logger, event) {
+  logger.info(JSON.stringify({ ts: new Date().toISOString(), service: "ai-gateway", ...event }));
 }
 
 function authorized(request, env) {
@@ -38,7 +49,7 @@ function upstreamUrl(baseUrl, path) {
   return base + upstreamPath;
 }
 
-export async function upstream(path, request, body, env = process.env, fetchImpl = fetch) {
+export async function upstream(path, request, body, env = process.env, fetchImpl = fetch, requestId = randomUUID()) {
   const base = env.UPSTREAM_BASE_URL?.trim();
   const key = env.UPSTREAM_API_KEY;
   if (!base || !key) throw new Error("Gateway upstream is not configured");
@@ -47,6 +58,7 @@ export async function upstream(path, request, body, env = process.env, fetchImpl
     headers: {
       Authorization: "Bearer " + key,
       "Content-Type": request.headers["content-type"] || "application/json",
+      "X-Request-Id": requestId,
       ...(request.headers["x-filename"] ? { "X-Filename": request.headers["x-filename"] } : {}),
     },
     body,
@@ -54,40 +66,55 @@ export async function upstream(path, request, body, env = process.env, fetchImpl
   });
 }
 
-export function createAiGatewayServer({ env = process.env, fetchImpl = fetch } = {}) {
+export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, logger = console, idGenerator = randomUUID } = {}) {
   return createServer(async (request, response) => {
+    const requestId = request.headers["x-request-id"] || idGenerator();
+    response.setHeader("X-Request-Id", requestId);
+
     if (request.method === "GET" && request.url === "/health") {
+      audit(logger, { event: "health", request_id: requestId, status: 200 });
       return sendJson(response, 200, {
         status: "ok",
         service: "ai-gateway",
         upstream_configured: Boolean(env.UPSTREAM_BASE_URL && env.UPSTREAM_API_KEY),
-      });
+      }, requestId);
     }
 
     if (request.method !== "POST" || !["/v1/chat/completions", "/v1/files"].includes(request.url)) {
-      return sendJson(response, 404, { error: "Not found" });
+      audit(logger, { event: "not_found", request_id: requestId, method: request.method, path: request.url, status: 404 });
+      return sendJson(response, 404, errorPayload("not_found", "Not found", requestId), requestId);
     }
-    if (!authorized(request, env)) return sendJson(response, 401, { error: "Unauthorized" });
+    if (!authorized(request, env)) {
+      audit(logger, { event: "unauthorized", request_id: requestId, path: request.url, status: 401 });
+      return sendJson(response, 401, errorPayload("unauthorized", "Unauthorized", requestId), requestId);
+    }
 
     try {
       const body = await readBody(request);
-      const result = await upstream(request.url, request, body, env, fetchImpl);
-      if (!result.ok) return sendJson(response, 502, { error: "Upstream request failed" });
+      const result = await upstream(request.url, request, body, env, fetchImpl, requestId);
+      if (!result.ok) {
+        audit(logger, { event: "upstream_failure", request_id: requestId, path: request.url, upstream_status: result.status, status: 502 });
+        return sendJson(response, 502, errorPayload("upstream_failed", "Upstream request failed", requestId), requestId);
+      }
 
+      audit(logger, { event: "proxy_success", request_id: requestId, path: request.url, status: 200, stream: request.headers.accept?.includes("text/event-stream") || false });
       if (request.url === "/v1/chat/completions" && request.headers.accept?.includes("text/event-stream")) {
         response.writeHead(200, {
           "Content-Type": "text/event-stream; charset=utf-8",
           "Cache-Control": "no-cache, no-transform",
           "X-Accel-Buffering": "no",
+          "X-Request-Id": requestId,
         });
         return Readable.fromWeb(result.body).pipe(response);
       }
 
       const payload = await result.arrayBuffer();
-      response.writeHead(200, { "Content-Type": result.headers.get("content-type") || "application/json" });
+      response.writeHead(200, { "Content-Type": result.headers.get("content-type") || "application/json", "X-Request-Id": requestId });
       response.end(Buffer.from(payload));
     } catch (error) {
-      sendJson(response, 500, { error: error instanceof Error ? error.message : "Gateway failure" });
+      const message = error instanceof Error ? error.message : "Gateway failure";
+      audit(logger, { event: "gateway_error", request_id: requestId, path: request.url, status: 500, code: "gateway_failure" });
+      sendJson(response, 500, errorPayload("gateway_failure", message, requestId), requestId);
     }
   });
 }
