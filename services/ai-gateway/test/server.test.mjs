@@ -165,3 +165,33 @@ test("upstream failures become structured gateway errors", async () => {
   assert.equal(events[0].event, "upstream_failure");
   assert.equal(events[0].upstream_status, 500);
 });
+
+test("client cancellation aborts the upstream request", async () => {
+  const events = [];
+  const seenSignals = [];
+  const server = createAiGatewayServer({
+    env,
+    logger: testLogger(events),
+    idGenerator: () => "req-cancelled",
+    fetchImpl: async (_url, options) => {
+      seenSignals.push(options.signal);
+      options.signal.dispatchEvent(new Event("abort"));
+      throw Object.assign(new Error("aborted"), { name: "AbortError" });
+    },
+  });
+
+  const response = await request(server, "/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: "Bearer service-token", "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [] }),
+  });
+
+  assert.equal(response.status, 499);
+  assert.deepEqual(await response.json(), {
+    error: "Request cancelled",
+    code: "request_cancelled",
+    request_id: "req-cancelled",
+  });
+  assert.equal(seenSignals.length, 1);
+  assert.equal(events[0].event, "request_cancelled");
+});
