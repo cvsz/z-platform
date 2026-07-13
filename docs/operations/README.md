@@ -9,6 +9,7 @@ This directory contains production operations controls, runbooks, and readiness 
 ## Runbooks and reviews
 
 - [Cloudflare Access service policies](cloudflare-access.md)
+- [GitHub App token format readiness](github-app-token-format.md)
 - [Observability and health](observability.md)
 - [Backup and restore runbook](backups.md)
 - [Incident runbook](incident-runbook.md)
