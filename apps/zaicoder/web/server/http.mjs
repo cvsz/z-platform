@@ -1,10 +1,11 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
+import { Readable } from "node:stream";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ChatRequestError, forwardChat } from "./gateway.mjs";
+import { ChatRequestError, forwardChat, forwardChatStream } from "./gateway.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 const host = process.env.HOST || "127.0.0.1";
@@ -33,6 +34,23 @@ const server = createServer(async (request, response) => {
   if (request.method === "POST" && request.url === "/api/chat") {
     try {
       sendJson(response, 200, await forwardChat(await readJson(request)));
+    } catch (error) {
+      const status = error instanceof ChatRequestError ? 400 : 500;
+      sendJson(response, status, { error: error.message || "Unexpected error" });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && request.url === "/api/chat/stream") {
+    try {
+      const stream = await forwardChatStream(await readJson(request));
+      response.writeHead(200, {
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "X-Accel-Buffering": "no",
+      });
+      Readable.fromWeb(stream).pipe(response);
     } catch (error) {
       const status = error instanceof ChatRequestError ? 400 : 500;
       sendJson(response, status, { error: error.message || "Unexpected error" });
