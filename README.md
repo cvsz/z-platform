@@ -26,7 +26,10 @@ tools/      Developer tooling and generators
 
 ## Migration policy
 
-This repository does not bulk-copy legacy applications. Each migration must have an owner, dependency inventory, tests, security review, and rollback path. See [the migration manifest](docs/migration/manifest.md).
+This repository does not bulk-copy legacy applications. Each migration must have an owner, dependency inventory, tests, security review, and rollback path.
+
+- [Migration manifest](docs/migration/manifest.md)
+- [Full execution plan](docs/migration/execution-plan.md)
 
 ## Security
 
