@@ -1,13 +1,93 @@
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
 import { timingSafeEqual } from "node:crypto";
+import { fileURLToPath } from "node:url";
 
-const host = process.env.HOST || "127.0.0.1";
-const port = Number(process.env.PORT || 8400);
+const defaultHost = process.env.HOST || "127.0.0.1";
+const defaultPort = Number(process.env.PORT || 8400);
 const maxRequestBytes = 10 * 1024 * 1024;
-function sendJson(response,status,payload){response.writeHead(status,{"Content-Type":"application/json; charset=utf-8"});response.end(JSON.stringify(payload));}
-function authorized(request){const expected=process.env.Z_PLATFORM_SERVICE_TOKEN,supplied=request.headers.authorization?.replace(/^Bearer\s+/i,"");if(!expected||!supplied)return false;const a=Buffer.from(expected),b=Buffer.from(supplied);return a.length===b.length&&timingSafeEqual(a,b);}
-async function readBody(request){const chunks=[];let size=0;for await(const chunk of request){size+=chunk.length;if(size>maxRequestBytes)throw new Error("Request body is too large");chunks.push(chunk);}return Buffer.concat(chunks);}
-async function upstream(path,request,body){const base=process.env.UPSTREAM_BASE_URL?.replace(/\/$/,""),key=process.env.UPSTREAM_API_KEY;if(!base||!key)throw new Error("Gateway upstream is not configured");return fetch(base+path,{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":request.headers["content-type"]||"application/json",...(request.headers["x-filename"]?{"X-Filename":request.headers["x-filename"]}:{})},body,signal:AbortSignal.timeout(60000)});}
-const server=createServer(async(request,response)=>{if(request.method==="GET"&&request.url==="/health")return sendJson(response,200,{status:"ok",service:"ai-gateway",upstream_configured:Boolean(process.env.UPSTREAM_BASE_URL&&process.env.UPSTREAM_API_KEY)});if(request.method!=="POST"||!["/v1/chat/completions","/v1/files"].includes(request.url))return sendJson(response,404,{error:"Not found"});if(!authorized(request))return sendJson(response,401,{error:"Unauthorized"});try{const body=await readBody(request),result=await upstream(request.url,request,body);if(!result.ok)return sendJson(response,502,{error:"Upstream request failed"});if(request.url==="/v1/chat/completions"&&request.headers.accept?.includes("text/event-stream")){response.writeHead(200,{"Content-Type":"text/event-stream; charset=utf-8","Cache-Control":"no-cache, no-transform","X-Accel-Buffering":"no"});return Readable.fromWeb(result.body).pipe(response);}const payload=await result.arrayBuffer();response.writeHead(200,{"Content-Type":result.headers.get("content-type")||"application/json"});response.end(Buffer.from(payload));}catch(error){sendJson(response,500,{error:error instanceof Error?error.message:"Gateway failure"});}});
-server.listen(port,host,()=>console.log("ai-gateway listening on http://"+host+":"+port));
+
+function sendJson(response, status, payload) {
+  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  response.end(JSON.stringify(payload));
+}
+
+function authorized(request, env) {
+  const expected = env.Z_PLATFORM_SERVICE_TOKEN;
+  const supplied = request.headers.authorization?.replace(/^Bearer\s+/i, "");
+  if (!expected || !supplied) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(supplied);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+async function readBody(request) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxRequestBytes) throw new Error("Request body is too large");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+export async function upstream(path, request, body, env = process.env, fetchImpl = fetch) {
+  const base = env.UPSTREAM_BASE_URL?.replace(/\/$/, "");
+  const key = env.UPSTREAM_API_KEY;
+  if (!base || !key) throw new Error("Gateway upstream is not configured");
+  return fetchImpl(base + path, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + key,
+      "Content-Type": request.headers["content-type"] || "application/json",
+      ...(request.headers["x-filename"] ? { "X-Filename": request.headers["x-filename"] } : {}),
+    },
+    body,
+    signal: AbortSignal.timeout(60000),
+  });
+}
+
+export function createAiGatewayServer({ env = process.env, fetchImpl = fetch } = {}) {
+  return createServer(async (request, response) => {
+    if (request.method === "GET" && request.url === "/health") {
+      return sendJson(response, 200, {
+        status: "ok",
+        service: "ai-gateway",
+        upstream_configured: Boolean(env.UPSTREAM_BASE_URL && env.UPSTREAM_API_KEY),
+      });
+    }
+
+    if (request.method !== "POST" || !["/v1/chat/completions", "/v1/files"].includes(request.url)) {
+      return sendJson(response, 404, { error: "Not found" });
+    }
+    if (!authorized(request, env)) return sendJson(response, 401, { error: "Unauthorized" });
+
+    try {
+      const body = await readBody(request);
+      const result = await upstream(request.url, request, body, env, fetchImpl);
+      if (!result.ok) return sendJson(response, 502, { error: "Upstream request failed" });
+
+      if (request.url === "/v1/chat/completions" && request.headers.accept?.includes("text/event-stream")) {
+        response.writeHead(200, {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          "X-Accel-Buffering": "no",
+        });
+        return Readable.fromWeb(result.body).pipe(response);
+      }
+
+      const payload = await result.arrayBuffer();
+      response.writeHead(200, { "Content-Type": result.headers.get("content-type") || "application/json" });
+      response.end(Buffer.from(payload));
+    } catch (error) {
+      sendJson(response, 500, { error: error instanceof Error ? error.message : "Gateway failure" });
+    }
+  });
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  createAiGatewayServer().listen(defaultPort, defaultHost, () => {
+    console.log("ai-gateway listening on http://" + defaultHost + ":" + defaultPort);
+  });
+}
