@@ -13,3 +13,5 @@ coverage/
 *.tfstate
 *.tfstate.*
 secrets/
+.zaicoder-workspaces/
+**/.zaicoder-workspaces/
