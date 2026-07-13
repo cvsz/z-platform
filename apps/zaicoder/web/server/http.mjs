@@ -5,13 +5,13 @@ import { Readable } from "node:stream";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ChatRequestError, forwardChat, forwardChatStream, forwardFile } from "./gateway.mjs";
-import { WorkspaceStore, WorkspaceStoreError } from "./workspace-store.mjs";
+import { WorkspaceStoreError, createWorkspaceStoreFromEnv } from "./workspace-store.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 3005);
 const contentTypes = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8" };
-const workspaceStore = new WorkspaceStore();
+const workspaceStore = createWorkspaceStoreFromEnv();
 
 function sendJson(response, status, payload) {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
