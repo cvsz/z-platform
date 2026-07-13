@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for workspace in packages/contracts apps/zaicoder/web services/ai-gateway services/agent-orchestrator apps/zchat tools/zai-factory; do
+          for workspace in packages/contracts apps/zaicoder/web services/ai-gateway services/agent-orchestrator services/workspace-runtime services/billing-ledger apps/zchat apps/zow apps/zwallet tools/zai-factory; do
             if [ ! -f "$workspace/package.json" ]; then
               echo "skip $workspace: no package.json"
               continue
