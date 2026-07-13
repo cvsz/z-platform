@@ -15,7 +15,7 @@ jobs:
         run: |
           set -euo pipefail
           pattern='sk-ant-|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|EC|OPENSSH) PRIVATE KEY'
-          if git grep -nE -e "$pattern" -- . ':(exclude)docs/**' ':(exclude)**/.env.example'; then
+          if git grep -nE -e "$pattern" -- . ':(exclude).github/workflows/validate.yml' ':(exclude)docs/**' ':(exclude)**/.env.example'; then
             echo "Potential credential pattern found. Remove the value or move non-secret examples into docs or .env.example."
             exit 1
           fi
