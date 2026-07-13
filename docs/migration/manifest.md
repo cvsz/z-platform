@@ -17,7 +17,8 @@ Source repository: `cvsz/zeaz-platform`
 | ZAI Coder application boundary | `apps/zaicoder` | Establish packaging, safe configuration and gateway contract | complete |
 | AI gateway boundary | `services/ai-gateway` | Establish ownership and safe runtime configuration | complete |
 | Streaming, MCP and model preflight runtime | `apps/zaicoder/backend` | Migrate tested isolated modules and regression tests | complete |
-| CLI and browser-terminal import | `apps/zaicoder` | Import remaining tested modules after dependency and secret audit | pending |
+| Gateway-backed CLI | `apps/zaicoder/backend` | Add OpenAI-compatible client, command entry point and unit tests | complete |
+| Browser-terminal import | `apps/zaicoder/web` | Import remaining UI only after server-route and auth audit | pending |
 
 ## Candidate migrations
 
