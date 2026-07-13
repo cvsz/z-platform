@@ -53,6 +53,15 @@ Source repository: `cvsz/zeaz-platform`
 | ZOW workspace split | `apps/zow` + `services/workspace-runtime` | Keep ZOW as UI/proxy and move execution decisions to isolated runtime | complete |
 | Shell/deploy approval policy | `services/workspace-runtime` | Require explicit `shell` or `deploy` approval grants before accepting execution requests | complete |
 
+## Phase 5 - Usage and billing boundary
+
+| Item | Target | Action | Status |
+|---|---|---|---|
+| AI usage events | `services/ai-gateway` + `packages/contracts` | Emit immutable `ai.usage.recorded.v1` records server-side | complete |
+| Billing ledger idempotency | `services/billing-ledger` | Validate idempotency keys before ledger entries | complete |
+| Credits and invoice intents | `services/billing-ledger` | Implement tenant credits and invoice-intent boundary | complete |
+| ZWallet audited adapter | `apps/zwallet` | Forward only credits and invoice intents; reject signing, cards, KYC, MPC, and swaps | complete |
+
 ## Candidate migrations
 
 | Legacy source | Target | Selection rule | Status |
@@ -61,7 +70,7 @@ Source repository: `cvsz/zeaz-platform`
 | `apps/zai-stack` | `services/agent-orchestrator` | Extract policy and job-routing runtime | partial |
 | `apps/zai-factory` | `tools/zai-factory` | Retain audited skills, generators and templates only | complete |
 | `apps/zow` | `apps/zow` + `services/workspace-runtime` | Split UI from sandbox/runtime | complete |
-| `apps/zwallet` | `apps/zwallet` + `services/billing-ledger` | Keep UI/ledger adapters; exclude signing and production provider config | pending |
+| `apps/zwallet` | `apps/zwallet` + `services/billing-ledger` | Keep UI/ledger adapters; exclude signing and production provider config | complete |
 
 ## Status definitions
 
