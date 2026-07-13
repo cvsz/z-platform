@@ -1,6 +1,6 @@
 # Local Compose Operations
 
-The repository root now contains a runnable `compose.yml` for the four services that currently expose executable Node HTTP servers:
+The repository root contains a runnable `compose.yml` for the four services that currently expose executable Node HTTP servers:
 
 - AI Gateway on host loopback port `8400`
 - Agent Orchestrator on host loopback port `8500`
