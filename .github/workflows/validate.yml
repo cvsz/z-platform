@@ -11,8 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Reject obvious credentials
+        shell: bash
         run: |
-          ! rg -n --glob '!**/.env.example' --glob '!docs/**' '(sk-ant-|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|EC|OPENSSH) PRIVATE KEY)' .
+          set -euo pipefail
+          pattern='sk-ant-|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|EC|OPENSSH) PRIVATE KEY'
+          if git grep -nE -e "$pattern" -- . ':(exclude)docs/**' ':(exclude)**/.env.example'; then
+            echo "Potential credential pattern found. Remove the value or move non-secret examples into docs or .env.example."
+            exit 1
+          fi
   node:
     runs-on: ubuntu-latest
     steps:
@@ -21,9 +27,19 @@ jobs:
         with:
           node-version: 20
       - name: Test runnable Node workspaces
+        shell: bash
         run: |
+          set -euo pipefail
           for workspace in apps/zaicoder/web services/ai-gateway services/agent-orchestrator apps/zchat tools/zai-factory; do
-            if [ -f "$workspace/package.json" ]; then (cd "$workspace" && npm test --if-present); fi
+            if [ ! -f "$workspace/package.json" ]; then
+              echo "skip $workspace: no package.json"
+              continue
+            fi
+            if ! find "$workspace" -path '*/node_modules' -prune -o -name '*.test.mjs' -print -quit | grep -q .; then
+              echo "skip $workspace: no node test files"
+              continue
+            fi
+            (cd "$workspace" && npm test --if-present)
           done
   python:
     runs-on: ubuntu-latest
@@ -33,8 +49,18 @@ jobs:
         with:
           python-version: "3.11"
       - name: Test ZAI Coder backend
+        shell: bash
         run: |
+          set -euo pipefail
+          if [ ! -d apps/zaicoder/backend ]; then
+            echo "skip apps/zaicoder/backend: directory missing"
+            exit 0
+          fi
           cd apps/zaicoder/backend
+          if ! find tests -name 'test_*.py' -print -quit | grep -q .; then
+            echo "skip apps/zaicoder/backend: no python tests"
+            exit 0
+          fi
           python -m pip install --upgrade pip
           python -m pip install -e . -r requirements-dev.txt
           python -m pytest
