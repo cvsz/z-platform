@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { translateAttachmentBuffer } from "./attachments.mjs";
 import { listModels } from "./model-catalog.mjs";
+import { translateUploadRequest } from "./uploads.mjs";
 
 const defaultHost = process.env.HOST || "127.0.0.1";
 const defaultPort = Number(process.env.PORT || 8400);
@@ -89,14 +90,34 @@ export async function upstream(path, request, body, env = process.env, fetchImpl
   if (!base || !key) throw new Error("Gateway upstream is not configured");
   const contentType = request.headers["content-type"] || "application/json";
   const provider = env.UPSTREAM_PROVIDER?.trim() || "openai-compatible";
-  const upstreamBody = path === "/v1/chat/completions" ? translateChatPayload(body, contentType, provider) : body;
-  return fetchImpl(upstreamUrl(base, path), {
+  let upstreamPath = path;
+  let upstreamBody = body;
+  let upstreamHeaders = {
+    "Content-Type": contentType,
+    ...(request.headers["x-filename"] ? { "X-Filename": request.headers["x-filename"] } : {}),
+  };
+
+  if (path === "/v1/chat/completions") {
+    upstreamBody = translateChatPayload(body, contentType, provider);
+  }
+
+  if (path === "/v1/files") {
+    const translatedUpload = translateUploadRequest(body, {
+      provider,
+      contentType,
+      filename: request.headers["x-filename"],
+    });
+    upstreamPath = translatedUpload.path;
+    upstreamBody = translatedUpload.body;
+    upstreamHeaders = translatedUpload.headers;
+  }
+
+  return fetchImpl(upstreamUrl(base, upstreamPath), {
     method: "POST",
     headers: {
       Authorization: "Bearer " + key,
-      "Content-Type": contentType,
+      ...upstreamHeaders,
       "X-Request-Id": requestId,
-      ...(request.headers["x-filename"] ? { "X-Filename": request.headers["x-filename"] } : {}),
     },
     body: upstreamBody,
     signal: linkedAbortSignal(signal),
@@ -159,7 +180,7 @@ export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, lo
         return;
       }
       const code = error?.code || "gateway_failure";
-      const status = code === "invalid_json" || code === "invalid_attachments" ? 400 : 500;
+      const status = ["invalid_json", "invalid_attachments", "invalid_upload", "unsupported_upload_provider"].includes(code) ? 400 : 500;
       const message = error instanceof Error ? error.message : "Gateway failure";
       audit(logger, { event: "gateway_error", request_id: requestId, path: request.url, status, code });
       sendJson(response, status, errorPayload(code, message, requestId), requestId);
