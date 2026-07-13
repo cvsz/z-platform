@@ -101,11 +101,17 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 
 ## Phase 6 — Platform operations
 
-1. Add CI for Node and Python lint, unit tests, dependency checks, and secret scanning.
-2. Add SBOM generation and artifact provenance.
-3. Define Cloudflare Access service-to-service policies.
-4. Add health checks, structured logs, metrics, traces, backups, and incident runbooks.
-5. Run staging readiness review before any production deployment.
+### Completed
+
+- Added CI coverage for migrated Node and Python runtimes, dependency policy checks, secret scanning, and service-specific test gates.
+- Added SBOM generation and provenance verification workflow artifacts.
+- Defined Cloudflare Access service-to-service policy requirements.
+- Added health, structured logging, metrics, trace, backup, restore, and incident runbooks.
+- Added staging readiness review checklist before any production deployment.
+
+### Remaining
+
+- Operator must execute staging readiness review against the selected Cloudflare, identity, secret-management, observability, backup, and deployment environments.
 
 **Done when:** every service has health checks, least-privilege identity, observability, rollback notes, and a passing CI gate.
 
