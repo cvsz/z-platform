@@ -25,10 +25,11 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 - Shared AI contracts.
 - ZAI Coder web file-backed workspace metadata boundary with owner fields, retention timestamps, and uploaded-file links.
 - AI Gateway attachment adapter registry with OpenAI-compatible and Anthropic message-shape translators plus unit coverage.
+- AI Gateway upstream provider selection wired into chat attachment translation.
 
 ### Remaining
 
-- Wire provider selection into the AI Gateway request path and add approved-provider binary/content attachment adapters.
+- Add approved-provider binary/content upload adapters for platform file references.
 - Replace the local workspace metadata store with a production durable storage adapter, tenant identity enforcement, and retention cleanup jobs.
 - Execute repository-local tests in CI and verify GitHub Actions results.
 
