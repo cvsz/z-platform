@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
@@ -32,19 +32,26 @@ function expiresAt(now, retentionDays) {
   return new Date(new Date(now).getTime() + retentionDays * 24 * 60 * 60 * 1000).toISOString();
 }
 
-export class WorkspaceStore {
-  constructor({ root = process.env.ZAICODER_WORKSPACE_STORE || ".zaicoder-workspaces", idGenerator = randomUUID, now = () => new Date().toISOString() } = {}) {
+function validateWorkspaceId(id) {
+  if (!WORKSPACE_ID.test(id)) throw new WorkspaceStoreError("workspace_id is invalid");
+}
+
+function assertOwner(record, owner) {
+  if (!owner) return;
+  if (record?.owner !== normalizeOwner(owner)) throw new WorkspaceStoreError("workspace owner mismatch");
+}
+
+export class FileWorkspaceAdapter {
+  constructor({ root = process.env.ZAICODER_WORKSPACE_STORE || ".zaicoder-workspaces" } = {}) {
     this.root = root;
-    this.idGenerator = idGenerator;
-    this.now = now;
   }
 
   pathFor(id) {
+    validateWorkspaceId(id);
     return join(this.root, `${id}.json`);
   }
 
   async read(id) {
-    if (!WORKSPACE_ID.test(id)) throw new WorkspaceStoreError("workspace_id is invalid");
     try {
       return JSON.parse(await readFile(this.pathFor(id), "utf8"));
     } catch (error) {
@@ -59,10 +66,34 @@ export class WorkspaceStore {
     return record;
   }
 
+  async delete(id) {
+    await rm(this.pathFor(id), { force: true });
+  }
+}
+
+export class WorkspaceStore {
+  constructor({ root = process.env.ZAICODER_WORKSPACE_STORE || ".zaicoder-workspaces", adapter, idGenerator = randomUUID, now = () => new Date().toISOString() } = {}) {
+    this.adapter = adapter || new FileWorkspaceAdapter({ root });
+    this.idGenerator = idGenerator;
+    this.now = now;
+  }
+
+  async read(id, options = {}) {
+    validateWorkspaceId(id);
+    const record = await this.adapter.read(id);
+    if (!record) return null;
+    assertOwner(record, options.owner);
+    return record;
+  }
+
+  async save(record) {
+    return this.adapter.save(record);
+  }
+
   async ensure(input = {}) {
     const now = this.now();
     const id = normalizeWorkspaceId(input.workspace_id, this.idGenerator);
-    const existing = await this.read(id);
+    const existing = await this.read(id, input.owner ? { owner: input.owner } : {});
     if (existing) {
       const retentionDays = normalizeRetentionDays(input.retention_days ?? existing.retention_days);
       return this.save({
@@ -86,8 +117,8 @@ export class WorkspaceStore {
     });
   }
 
-  async addFile(workspaceId, file) {
-    const workspace = await this.ensure({ workspace_id: workspaceId });
+  async addFile(workspaceId, file, options = {}) {
+    const workspace = await this.ensure({ workspace_id: workspaceId, owner: options.owner });
     const now = this.now();
     const next = {
       ...workspace,
@@ -95,5 +126,22 @@ export class WorkspaceStore {
       updated_at: now,
     };
     return this.save(next);
+  }
+
+  async cleanupExpired(ids) {
+    if (!Array.isArray(ids)) throw new WorkspaceStoreError("cleanupExpired requires an explicit workspace id list");
+    const now = new Date(this.now()).getTime();
+    const removed = [];
+    for (const id of ids) {
+      validateWorkspaceId(id);
+      const record = await this.adapter.read(id);
+      if (!record) continue;
+      if (new Date(record.expires_at).getTime() <= now) {
+        if (typeof this.adapter.delete !== "function") throw new WorkspaceStoreError("workspace adapter does not support deletion");
+        await this.adapter.delete(id);
+        removed.push(id);
+      }
+    }
+    return removed;
   }
 }
