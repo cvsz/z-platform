@@ -22,7 +22,7 @@ Source repository: `cvsz/zeaz-platform`
 | Browser response streaming | `apps/zaicoder/web` | Add end-to-end SSE proxying and browser delta rendering | complete |
 | Browser file upload proxy | `apps/zaicoder/web` | Proxy uploads through the platform gateway without exposing provider credentials | partial |
 | Persistent project/workspace metadata | `apps/zaicoder/web` + workspace runtime | Add local metadata boundary, owner field, retention timestamps, and uploaded-file links | partial |
-| Provider attachment adapters | `services/ai-gateway` | Add adapter registry and wire provider selection for OpenAI-compatible and Anthropic message-shape translation | partial |
+| Provider attachment adapters | `services/ai-gateway` | Add adapter registry, provider selection, OpenAI-compatible binary/content upload pass-through, and Anthropic unsupported-upload guardrails | partial |
 | Hugging Face model catalog | `services/ai-gateway` | Add curated free/local model metadata and protected `/v1/models` listing | partial |
 
 ## Candidate migrations
