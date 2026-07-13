@@ -19,7 +19,8 @@ Source repository: `cvsz/zeaz-platform`
 | Streaming, MCP and model preflight runtime | `apps/zaicoder/backend` | Migrate tested isolated modules and regression tests | complete |
 | Gateway-backed CLI | `apps/zaicoder/backend` | Add OpenAI-compatible client, command entry point and unit tests | complete |
 | Browser gateway proxy and terminal shell | `apps/zaicoder/web` | Add server-side gateway proxy, input validation and basic browser UI | complete |
-| Advanced browser-terminal capabilities | `apps/zaicoder/web` | Import streaming, files and workspace behavior after component audit | pending |
+| Browser response streaming | `apps/zaicoder/web` | Add end-to-end SSE proxying and browser delta rendering | complete |
+| Browser file and workspace capabilities | `apps/zaicoder/web` | Import file upload and project-context behavior after component audit | pending |
 
 ## Candidate migrations
 
