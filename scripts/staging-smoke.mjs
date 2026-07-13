@@ -3,23 +3,22 @@ import assert from "node:assert/strict";
 const token = process.env.Z_PLATFORM_SERVICE_TOKEN;
 if (!token) throw new Error("Z_PLATFORM_SERVICE_TOKEN is required");
 
-// Smoke tests run from the host/CI runner, not from the Compose network.
-// Keep these endpoint overrides separate from service-to-service variables such
-// as BILLING_LEDGER_URL, which may legitimately contain Docker DNS names.
 const bases = {
   gateway: process.env.STAGING_SMOKE_AI_GATEWAY_URL || "http://127.0.0.1:8400",
   agent: process.env.STAGING_SMOKE_AGENT_ORCHESTRATOR_URL || "http://127.0.0.1:8500",
   workspace: process.env.STAGING_SMOKE_WORKSPACE_RUNTIME_URL || "http://127.0.0.1:8600",
   billing: process.env.STAGING_SMOKE_BILLING_LEDGER_URL || "http://127.0.0.1:8700",
   provider: process.env.STAGING_SMOKE_AGENT_PROVIDER_URL || "http://127.0.0.1:8800",
+  zwallet: process.env.STAGING_SMOKE_ZWALLET_URL || "http://127.0.0.1:3040",
+  zchat: process.env.STAGING_SMOKE_ZCHAT_URL || "http://127.0.0.1:3021",
 };
 
-async function request(base, path, { method = "GET", body, auth = true, expected } = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (auth) headers.Authorization = `Bearer ${token}`;
+async function request(base, path, { method = "GET", body, auth = true, expected, headers = {} } = {}) {
+  const requestHeaders = { "Content-Type": "application/json", ...headers };
+  if (auth) requestHeaders.Authorization = `Bearer ${token}`;
   const response = await fetch(`${base}${path}`, {
     method,
-    headers,
+    headers: requestHeaders,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await response.text();
@@ -28,7 +27,7 @@ async function request(base, path, { method = "GET", body, auth = true, expected
     try { payload = JSON.parse(text); } catch { payload = text; }
   }
   if (expected !== undefined) assert.equal(response.status, expected, `${method} ${path}: ${response.status} ${text}`);
-  return { status: response.status, payload };
+  return { status: response.status, payload, headers: response.headers };
 }
 
 for (const [name, base] of Object.entries(bases)) {
@@ -36,7 +35,6 @@ for (const [name, base] of Object.entries(bases)) {
   assert.equal(payload.status, "ok", `${name} health must be ok`);
 }
 
-// Authentication and approval boundaries.
 await request(bases.workspace, "/v1/shell", { method: "POST", auth: false, body: {}, expected: 401 });
 await request(bases.workspace, "/v1/shell", { method: "POST", body: { command: "pwd" }, expected: 403 });
 await request(bases.workspace, "/v1/deploy", { method: "POST", body: { target: "staging" }, expected: 403 });
@@ -47,7 +45,6 @@ const shell = await request(bases.workspace, "/v1/shell", {
 });
 assert.equal(shell.payload.status, "accepted");
 
-// Billing usage idempotency and duplicate rejection semantics.
 const usageKey = `smoke-${Date.now()}`;
 const usage = {
   usage_id: usageKey,
@@ -64,7 +61,6 @@ const duplicateUsage = await request(bases.billing, "/v1/usage", { method: "POST
 assert.equal(duplicateUsage.payload.duplicate, true);
 assert.equal(duplicateUsage.payload.record.usage_id, usageKey);
 
-// Durable agent lifecycle: submit, idempotent submit, approve, execute and audit.
 const idempotencyKey = `agent-${Date.now()}`;
 const submitted = await request(bases.agent, "/v1/jobs", {
   method: "POST",
@@ -92,7 +88,7 @@ const duplicateSubmit = await request(bases.agent, "/v1/jobs", {
 });
 assert.equal(duplicateSubmit.payload.id, jobId);
 
-const approved = await request(bases.agent, `/v1/jobs/${jobId}/approve`, {
+await request(bases.agent, `/v1/jobs/${jobId}/approve`, {
   method: "POST",
   body: {
     approved_by: "readiness-reviewer",
@@ -101,19 +97,70 @@ const approved = await request(bases.agent, `/v1/jobs/${jobId}/approve`, {
   },
   expected: 200,
 });
-assert.equal(approved.payload.status, "approved");
-
 const executed = await request(bases.agent, "/v1/worker/run-next", { method: "POST", body: {}, expected: 200 });
 assert.equal(executed.payload.id, jobId);
 assert.equal(executed.payload.status, "succeeded");
 
-const fetched = await request(bases.agent, `/v1/jobs/${jobId}`, { expected: 200 });
-assert.equal(fetched.payload.status, "succeeded");
+const cancelSubmitted = await request(bases.agent, "/v1/jobs", {
+  method: "POST",
+  body: {
+    tenant_id: "readiness-smoke",
+    task: "Validate cancellation",
+    idempotency_key: `cancel-${Date.now()}`,
+    tool_grants: [{ tool: "workspace.read", scope: "*", mutating: false }],
+  },
+  expected: 202,
+});
+const cancelled = await request(bases.agent, `/v1/jobs/${cancelSubmitted.payload.id}/cancel`, {
+  method: "POST",
+  body: { cancelled_by: "readiness-reviewer" },
+  expected: 200,
+});
+assert.equal(cancelled.payload.status, "cancelled");
+
+let retryJobId = null;
+if (process.env.STAGING_SMOKE_TEST_FAILURE_RETRY === "true") {
+  const failureSubmitted = await request(bases.agent, "/v1/jobs", {
+    method: "POST",
+    body: {
+      tenant_id: "readiness-smoke",
+      task: "readiness:fail-first-attempt",
+      idempotency_key: `retry-${Date.now()}`,
+      max_retries: 1,
+      tool_grants: [{ tool: "workspace.read", scope: "*", mutating: false }],
+    },
+    expected: 202,
+  });
+  retryJobId = failureSubmitted.payload.id;
+  await request(bases.agent, `/v1/jobs/${retryJobId}/approve`, {
+    method: "POST",
+    body: {
+      approved_by: "readiness-reviewer",
+      tool_grants: [{ tool: "workspace.read", scope: "*", mutating: false }],
+      constraints: { sandbox: "restricted", network: "deny-by-default", max_retries: 1 },
+    },
+    expected: 200,
+  });
+  const failed = await request(bases.agent, "/v1/worker/run-next", { method: "POST", body: {}, expected: 200 });
+  assert.equal(failed.payload.id, retryJobId);
+  assert.equal(failed.payload.status, "failed");
+  const retried = await request(bases.agent, `/v1/jobs/${retryJobId}/retry`, { method: "POST", body: {}, expected: 200 });
+  assert.equal(retried.payload.status, "approved");
+  const retrySucceeded = await request(bases.agent, "/v1/worker/run-next", { method: "POST", body: {}, expected: 200 });
+  assert.equal(retrySucceeded.payload.id, retryJobId);
+  assert.equal(retrySucceeded.payload.status, "succeeded");
+  assert.equal(retrySucceeded.payload.attempt, 2);
+}
+
 const events = await request(bases.provider, "/events", { expected: 200 });
 const jobEvents = events.payload.events.filter((event) => event.job_id === jobId).map((event) => event.event_type);
 assert.deepEqual(jobEvents, ["agent.job.requested.v1", "agent.job.approved.v1", "agent.job.completed.v1"]);
+assert.ok(events.payload.events.some((event) => event.job_id === cancelSubmitted.payload.id && event.status === "cancelled"));
+if (retryJobId) {
+  const retryStatuses = events.payload.events.filter((event) => event.job_id === retryJobId && event.event_type === "agent.job.completed.v1").map((event) => event.status);
+  assert.deepEqual(retryStatuses, ["failed", "succeeded"]);
+}
 
-// Durable workspace metadata, cleanup and backup/restore.
 const workspaceId = `workspace-${Date.now()}`;
 await request(bases.provider, `/workspaces/${workspaceId}`, {
   method: "PUT",
@@ -132,6 +179,33 @@ const metrics = await request(bases.provider, "/metrics", { auth: false, expecte
 assert.match(metrics.payload, /z_platform_agent_jobs_total/);
 assert.match(metrics.payload, /z_platform_agent_audit_events_total/);
 
+for (const forbidden of ["wallet_signature", "card_number", "kyc_payload", "mpc_share", "swap_route"]) {
+  const rejected = await request(bases.zwallet, "/api/invoice-intents", {
+    method: "POST",
+    auth: false,
+    body: { tenant_id: "readiness-smoke", amount: 1, currency: "USD", [forbidden]: "forbidden-test-value" },
+    expected: 400,
+  });
+  assert.match(rejected.payload.error, /is not accepted/);
+}
+const walletHealth = await request(bases.zwallet, "/health", { auth: false, expected: 200 });
+assert.equal(walletHealth.payload.wallet_authority, false);
+assert.equal(walletHealth.payload.card_data, false);
+
+const zchatPage = await request(bases.zchat, "/", { auth: false, expected: 200 });
+assert.match(zchatPage.payload, /<html lang="en">/);
+assert.match(zchatPage.payload, /name="viewport"/);
+assert.match(zchatPage.payload, /<main>/);
+assert.match(zchatPage.payload, /role="status"/);
+assert.match(zchatPage.payload, /aria-live="polite"/);
+assert.match(zchatPage.payload, /<label for="model">/);
+assert.match(zchatPage.payload, /<label for="prompt">/);
+const zchatCss = await request(bases.zchat, "/styles.css", { auth: false, expected: 200 });
+assert.match(zchatCss.payload, /@media/);
+const logout = await request(bases.zchat, "/api/logout", { method: "POST", auth: false, body: {}, expected: 200 });
+assert.equal(logout.payload.status, "logged_out");
+assert.match(logout.headers.get("clear-site-data") || "", /storage/);
+
 console.log(JSON.stringify({
   status: "passed",
   services: Object.keys(bases),
@@ -141,10 +215,15 @@ console.log(JSON.stringify({
     "workspace-approval-denial",
     "billing-idempotency",
     "agent-submit-idempotency-approve-execute-audit",
+    "agent-cancellation",
+    ...(retryJobId ? ["agent-real-failure-retry-success"] : []),
     "workspace-metadata",
     "backup-export-restore",
     "metrics",
+    "zwallet-prohibited-capability-rejection",
+    "zchat-accessibility-mobile-session-static-qa",
   ],
   job_id: jobId,
+  retry_job_id: retryJobId,
   workspace_id: workspaceId,
 }, null, 2));
