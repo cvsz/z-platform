@@ -34,6 +34,11 @@ jobs:
             echo "Provider or service credential is exposed through a public browser environment variable."
             exit 1
           fi
+          browser_secret_pattern='Z_PLATFORM_SERVICE_TOKEN|AI_GATEWAY_PROVIDER_TOKEN|UPSTREAM_API_KEY|PROVIDER_TOKEN'
+          if git grep -nE -e "$browser_secret_pattern" -- 'apps/**/public/**'; then
+            echo "Server-only credential identifier found in browser-delivered assets."
+            exit 1
+          fi
 
   node:
     runs-on: ubuntu-latest
@@ -102,6 +107,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       Z_PLATFORM_SERVICE_TOKEN: ci-readiness-token
+      AGENT_TEST_FAILURE_INJECTION: "true"
+      STAGING_SMOKE_TEST_FAILURE_RETRY: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -113,7 +120,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          services=(ai-gateway agent-orchestrator agent-provider workspace-runtime billing-ledger)
+          services=(ai-gateway agent-orchestrator agent-provider workspace-runtime billing-ledger zwallet zchat)
           for attempt in $(seq 1 60); do
             unhealthy=()
             for service in "${services[@]}"; do
@@ -139,6 +146,7 @@ jobs:
         run: |
           set -euo pipefail
           job_id="$(jq -r .job_id staging-smoke-result.json)"
+          retry_job_id="$(jq -r .retry_job_id staging-smoke-result.json)"
           workspace_id="$(jq -r .workspace_id staging-smoke-result.json)"
           docker compose restart agent-provider agent-orchestrator
           for attempt in $(seq 1 30); do
@@ -147,6 +155,8 @@ jobs:
           done
           auth="Authorization: Bearer ${Z_PLATFORM_SERVICE_TOKEN}"
           test "$(curl -fsS -H "$auth" http://127.0.0.1:8500/v1/jobs/$job_id | jq -r .status)" = succeeded
+          test "$(curl -fsS -H "$auth" http://127.0.0.1:8500/v1/jobs/$retry_job_id | jq -r .status)" = succeeded
+          test "$(curl -fsS -H "$auth" http://127.0.0.1:8500/v1/jobs/$retry_job_id | jq -r .attempt)" = 2
           test "$(curl -fsS -H "$auth" http://127.0.0.1:8800/workspaces/$workspace_id | jq -r .status)" = active
           curl -fsS -H "$auth" http://127.0.0.1:8800/events | jq -e --arg id "$job_id" '.events | any(.job_id == $id and .event_type == "agent.job.completed.v1")'
       - name: Upload deployed smoke evidence
