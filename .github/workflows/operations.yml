@@ -1,0 +1,29 @@
+name: operations
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-and-provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Dependency check
+        run: node tools/ops/check-dependencies.mjs
+      - name: Generate SBOM
+        run: node tools/ops/generate-sbom.mjs > sbom.spdx.json
+      - name: Verify provenance manifest
+        run: node tools/ops/verify-provenance.mjs sbom.spdx.json
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx-json
+          path: sbom.spdx.json
