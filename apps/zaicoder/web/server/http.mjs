@@ -26,16 +26,23 @@ async function readJson(request) {
   try { return JSON.parse((await readBody(request)).toString()); }
   catch (error) { if (error instanceof ChatRequestError) throw error; throw new ChatRequestError("Request body must be valid JSON"); }
 }
+function tenantOwner(request) {
+  const value = request.headers["x-tenant-id"];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
 function handleError(response, error) {
   sendJson(response, error instanceof ChatRequestError || error instanceof WorkspaceStoreError ? 400 : 500, { error: error.message || "Unexpected error" });
 }
 
 const server = createServer(async (request, response) => {
   try {
-    if (request.method === "POST" && request.url === "/api/workspaces") return sendJson(response, 200, await workspaceStore.ensure(await readJson(request)));
+    if (request.method === "POST" && request.url === "/api/workspaces") {
+      const input = await readJson(request);
+      return sendJson(response, 200, await workspaceStore.ensure({ ...input, owner: tenantOwner(request) || input.owner }));
+    }
     const workspaceMatch = request.url?.match(/^\/api\/workspaces\/([^/]+)$/);
     if (request.method === "GET" && workspaceMatch) {
-      const workspace = await workspaceStore.read(workspaceMatch[1]);
+      const workspace = await workspaceStore.read(workspaceMatch[1], { owner: tenantOwner(request) });
       return workspace ? sendJson(response, 200, workspace) : sendJson(response, 404, { error: "Workspace not found" });
     }
     if (request.method === "POST" && request.url === "/api/chat") return sendJson(response, 200, await forwardChat(await readJson(request)));
@@ -50,7 +57,7 @@ const server = createServer(async (request, response) => {
       const uploaded = await forwardFile({ name, type: request.headers["content-type"], bytes: await readBody(request, 10 * 1024 * 1024) });
       const workspaceId = request.headers["x-workspace-id"];
       if (typeof workspaceId === "string" && workspaceId.trim()) {
-        const workspace = await workspaceStore.addFile(workspaceId, uploaded);
+        const workspace = await workspaceStore.addFile(workspaceId, uploaded, { owner: tenantOwner(request) });
         return sendJson(response, 200, { ...uploaded, workspace_id: workspace.id });
       }
       return sendJson(response, 200, uploaded);
