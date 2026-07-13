@@ -12,9 +12,7 @@ class ModelUnavailableError(ValueError):
 
 
 class ModelCapabilityResolver:
-    """Fetch model metadata once per process without retaining credentials."""
-
-    _cache: dict[str, dict] = {}
+    """Fetch model metadata once per resolver without retaining credentials."""
 
     def __init__(
         self,
@@ -26,6 +24,7 @@ class ModelCapabilityResolver:
         self.api_key = api_key
         self.known_models = known_models or {}
         self._opener = opener
+        self._cache: dict[str, dict] = {}
 
     def resolve(self, model: str) -> dict:
         if model in self._cache:
