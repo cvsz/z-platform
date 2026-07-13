@@ -20,6 +20,8 @@ All non-health routes require `Authorization: Bearer <Z_PLATFORM_SERVICE_TOKEN>`
 
 Every response includes `X-Request-Id`. Clients may provide `X-Request-Id`; otherwise the gateway generates one. Error responses are structured as `{ "error": "...", "code": "...", "request_id": "..." }`.
 
+Client disconnects and upstream aborts are treated as cancellations. The gateway propagates cancellation to the upstream request and records a redacted `request_cancelled` audit event.
+
 ## Required environment
 
 - `Z_PLATFORM_SERVICE_TOKEN`: internal service token accepted from platform clients.
@@ -30,7 +32,7 @@ Every response includes `X-Request-Id`. Clients may provide `X-Request-Id`; othe
 
 ## Validation
 
-Run `npm test` in this directory to check health, service-token authorization, request IDs, structured errors, audit events, upstream URL normalization, provider credential forwarding, file upload headers, and upstream failure handling.
+Run `npm test` in this directory to check health, service-token authorization, request IDs, structured errors, audit events, upstream URL normalization, provider credential forwarding, file upload headers, upstream failure handling, and cancellation propagation.
 
 ## Prohibited responsibilities
 
