@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server/http.mjs",
+    "cleanup:workspaces": "node server/cleanup-workspaces.mjs",
     "test": "node --test"
   },
   "engines": {
