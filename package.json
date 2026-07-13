@@ -1,0 +1,17 @@
+{
+  "name": "z-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Clean ZeaZ platform foundation",
+  "packageManager": "pnpm@11.4.0",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "test": "pnpm -r --if-present test",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  }
+}
