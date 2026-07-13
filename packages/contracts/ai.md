@@ -13,7 +13,32 @@
 
 `attachments` are platform file references. Browser and app clients must send platform references only; they must not send provider-specific file payloads, provider upload IDs, or upstream credentials.
 
-The AI Gateway validates attachment references and translates them before forwarding upstream. The initial OpenAI-compatible adapter removes the top-level `attachments` field, records references in `metadata.z_platform.attachments`, and adds a textual file-reference context to the final user message.
+The AI Gateway validates attachment references and translates them before forwarding upstream. The OpenAI-compatible adapter removes the top-level `attachments` field, records references in `metadata.z_platform.attachments`, and adds a textual file-reference context to the final user message.
+
+## ai.model.catalog.v1
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "model",
+      "id": "hf:Qwen/Qwen2.5-7B-Instruct",
+      "provider": "huggingface",
+      "upstream_provider": "openai-compatible",
+      "repo": "Qwen/Qwen2.5-7B-Instruct",
+      "task": "text-generation",
+      "license": "apache-2.0",
+      "profile": "general-instruct",
+      "runtime": ["huggingface-endpoint", "local-transformers", "text-generation-inference"],
+      "context_window": null,
+      "notes": "string"
+    }
+  ]
+}
+```
+
+The catalog is metadata only. It does not deploy hosted inference, grant provider credentials, or guarantee zero-cost remote execution. Runtime availability depends on the operator-approved local runtime or upstream endpoint.
 
 ## ai.file.uploaded.v1
 
