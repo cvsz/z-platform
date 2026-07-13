@@ -20,14 +20,15 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 - Gateway-backed CLI.
 - Browser terminal, server-side gateway proxy, response streaming, and file upload proxy.
 - AI Gateway service skeleton with service-token authentication and upstream isolation.
+- AI Gateway request IDs, structured error codes, and redacted audit events.
 - Shared AI contracts.
 
 ### Remaining
 
 - Translate platform attachment references to each approved upstream provider.
 - Add persistent project/workspace metadata and retention policy.
-- Add cancellation, request IDs, audit events, and structured error codes.
-- Execute repository-local tests in CI.
+- Add request cancellation and upstream abort propagation.
+- Execute repository-local tests in CI and verify GitHub Actions results.
 
 **Done when:** ZAI Coder web and CLI use only the gateway; browser clients never receive provider secrets; tests cover chat, streaming, file upload, and failure paths.
 
