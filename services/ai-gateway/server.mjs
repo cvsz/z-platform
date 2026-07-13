@@ -4,6 +4,7 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import { translateAttachmentBuffer } from "./attachments.mjs";
+import { listModels } from "./model-catalog.mjs";
 
 const defaultHost = process.env.HOST || "127.0.0.1";
 const defaultPort = Number(process.env.PORT || 8400);
@@ -33,6 +34,13 @@ function authorized(request, env) {
   const a = Buffer.from(expected);
   const b = Buffer.from(supplied);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+function rejectUnauthorized(request, response, env, logger, requestId) {
+  if (authorized(request, env)) return false;
+  audit(logger, { event: "unauthorized", request_id: requestId, path: request.url, status: 401 });
+  sendJson(response, 401, errorPayload("unauthorized", "Unauthorized", requestId), requestId);
+  return true;
 }
 
 async function readBody(request) {
@@ -110,14 +118,17 @@ export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, lo
       }, requestId);
     }
 
+    if (request.method === "GET" && request.url === "/v1/models") {
+      if (rejectUnauthorized(request, response, env, logger, requestId)) return;
+      audit(logger, { event: "model_catalog", request_id: requestId, status: 200, provider: "huggingface" });
+      return sendJson(response, 200, listModels({ provider: "huggingface" }), requestId);
+    }
+
     if (request.method !== "POST" || !["/v1/chat/completions", "/v1/files"].includes(request.url)) {
       audit(logger, { event: "not_found", request_id: requestId, method: request.method, path: request.url, status: 404 });
       return sendJson(response, 404, errorPayload("not_found", "Not found", requestId), requestId);
     }
-    if (!authorized(request, env)) {
-      audit(logger, { event: "unauthorized", request_id: requestId, path: request.url, status: 401 });
-      return sendJson(response, 401, errorPayload("unauthorized", "Unauthorized", requestId), requestId);
-    }
+    if (rejectUnauthorized(request, response, env, logger, requestId)) return;
 
     try {
       const body = await readBody(request);
