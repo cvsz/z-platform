@@ -31,10 +31,11 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 - ZAI Coder web workspace metadata adapter boundary with tenant owner enforcement and explicit retention cleanup hooks.
 - ZAI Coder web scheduled workspace cleanup runner with structured cleanup output.
 - ZAI Coder web production workspace metadata adapter with HTTP durable metadata service wiring.
+- Repository-local test workflows for Node and Python runtimes covering gateway-only ZAI Coder paths, model catalog, provider adapters, workspace metadata, uploads, streaming, and failure paths.
 
 ### Remaining
 
-- Execute repository-local tests in CI and verify GitHub Actions results.
+- Verify GitHub Actions result visibility after the next workflow run is reported by GitHub.
 
 **Done when:** ZAI Coder web and CLI use only the gateway; browser clients never receive provider secrets; tests cover chat, streaming, file upload, workspace metadata, model catalog, provider attachment adapters, and failure paths.
 
@@ -44,10 +45,11 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 
 - Defined `agent.job.requested.v1`, `agent.job.approved.v1`, and `agent.job.completed.v1` contracts with JSON schemas and validation tests.
 - Implemented the agent orchestrator job-store, queue, approval, sandbox worker, cancellation, retry, and audit adapter boundaries with lifecycle tests.
+- Added operator-approved production provider adapters for job storage, queueing, observability audit export, identity approval checks, and sandbox execution before external traffic.
 
 ### Remaining
 
-- Replace local in-memory migration adapters with operator-approved production database, queue, observability, identity, and sandbox runtime providers before external traffic.
+- Verify production provider endpoints in the selected staging environment before setting `AGENT_EXTERNAL_TRAFFIC_ENABLED=true`.
 
 **Done when:** an agent job can be submitted, approved, executed with scoped tools, cancelled, retried idempotently, and audited.
 
