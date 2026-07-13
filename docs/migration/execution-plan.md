@@ -28,10 +28,11 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 - AI Gateway upstream provider selection wired into chat attachment translation.
 - Hugging Face free/local model catalog exposed through the AI Gateway model list endpoint.
 - AI Gateway upload adapter registry with OpenAI-compatible binary/content pass-through, safe filename normalization, and unsupported-provider failure handling.
+- ZAI Coder web workspace metadata adapter boundary with tenant owner enforcement and explicit retention cleanup hooks.
 
 ### Remaining
 
-- Replace the local workspace metadata store with a production durable storage adapter, tenant identity enforcement, and retention cleanup jobs.
+- Provide the production database/object-store adapter and scheduled cleanup runner for workspace metadata.
 - Execute repository-local tests in CI and verify GitHub Actions results.
 
 **Done when:** ZAI Coder web and CLI use only the gateway; browser clients never receive provider secrets; tests cover chat, streaming, file upload, workspace metadata, model catalog, provider attachment adapters, and failure paths.
