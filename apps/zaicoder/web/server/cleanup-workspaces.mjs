@@ -1,8 +1,8 @@
 import { fileURLToPath } from "node:url";
 
-import { WorkspaceStore } from "./workspace-store.mjs";
+import { createWorkspaceStoreFromEnv } from "./workspace-store.mjs";
 
-export async function cleanupWorkspaces({ store = new WorkspaceStore(), logger = console } = {}) {
+export async function cleanupWorkspaces({ store = createWorkspaceStoreFromEnv(), logger = console } = {}) {
   const removed = await store.cleanupExpired();
   const result = {
     event: "workspace_cleanup",
