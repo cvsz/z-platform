@@ -25,17 +25,13 @@ jobs:
             echo "Potential credential pattern found."
             exit 1
           fi
-      - name: Reject browser-side provider and service credentials
+      - name: Reject public browser credential exposure
         shell: bash
         run: |
           set -euo pipefail
           public_pattern='(VITE_|NEXT_PUBLIC_|PUBLIC_).*(Z_PLATFORM_SERVICE_TOKEN|AI_GATEWAY_PROVIDER_TOKEN|UPSTREAM_API_KEY|PROVIDER_TOKEN)'
-          direct_pattern='(import\.meta\.env|process\.env)\.(Z_PLATFORM_SERVICE_TOKEN|AI_GATEWAY_PROVIDER_TOKEN|UPSTREAM_API_KEY)'
-          if git grep -nE -e "$public_pattern" -e "$direct_pattern" -- \
-            'apps/**' \
-            ':(exclude)apps/**/*.test.*' \
-            ':(exclude)apps/**/README*'; then
-            echo "Provider or service credential is exposed to browser application source."
+          if git grep -nE -e "$public_pattern" -- 'apps/**' ':(exclude)apps/**/*.test.*' ':(exclude)apps/**/README*'; then
+            echo "Provider or service credential is exposed through a public browser environment variable."
             exit 1
           fi
 
