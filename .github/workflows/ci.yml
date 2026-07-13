@@ -34,3 +34,13 @@ jobs:
         run: npm test --prefix services/ai-gateway
       - name: Verify Agent Orchestrator lifecycle coverage
         run: npm test --prefix services/agent-orchestrator
+      - name: Verify Workspace Runtime coverage
+        run: npm test --prefix services/workspace-runtime
+      - name: Verify Billing Ledger coverage
+        run: npm test --prefix services/billing-ledger
+      - name: Verify ZChat coverage
+        run: npm test --prefix apps/zchat
+      - name: Verify ZOW coverage
+        run: npm test --prefix apps/zow
+      - name: Verify ZWallet adapter coverage
+        run: npm test --prefix apps/zwallet
