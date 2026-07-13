@@ -21,11 +21,12 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 - Browser terminal, server-side gateway proxy, response streaming, and file upload proxy.
 - AI Gateway service skeleton with service-token authentication and upstream isolation.
 - AI Gateway request IDs, structured error codes, redacted audit events, and cancellation propagation.
+- Generic OpenAI-compatible attachment reference translation for platform file references.
 - Shared AI contracts.
 
 ### Remaining
 
-- Translate platform attachment references to each approved upstream provider.
+- Add provider-specific binary/content attachment adapters for each approved upstream provider.
 - Add persistent project/workspace metadata and retention policy.
 - Execute repository-local tests in CI and verify GitHub Actions results.
 
