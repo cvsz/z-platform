@@ -28,6 +28,33 @@ function audit(logger, event) {
   logger.info(JSON.stringify({ ts: new Date().toISOString(), service: "ai-gateway", ...event }));
 }
 
+async function emitUsage({ env, fetchImpl, request, requestId, responsePayload }) {
+  const ledgerUrl = env.Z_PLATFORM_BILLING_LEDGER_URL?.replace(/\/$/, "");
+  if (!ledgerUrl || request.url !== "/v1/chat/completions") return null;
+  let parsed = {};
+  try { parsed = JSON.parse(responsePayload.toString("utf8")); } catch {}
+  const usage = parsed.usage || {};
+  const body = {
+    usage_id: requestId,
+    idempotency_key: `ai-usage:${requestId}`,
+    tenant_id: request.headers["x-tenant-id"] || "unknown",
+    subject_id: request.headers["x-subject-id"] || "unknown",
+    model: parsed.model || "unknown",
+    input_tokens: Number(usage.prompt_tokens || usage.input_tokens || 0),
+    output_tokens: Number(usage.completion_tokens || usage.output_tokens || 0),
+    recorded_at: new Date().toISOString(),
+  };
+  return fetchImpl(ledgerUrl + "/v1/usage", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + env.Z_PLATFORM_SERVICE_TOKEN,
+      "Content-Type": "application/json",
+      "X-Request-Id": requestId,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 function authorized(request, env) {
   const expected = env.Z_PLATFORM_SERVICE_TOKEN;
   const supplied = request.headers.authorization?.replace(/^Bearer\s+/i, "");
@@ -170,9 +197,10 @@ export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, lo
         return Readable.fromWeb(result.body).pipe(response);
       }
 
-      const payload = await result.arrayBuffer();
+      const payload = Buffer.from(await result.arrayBuffer());
+      await emitUsage({ env, fetchImpl, request, requestId, responsePayload: payload });
       response.writeHead(200, { "Content-Type": result.headers.get("content-type") || "application/json", "X-Request-Id": requestId });
-      response.end(Buffer.from(payload));
+      response.end(payload);
     } catch (error) {
       if (isAbortError(error, clientSignal)) {
         audit(logger, { event: "request_cancelled", request_id: requestId, path: request.url, status: 499, code: "request_cancelled" });
