@@ -8,6 +8,7 @@ This directory contains production operations controls, runbooks, and readiness 
 
 ## Runbooks and reviews
 
+- [Local Compose operations](local-compose.md)
 - [Cloudflare Access service policies](cloudflare-access.md)
 - [GitHub App token format readiness](github-app-token-format.md)
 - [Observability and health](observability.md)
