@@ -19,7 +19,7 @@ Production deployment is blocked until every item is checked and signed off by t
 - [ ] `staging` environment secrets are staging-only and are not committed to the repository.
 - [ ] `production` environment exists with operator approval required.
 - [ ] `production` deployment branches are restricted to `main` or the operator-approved release branch.
-- [ ] Production traffic remains disabled until this checklist is signed off.
+- [x] Production traffic remains disabled until this checklist is signed off.
 
 ## Identity and access
 
@@ -48,9 +48,18 @@ Production deployment is blocked until every item is checked and signed off by t
 
 ## Sign-off record
 
-- [ ] Release commit SHA recorded.
+- [x] Release commit SHA recorded.
 - [ ] Workflow run result recorded.
 - [ ] Staging reviewer recorded.
 - [ ] Production approving operator recorded.
 - [ ] Rollback SHA and verification commands recorded.
 - [ ] Incident owner and post-launch watch window recorded.
+
+## Execution record
+
+- Execution authorized by repository operator through GitHub Issue #1.
+- Baseline release candidate: `6079f078e5055c9fdf8bf2313d935028e4b5709b`.
+- Readiness execution started on 2026-07-14.
+- This documentation commit intentionally triggers the `validate` workflow on `main`.
+- No credentials, provider endpoints, production identifiers, or infrastructure authority were added.
+- Environment creation, protected-environment reviewers, provider configuration, deployed-service checks, backup restore, and production approval remain operator-controlled and must be verified with external evidence before their checkboxes are completed.
