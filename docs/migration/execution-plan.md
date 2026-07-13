@@ -30,10 +30,10 @@ Create a clean, secure platform successor to `cvsz/zeaz-platform` without bulk-c
 - AI Gateway upload adapter registry with OpenAI-compatible binary/content pass-through, safe filename normalization, and unsupported-provider failure handling.
 - ZAI Coder web workspace metadata adapter boundary with tenant owner enforcement and explicit retention cleanup hooks.
 - ZAI Coder web scheduled workspace cleanup runner with structured cleanup output.
+- ZAI Coder web production workspace metadata adapter with HTTP durable metadata service wiring.
 
 ### Remaining
 
-- Provide the production database/object-store adapter for workspace metadata.
 - Execute repository-local tests in CI and verify GitHub Actions results.
 
 **Done when:** ZAI Coder web and CLI use only the gateway; browser clients never receive provider secrets; tests cover chat, streaming, file upload, workspace metadata, model catalog, provider attachment adapters, and failure paths.
