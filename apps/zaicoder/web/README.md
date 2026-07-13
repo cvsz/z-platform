@@ -15,17 +15,21 @@ This package is the browser-facing ZAI Coder shell. It must route all AI request
 
 - `Z_PLATFORM_AI_GATEWAY_URL`: AI Gateway base URL. Both `http://gateway:8400` and `http://gateway:8400/v1` are accepted.
 - `Z_PLATFORM_SERVICE_TOKEN`: service token used only by the server-side proxy.
+- `ZAICODER_WORKSPACE_ADAPTER` optional, defaults to `file`. Set to `http` for the production durable metadata adapter.
 - `ZAICODER_WORKSPACE_STORE` optional, defaults to `.zaicoder-workspaces` for the file-backed adapter.
+- `ZAICODER_WORKSPACE_METADATA_URL` required when `ZAICODER_WORKSPACE_ADAPTER=http`; points to the server-side workspace metadata service backed by the selected database/object store.
+- `ZAICODER_WORKSPACE_METADATA_TIMEOUT_MS` optional, defaults to `5000`.
+- `Z_PLATFORM_SERVICE_TOKEN` is also used by the HTTP workspace adapter as a server-side bearer token.
 - `HOST` optional, defaults to `127.0.0.1`.
 - `PORT` optional, defaults to `3010`.
 
 ## Workspace metadata
 
-Workspace metadata is accessed through a `WorkspaceStore` adapter boundary. The default adapter is file-backed JSON for local development, while production can supply a durable adapter with `listIds`, `read`, `save`, and `delete` methods.
+Workspace metadata is accessed through a `WorkspaceStore` adapter boundary. The default adapter is file-backed JSON for local development. Production deployments should set `ZAICODER_WORKSPACE_ADAPTER=http` and point `ZAICODER_WORKSPACE_METADATA_URL` at the platform metadata service backed by the selected database/object store.
 
 The store validates workspace IDs, records an owner field, enforces owner matches when `X-Tenant-Id` is supplied, clamps retention to a maximum of 365 days, stores `created_at`, `updated_at`, and `expires_at`, tracks uploaded file references with `added_at` timestamps, and exposes explicit retention cleanup.
 
-Run `npm run cleanup:workspaces` from this package in a cron job or one-shot container to remove expired workspace metadata. The runner emits a structured JSON event with `removed_count` and removed workspace IDs.
+Run `npm run cleanup:workspaces` from this package in a cron job or one-shot container to remove expired workspace metadata. The runner uses the configured adapter and emits a structured JSON event with `removed_count` and removed workspace IDs.
 
 Example create/update request:
 
@@ -45,4 +49,4 @@ Run `npm test` in this directory to check chat validation, gateway URL normaliza
 
 ## Current limits
 
-File uploads currently return platform file references and can be linked to workspace metadata. Production deployments still need a concrete database/object-store adapter and service identity integration around the adapter boundary.
+File uploads currently return platform file references and can be linked to workspace metadata. Production deployments must run a workspace metadata service that exposes `GET /workspaces`, `GET /workspaces/:id`, `PUT /workspaces/:id`, and `DELETE /workspaces/:id` over HTTPS or private service networking and persists records in the approved database/object store.
