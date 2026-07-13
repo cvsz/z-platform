@@ -30,9 +30,9 @@ Source repository: `cvsz/zeaz-platform`
 | Item | Target | Action | Status |
 |---|---|---|---|
 | Agent job event contracts | `packages/contracts` | Define requested, approved, and completed lifecycle events with schemas and tests | complete |
-| Durable job store and queue adapter | `services/agent-orchestrator` | Persist job state and enqueue approved execution work | pending |
-| Tool grant approval policy | `services/agent-orchestrator` | Require explicit scoped grants before mutating tool execution | pending |
-| Sandboxed worker runtime | `services/agent-orchestrator` | Execute jobs with resource limits, retries, cancellation, and audit hooks | pending |
+| Durable job store and queue adapter | `services/agent-orchestrator` | Persist job state and enqueue approved execution work through replaceable adapters | complete |
+| Tool grant approval policy | `services/agent-orchestrator` | Require explicit scoped grants before mutating tool execution | complete |
+| Sandboxed worker runtime | `services/agent-orchestrator` | Execute jobs with resource limits, retries, cancellation, and audit hooks | complete |
 
 ## Candidate migrations
 
