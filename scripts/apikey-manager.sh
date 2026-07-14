@@ -2,75 +2,35 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-# ==============================================================================
-# API Key Manager
+# Lossless API-key normalizer and validator.
 #
-# Features:
-#   - Organize *_API_KEY / *_TOKEN / selected credential variables A -> Z
-#   - Normalize assignments to NAME="value"
-#   - Preserve secrets without printing them
-#   - Detect empty, placeholder, duplicate, malformed, and suspicious values
-#   - Test supported provider credentials using read-only endpoints
-#   - Export a CSV validation report without exposing secrets
-#   - Create timestamped backups before rewriting
+# The organize command NEVER removes lines, comments, blank lines, duplicate
+# assignments, or unsupported variables. It only normalizes assignments whose
+# names match *_*_KEY:
+#
+#   OPENAI_API_KEY='value'  -> OPENAI_API_KEY="value"
+#   OPENAI_API_KEY="value"  -> OPENAI_API_KEY="value"
+#   OPENAI_API_KEY=value    -> OPENAI_API_KEY="value"
+#
+# Existing outer single/double quotes are removed first. The raw value is then
+# escaped and enclosed in one pair of double quotes.
 #
 # Usage:
-#   ./apikey-manager.sh sanitize
-#   ./apikey-manager.sh organize
-#   ./apikey-manager.sh lint
-#   ./apikey-manager.sh test
-#   ./apikey-manager.sh report
-#   ./apikey-manager.sh all
-#
-# Optional environment variables:
-#   APIKEY_FILE=/path/to/.apikey
-#   APIKEY_REPORT=/path/to/apikey-validation-report.csv
-#   APIKEY_TIMEOUT=15
-#   APIKEY_CONNECT_TIMEOUT=5
-#   APIKEY_PARALLELISM=6
-#
-# Exit codes:
-#   0  Success / no invalid credentials found
-#   1  Invalid credential or lint failure found
-#   2  Indeterminate result such as timeout, DNS failure, or unsupported provider
-#
-# Security:
-#   - Complete credential values are never printed.
-#   - Query-string credentials are avoided except where required by provider API.
-#   - Temporary files are created with restrictive permissions.
-#   - The target credential file and backups are chmod 600.
-# ==============================================================================
+#   APIKEY_FILE=.apikey ./scripts/apikey-manager.sh organize
+#   APIKEY_FILE=.apikey ./scripts/apikey-manager.sh lint
+#   APIKEY_FILE=.apikey ./scripts/apikey-manager.sh test
+#   APIKEY_FILE=.apikey ./scripts/apikey-manager.sh report
+#   APIKEY_FILE=.apikey ./scripts/apikey-manager.sh all
 
-readonly SCRIPT_NAME="${0##*/}"
 readonly APIKEY_FILE="${APIKEY_FILE:-.apikey}"
 readonly APIKEY_REPORT="${APIKEY_REPORT:-apikey-validation-report.csv}"
 readonly APIKEY_TIMEOUT="${APIKEY_TIMEOUT:-15}"
 readonly APIKEY_CONNECT_TIMEOUT="${APIKEY_CONNECT_TIMEOUT:-5}"
-readonly APIKEY_PARALLELISM="${APIKEY_PARALLELISM:-6}"
 readonly COMMAND="${1:-all}"
 
-readonly PLACEHOLDER_REGEX='^$|^\.+$|^[xX*]+$|^replace([-_ ]?me)?$|^your([-_ ]?.*)?$|^change([-_ ]?me)?$|^changeme$|^todo$|^tbd$|^null$|^none$|^undefined$|^example$|^dummy$|^test$|^secret$|^api[-_ ]?key$'
-
-# Credential names accepted by the parser.
-# In addition to *_API_KEY, some providers use *_TOKEN or account identifiers.
-readonly CREDENTIAL_NAME_REGEX='^[A-Z][A-Z0-9_]*(API_KEY|TOKEN|ACCESS_TOKEN|SECRET_KEY|ACCOUNT_ID|CLIENT_SECRET)$'
-readonly SANITIZE_NAME_REGEX='^[A-Z][A-Z0-9_]*_KEY$'
-
-# ------------------------------------------------------------------------------
-# Provider validation registry
-#
-# TEST_METHODS:
-#   bearer_models      Authorization: Bearer <key>, GET models endpoint
-#   api_key_header     x-api-key: <key>
-#   github_bearer      Authorization: Bearer <token>
-#   gemini_query       ?key=<key> (required by Gemini API)
-#   cloudflare         Bearer token + account id
-#
-# A status of HTTP 200/201/204 is VALID.
-# HTTP 401/403 is INVALID.
-# HTTP 429 is RATE_LIMITED and generally indicates the credential was accepted.
-# Other statuses are reported as UNKNOWN unless provider-specific logic applies.
-# ------------------------------------------------------------------------------
+readonly NORMALIZE_NAME_RE='^[A-Z][A-Z0-9_]*_[A-Z0-9]+_KEY$'
+readonly PARSE_NAME_RE='^[A-Z][A-Z0-9_]*(API_KEY|SECRET_KEY)$'
+readonly PLACEHOLDER_RE='^$|^\.+$|^[xX*]+$|^replace([-_ ]?me)?$|^your([-_ ]?.*)?$|^change([-_ ]?me)?$|^todo$|^tbd$|^null$|^none$|^undefined$|^example$|^dummy$|^test$|^secret$|^api[-_ ]?key$'
 
 declare -Ar TEST_URLS=(
   [CEREBRAS_API_KEY]="https://api.cerebras.ai/v1/models"
@@ -79,7 +39,6 @@ declare -Ar TEST_URLS=(
   [DEEPSEEK_API_KEY]="https://api.deepseek.com/models"
   [FIREWORKS_API_KEY]="https://api.fireworks.ai/inference/v1/models"
   [GEMINI_API_KEY]="https://generativelanguage.googleapis.com/v1beta/models"
-  [GITHUB_MODELS_TOKEN]="https://models.github.ai/catalog/models"
   [GROQ_API_KEY]="https://api.groq.com/openai/v1/models"
   [MISTRAL_API_KEY]="https://api.mistral.ai/v1/models"
   [NVIDIA_NIM_API_KEY]="https://integrate.api.nvidia.com/v1/models"
@@ -89,430 +48,167 @@ declare -Ar TEST_URLS=(
 )
 
 declare -Ar TEST_METHODS=(
-  [CEREBRAS_API_KEY]="bearer_models"
-  [CODESTRAL_API_KEY]="bearer_models"
-  [DASHSCOPE_API_KEY]="bearer_models"
-  [DEEPSEEK_API_KEY]="bearer_models"
-  [FIREWORKS_API_KEY]="bearer_models"
-  [GEMINI_API_KEY]="gemini_query"
-  [GITHUB_MODELS_TOKEN]="github_bearer"
-  [GROQ_API_KEY]="bearer_models"
-  [MISTRAL_API_KEY]="bearer_models"
-  [NVIDIA_NIM_API_KEY]="bearer_models"
-  [OPENAI_API_KEY]="bearer_models"
-  [OPENROUTER_API_KEY]="bearer_models"
-  [SAMBANOVA_API_KEY]="bearer_models"
+  [GEMINI_API_KEY]="query"
 )
 
-# ------------------------------------------------------------------------------
-# Logging and cleanup
-# ------------------------------------------------------------------------------
-
-log() {
-  printf '%s\n' "$*" >&2
-}
-
-info() {
-  log "INFO: $*"
-}
-
-warn() {
-  log "WARN: $*"
-}
-
-die() {
-  log "ERROR: $*"
-  exit 1
-}
-
-cleanup_files=()
+tmp_paths=()
 
 cleanup() {
   local path
-  for path in "${cleanup_files[@]:-}"; do
+  for path in "${tmp_paths[@]:-}"; do
     [[ -n "$path" ]] && rm -rf -- "$path"
   done
   return 0
 }
-
 trap cleanup EXIT
 
-make_temp() {
+log() { printf '%s\n' "$*" >&2; }
+die() { log "ERROR: $*"; exit 1; }
+
+make_tmp() {
   local path
   path="$(mktemp)"
   chmod 600 "$path"
-  cleanup_files+=("$path")
+  tmp_paths+=("$path")
   printf '%s' "$path"
 }
 
-# ------------------------------------------------------------------------------
-# Preconditions
-# ------------------------------------------------------------------------------
-
-require_tools() {
-  local tool
-  local required=(
-    awk
-    chmod
-    cp
-    curl
-    cut
-    date
-    grep
-    install
-    mktemp
-    sed
-    sort
-  )
-
-  for tool in "${required[@]}"; do
-    command -v "$tool" >/dev/null 2>&1 ||
-      die "Required command not found: $tool"
-  done
-}
-
-ensure_input_file() {
-  [[ -f "$APIKEY_FILE" ]] || die "Credential file not found: $APIKEY_FILE"
-  [[ -r "$APIKEY_FILE" ]] || die "Credential file is not readable: $APIKEY_FILE"
-  chmod 600 "$APIKEY_FILE"
-}
-
-validate_numeric_settings() {
-  [[ "$APIKEY_TIMEOUT" =~ ^[1-9][0-9]*$ ]] ||
-    die "APIKEY_TIMEOUT must be a positive integer"
-
-  [[ "$APIKEY_CONNECT_TIMEOUT" =~ ^[1-9][0-9]*$ ]] ||
-    die "APIKEY_CONNECT_TIMEOUT must be a positive integer"
-
-  [[ "$APIKEY_PARALLELISM" =~ ^[1-9][0-9]*$ ]] ||
-    die "APIKEY_PARALLELISM must be a positive integer"
-}
-
-# ------------------------------------------------------------------------------
-# String helpers
-# ------------------------------------------------------------------------------
-
 trim() {
   local value="$1"
-
   value="${value#"${value%%[![:space:]]*}"}"
   value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+strip_outer_quotes() {
+  local value="$1"
+
+  while :; do
+    if (( ${#value} >= 2 )) &&
+       [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+      value="${value:1:${#value}-2}"
+      continue
+    fi
+
+    if (( ${#value} >= 2 )) &&
+       [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
+      value="${value:1:${#value}-2}"
+      continue
+    fi
+
+    break
+  done
 
   printf '%s' "$value"
 }
 
-unquote() {
+escape_double_quoted_env() {
   local value="$1"
-
-  if [[ "$value" =~ ^\"(.*)\"$ ]]; then
-    value="${BASH_REMATCH[1]}"
-  elif [[ "$value" =~ ^\'(.*)\'$ ]]; then
-    value="${BASH_REMATCH[1]}"
-  fi
-
-  printf '%s' "$value"
-}
-
-escape_env_value() {
-  local value="$1"
-
   value="${value//\\/\\\\}"
   value="${value//\"/\\\"}"
   value="${value//$'\r'/}"
   value="${value//$'\n'/\\n}"
-
   printf '%s' "$value"
 }
 
-sanitize_key_value() {
+mask() {
   local value="$1"
-
-  # Step 1: remove every forbidden character from the raw value.
-  value="${value//\'/}"
-  value="${value//\"/}"
-  value="${value//:/}"
-  value="${value//\\/}"
-
-  # Step 2 happens in normalize_sanitize_line():
-  # NAME_KEY="sanitized_api_key"
-  printf '%s' "$value"
-}
-
-normalize_sanitize_line() {
-  local original="$1"
-  local working="$original"
-  local leading=""
-  local export_prefix=""
-  local name
-  local raw_value
-  local value
-
-  if [[ "$working" =~ ^([[:space:]]*) ]]; then
-    leading="${BASH_REMATCH[1]}"
-    working="${working:${#leading}}"
-  fi
-
-  if [[ "$working" =~ ^export[[:space:]]+ ]]; then
-    export_prefix="export "
-    working="${working:${#BASH_REMATCH[0]}}"
-  fi
-
-  if [[ "$working" != *=* ]]; then
-    printf '%s' "$original"
-    return 0
-  fi
-
-  name="$(trim "${working%%=*}")"
-
-  if [[ ! "$name" =~ $SANITIZE_NAME_REGEX ]]; then
-    printf '%s' "$original"
-    return 0
-  fi
-
-  raw_value="${working#*=}"
-  value="$(trim "$raw_value")"
-  value="$(sanitize_key_value "$value")"
-
-  printf '%s%s%s="%s"' "$leading" "$export_prefix" "$name" "$value"
-}
-
-csv_escape() {
-  local value="$1"
-
-  value="${value//\"/\"\"}"
-  printf '"%s"' "$value"
-}
-
-mask_secret() {
-  local value="$1"
-  local length="${#value}"
-
-  if (( length == 0 )); then
-    printf '<empty>'
-  elif (( length <= 8 )); then
+  if (( ${#value} <= 8 )); then
     printf '********'
   else
     printf '%s…%s' "${value:0:4}" "${value: -4}"
   fi
 }
 
-secret_fingerprint() {
-  local value="$1"
-
-  if command -v sha256sum >/dev/null 2>&1; then
-    printf '%s' "$value" | sha256sum | awk '{print substr($1, 1, 12)}'
-  elif command -v shasum >/dev/null 2>&1; then
-    printf '%s' "$value" | shasum -a 256 | awk '{print substr($1, 1, 12)}'
-  else
-    printf 'unavailable'
-  fi
-}
-
-is_credential_name() {
-  local name="$1"
-  [[ "$name" =~ $CREDENTIAL_NAME_REGEX ]]
-}
-
 is_placeholder() {
   local value="${1,,}"
-  [[ "$value" =~ $PLACEHOLDER_REGEX ]]
+  [[ "$value" =~ $PLACEHOLDER_RE ]]
 }
 
-looks_suspicious() {
-  local value="$1"
-
-  (( ${#value} < 8 )) && return 0
-  [[ "$value" =~ [[:space:]] ]] && return 0
-  [[ "$value" == *"<"* || "$value" == *">"* ]] && return 0
-
-  return 1
+require_tools() {
+  local tool
+  for tool in awk chmod cp curl date grep install mktemp sed; do
+    command -v "$tool" >/dev/null 2>&1 || die "Missing command: $tool"
+  done
 }
 
-# ------------------------------------------------------------------------------
-# Parser
-#
-# Output records are tab-separated:
-#   ENTRY        line_number  name  value
-#   INVALID      line_number  original_line
-#   INVALID_NAME line_number  name
-# ------------------------------------------------------------------------------
+ensure_file() {
+  [[ -f "$APIKEY_FILE" ]] || die "Credential file not found: $APIKEY_FILE"
+  [[ -r "$APIKEY_FILE" ]] || die "Credential file is not readable: $APIKEY_FILE"
+  chmod 600 "$APIKEY_FILE"
+}
 
-read_entries() {
-  local line
+normalize_line() {
+  local original="$1"
+  local working="$original"
+  local prefix=""
   local name
-  local raw_value
+  local raw
   local value
-  local line_number=0
 
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    ((line_number += 1))
+  if [[ "$working" =~ ^([[:space:]]*)export[[:space:]]+ ]]; then
+    prefix="${BASH_REMATCH[1]}export "
+    working="${working:${#BASH_REMATCH[0]}}"
+  elif [[ "$working" =~ ^([[:space:]]*) ]]; then
+    prefix="${BASH_REMATCH[1]}"
+    working="${working:${#BASH_REMATCH[1]}}"
+  fi
 
-    line="${line%$'\r'}"
-    line="$(trim "$line")"
+  [[ "$working" == *=* ]] || {
+    printf '%s' "$original"
+    return 0
+  }
 
-    [[ -z "$line" ]] && continue
-    [[ "$line" == \#* ]] && continue
+  name="$(trim "${working%%=*}")"
 
-    if [[ "$line" == export[[:space:]]* ]]; then
-      line="${line#export}"
-      line="$(trim "$line")"
-    fi
+  [[ "$name" =~ $NORMALIZE_NAME_RE ]] || {
+    printf '%s' "$original"
+    return 0
+  }
 
-    if [[ "$line" != *=* ]]; then
-      printf 'INVALID\t%s\t%s\n' "$line_number" "$line"
-      continue
-    fi
+  raw="${working#*=}"
+  value="$(trim "$raw")"
+  value="$(strip_outer_quotes "$value")"
 
-    name="$(trim "${line%%=*}")"
-    raw_value="${line#*=}"
-    value="$(unquote "$(trim "$raw_value")")"
-
-    if ! is_credential_name "$name"; then
-      printf 'INVALID_NAME\t%s\t%s\n' "$line_number" "$name"
-      continue
-    fi
-
-    printf 'ENTRY\t%s\t%s\t%s\n' "$line_number" "$name" "$value"
-  done < "$APIKEY_FILE"
-}
-
-# ------------------------------------------------------------------------------
-# Sanitize / organize
-# ------------------------------------------------------------------------------
-
-sanitize_file() {
-  local output_file
-  local backup_file
-  local timestamp
-  local line
-  local key_lines_file
-  local non_key_lines_file
-  local key_index_file
-  local sorted_key_lines_file
-  local line_number=0
-
-  output_file="$(make_temp)"
-  key_lines_file="$(make_temp)"
-  non_key_lines_file="$(make_temp)"
-  key_index_file="$(make_temp)"
-  sorted_key_lines_file="$(make_temp)"
-
-  timestamp="$(date -u '+%Y%m%dT%H%M%SZ')"
-  backup_file="${APIKEY_FILE}.backup.${timestamp}"
-
-  cp -- "$APIKEY_FILE" "$backup_file"
-  chmod 600 "$backup_file"
-
-  # First pass:
-  # - Preserve every original line and its position.
-  # - Extract only _KEY assignments for sanitization and A-Z sorting.
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    ((line_number += 1))
-    line="${line%$'
-'}"
-
-    local working="$line"
-    local leading=""
-    local export_prefix=""
-    local name=""
-    local raw_value=""
-    local value=""
-
-    if [[ "$working" =~ ^([[:space:]]*) ]]; then
-      leading="${BASH_REMATCH[1]}"
-      working="${working:${#leading}}"
-    fi
-
-    if [[ "$working" =~ ^export[[:space:]]+ ]]; then
-      export_prefix="export "
-      working="${working:${#BASH_REMATCH[0]}}"
-    fi
-
-    if [[ "$working" == *=* ]]; then
-      name="$(trim "${working%%=*}")"
-    fi
-
-    if [[ -n "$name" && "$name" =~ $SANITIZE_NAME_REGEX ]]; then
-      raw_value="${working#*=}"
-      value="$(trim "$raw_value")"
-      value="$(sanitize_key_value "$value")"
-
-      printf '%s	%s%s%s="%s"
-' \
-        "$name" "$leading" "$export_prefix" "$name" "$value" \
-        >> "$key_lines_file"
-
-      printf '%s
-' "$line_number" >> "$key_index_file"
-      printf '__APIKEY_SORT_SLOT__
-' >> "$non_key_lines_file"
-    else
-      printf '%s
-' "$line" >> "$non_key_lines_file"
-    fi
-  done < "$APIKEY_FILE"
-
-  # Stable A-Z sort by variable name.
-  # Duplicate keys are preserved and retain their original relative order.
-  sort -s -t $'	' -k1,1 "$key_lines_file" |
-    cut -f2- > "$sorted_key_lines_file"
-
-  # Second pass:
-  # Replace only key slots with sorted key assignments.
-  # All non-key lines remain exactly in their original order.
-  exec 3< "$sorted_key_lines_file"
-
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    if [[ "$line" == "__APIKEY_SORT_SLOT__" ]]; then
-      if IFS= read -r sorted_line <&3; then
-        printf '%s
-' "$sorted_line"
-      else
-        die "Internal sort mismatch while rebuilding $APIKEY_FILE"
-      fi
-    else
-      printf '%s
-' "$line"
-    fi
-  done < "$non_key_lines_file" > "$output_file"
-
-  exec 3<&-
-
-  install -m 600 "$output_file" "$APIKEY_FILE"
-
-  info "Organized _KEY assignments A-Z without deleting lines: $APIKEY_FILE"
-  info "Backup created: $backup_file"
+  printf '%s%s="%s"' "$prefix" "$name" "$(escape_double_quoted_env "$value")"
 }
 
 organize() {
-  sanitize_file
+  local output
+  local backup
+  local stamp
+  local line
+
+  output="$(make_tmp)"
+  stamp="$(date -u '+%Y%m%dT%H%M%SZ')"
+  backup="${APIKEY_FILE}.backup.${stamp}"
+
+  cp -- "$APIKEY_FILE" "$backup"
+  chmod 600 "$backup"
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    normalize_line "$line"
+    printf '\n'
+  done < "$APIKEY_FILE" > "$output"
+
+  install -m 600 "$output" "$APIKEY_FILE"
+
+  log "Normalized without deleting lines: $APIKEY_FILE"
+  log "Backup: $backup"
 }
 
-# ------------------------------------------------------------------------------
-# Lint
-# ------------------------------------------------------------------------------
-
-lint() {
+read_entries() {
   local line
   local working
   local name
-  local raw_value
+  local raw
   local value
-  local line_number=0
-  local status=0
-  local configured=0
-  local empty=0
-  local forbidden=0
-  local duplicates=0
-  local seen_file
+  local line_no=0
 
-  seen_file="$(make_temp)"
-
-  # Read-only inspection. This function never writes to APIKEY_FILE.
   while IFS= read -r line || [[ -n "$line" ]]; do
-    ((line_number += 1))
-    line="${line%$'
-'}"
+    ((line_no += 1))
+    line="${line%$'\r'}"
     working="$(trim "$line")"
 
     [[ -z "$working" || "$working" == \#* ]] && continue
@@ -521,498 +217,243 @@ lint() {
       working="$(trim "${working#export}")"
     fi
 
-    [[ "$working" == *=* ]] || continue
+    if [[ "$working" != *=* ]]; then
+      printf 'IGNORED\t%s\t%s\n' "$line_no" "$line"
+      continue
+    fi
 
     name="$(trim "${working%%=*}")"
-    [[ "$name" =~ $SANITIZE_NAME_REGEX ]] || continue
+    raw="${working#*=}"
+    value="$(strip_outer_quotes "$(trim "$raw")")"
 
-    raw_value="${working#*=}"
-    value="$(trim "$raw_value")"
-
-    if grep -Fxq "$name" "$seen_file"; then
-      printf 'DUPLICATE    %-36s line %s
-' "$name" "$line_number"
-      ((duplicates += 1))
-      status=1
-    else
-      printf '%s
-' "$name" >> "$seen_file"
+    if [[ ! "$name" =~ $PARSE_NAME_RE ]]; then
+      printf 'IGNORED_NAME\t%s\t%s\n' "$line_no" "$name"
+      continue
     fi
 
-    if [[ "$value" == *\"* || "$value" == *\'* || "$value" == *:* || "$value" == *\* ]]; then
-      printf 'NEEDS_ORGANIZE %-34s line %s
-' "$name" "$line_number"
-      ((forbidden += 1))
-      status=1
-    fi
-
-    value="$(sanitize_key_value "$value")"
-
-    if [[ -z "$value" ]]; then
-      printf 'EMPTY        %-36s line %s
-' "$name" "$line_number"
-      ((empty += 1))
-      status=1
-    else
-      printf 'CONFIGURED   %-36s %s
-' "$name" "$(mask_secret "$value")"
-      ((configured += 1))
-    fi
+    printf 'ENTRY\t%s\t%s\t%s\n' "$line_no" "$name" "$value"
   done < "$APIKEY_FILE"
+}
 
-  printf '
-'
-  printf 'Lint summary: configured=%d empty=%d needs_organize=%d duplicates=%d
-' \
-    "$configured" "$empty" "$forbidden" "$duplicates"
+lint() {
+  local parsed
+  local seen
+  local status=0
+  local kind line_no name value
+
+  parsed="$(make_tmp)"
+  seen="$(make_tmp)"
+  read_entries > "$parsed"
+
+  while IFS=$'\t' read -r kind line_no name value; do
+    case "$kind" in
+      ENTRY)
+        if grep -Fxq "$name" "$seen"; then
+          printf 'DUPLICATE    %-36s line %s\n' "$name" "$line_no"
+          status=1
+        else
+          printf '%s\n' "$name" >> "$seen"
+        fi
+
+        if is_placeholder "$value"; then
+          printf 'NOT_SET      %-36s\n' "$name"
+          status=1
+        elif (( ${#value} < 8 )) || [[ "$value" =~ [[:space:]] ]]; then
+          printf 'SUSPICIOUS   %-36s %s\n' "$name" "$(mask "$value")"
+          status=1
+        else
+          printf 'CONFIGURED   %-36s %s\n' "$name" "$(mask "$value")"
+        fi
+        ;;
+      IGNORED|IGNORED_NAME)
+        ;;
+    esac
+  done < "$parsed"
 
   return "$status"
 }
 
-# ------------------------------------------------------------------------------
-# HTTP validation
-# ------------------------------------------------------------------------------
-
-normalize_curl_exit() {
-  local exit_code="$1"
-
-  case "$exit_code" in
-    5|6)  printf 'DNS_ERROR' ;;
-    7)    printf 'CONNECTION_FAILED' ;;
-    28)   printf 'TIMEOUT' ;;
-    35|51|58|60|66|77|80|82|83|90|91)
-          printf 'TLS_ERROR' ;;
-    *)    printf 'NETWORK_ERROR_%s' "$exit_code" ;;
+classify_http() {
+  case "$1" in
+    200|201|202|204) printf VALID ;;
+    401|403) printf INVALID ;;
+    429) printf RATE_LIMITED ;;
+    404) printf ENDPOINT_NOT_FOUND ;;
+    500|502|503|504) printf PROVIDER_UNAVAILABLE ;;
+    000|'') printf UNREACHABLE ;;
+    *) printf UNKNOWN ;;
   esac
 }
 
-classify_http_status() {
-  local http_status="$1"
-
-  case "$http_status" in
-    200|201|202|204)
-      printf 'VALID'
-      ;;
-    401|403)
-      printf 'INVALID'
-      ;;
-    429)
-      printf 'RATE_LIMITED'
-      ;;
-    404)
-      printf 'ENDPOINT_NOT_FOUND'
-      ;;
-    500|502|503|504)
-      printf 'PROVIDER_UNAVAILABLE'
-      ;;
-    000|'')
-      printf 'UNREACHABLE'
-      ;;
-    *)
-      printf 'UNKNOWN'
-      ;;
-  esac
-}
-
-validate_http_key() {
+validate_one() {
   local name="$1"
   local value="$2"
-  local method="$3"
-  local url="$4"
-  local response_file
-  local headers_file
-  local http_status
-  local curl_exit=0
-  local result
-  local detail
+  local url="$3"
+  local method="${TEST_METHODS[$name]:-bearer}"
+  local body
+  local headers
+  local code
+  local rc=0
+  local status
 
-  response_file="$(make_temp)"
-  headers_file="$(make_temp)"
+  body="$(make_tmp)"
+  headers="$(make_tmp)"
 
-  local -a curl_args=(
+  local -a args=(
     --silent
     --show-error
     --location
     --connect-timeout "$APIKEY_CONNECT_TIMEOUT"
     --max-time "$APIKEY_TIMEOUT"
-    --output "$response_file"
-    --dump-header "$headers_file"
+    --output "$body"
+    --dump-header "$headers"
     --write-out '%{http_code}'
     --header 'Accept: application/json'
-    --header 'User-Agent: z-platform-apikey-validator/1.0'
+    --header 'User-Agent: z-platform-apikey-validator/1.1'
   )
 
   case "$method" in
-    bearer_models)
-      curl_args+=(--header "Authorization: Bearer ${value}")
-      ;;
-    api_key_header)
-      curl_args+=(--header "x-api-key: ${value}")
-      ;;
-    github_bearer)
-      curl_args+=(
-        --header "Authorization: Bearer ${value}"
-        --header 'X-GitHub-Api-Version: 2022-11-28'
-      )
-      ;;
-    gemini_query)
-      curl_args+=(--get --data-urlencode "key=${value}")
-      ;;
-    *)
-      printf '%s\t%s\t%s\t%s\t%s\n' \
-        "$name" "UNTESTED" "" "unsupported validation method" "$(secret_fingerprint "$value")"
-      return 2
-      ;;
+    bearer) args+=(--header "Authorization: Bearer ${value}") ;;
+    query) args+=(--get --data-urlencode "key=${value}") ;;
   esac
 
   set +e
-  http_status="$(curl "${curl_args[@]}" "$url")"
-  curl_exit=$?
+  code="$(curl "${args[@]}" "$url")"
+  rc=$?
   set -e
 
-  if (( curl_exit != 0 )); then
-    result="$(normalize_curl_exit "$curl_exit")"
-    detail="curl_exit=${curl_exit}"
-    printf '%s\t%s\t%s\t%s\t%s\n' \
-      "$name" "$result" "000" "$detail" "$(secret_fingerprint "$value")"
+  if (( rc != 0 )); then
+    case "$rc" in
+      5|6) status=DNS_ERROR ;;
+      7) status=CONNECTION_FAILED ;;
+      28) status=TIMEOUT ;;
+      35|51|58|60|66|77|80|82|83|90|91) status=TLS_ERROR ;;
+      *) status="NETWORK_ERROR_${rc}" ;;
+    esac
+    printf '%s\t%s\t000\tcurl_exit=%s\n' "$name" "$status" "$rc"
     return 2
   fi
 
-  result="$(classify_http_status "$http_status")"
+  status="$(classify_http "$code")"
+  printf '%s\t%s\t%s\tread-only validation endpoint\n' "$name" "$status" "$code"
 
-  case "$result" in
-    VALID)
-      detail="credential accepted by read-only endpoint"
-      ;;
-    INVALID)
-      detail="credential rejected by provider"
-      ;;
-    RATE_LIMITED)
-      detail="provider returned rate limit; credential may be valid"
-      ;;
-    ENDPOINT_NOT_FOUND)
-      detail="validation endpoint not available for this account/provider version"
-      ;;
-    PROVIDER_UNAVAILABLE)
-      detail="provider returned server-side failure"
-      ;;
-    *)
-      detail="provider returned an indeterminate response"
-      ;;
-  esac
-
-  printf '%s\t%s\t%s\t%s\t%s\n' \
-    "$name" "$result" "$http_status" "$detail" "$(secret_fingerprint "$value")"
-
-  case "$result" in
-    VALID|RATE_LIMITED)
-      return 0
-      ;;
-    INVALID)
-      return 1
-      ;;
-    *)
-      return 2
-      ;;
-  esac
+  [[ "$status" == VALID || "$status" == RATE_LIMITED ]] && return 0
+  [[ "$status" == INVALID ]] && return 1
+  return 2
 }
 
-validate_cloudflare_key() {
-  local token="$1"
-  local account_id="$2"
-
-  if is_placeholder "$account_id"; then
-    printf '%s\t%s\t%s\t%s\t%s\n' \
-      "CLOUDFLARE_API_TOKEN" \
-      "UNTESTED" \
-      "" \
-      "CLOUDFLARE_ACCOUNT_ID is not configured" \
-      "$(secret_fingerprint "$token")"
-    return 2
-  fi
-
-  validate_http_key \
-    "CLOUDFLARE_API_TOKEN" \
-    "$token" \
-    "bearer_models" \
-    "https://api.cloudflare.com/client/v4/accounts/${account_id}/ai/models/search"
-}
-
-load_credential_map() {
-  local parsed_file="$1"
-  local output_file="$2"
-
-  awk -F '\t' '
-    $1 == "ENTRY" {
-      values[$3] = $4
-    }
-    END {
-      for (name in values) {
-        print name "\t" values[name]
-      }
-    }
-  ' "$parsed_file" > "$output_file"
-}
-
-lookup_value() {
-  local map_file="$1"
-  local name="$2"
-
-  awk -F '\t' -v target="$name" '
-    $1 == target {
-      print substr($0, index($0, $2))
-      exit
-    }
-  ' "$map_file"
-}
-
-test_keys_tsv() {
-  local parsed_file
-  local map_file
-  local results_dir
-  local account_id
+test_tsv() {
+  local parsed
+  local kind
   local name
   local value
-  local method
-  local url
-  local active_jobs=0
-  local index=0
 
-  parsed_file="$(make_temp)"
-  map_file="$(make_temp)"
-  results_dir="$(mktemp -d)"
-  chmod 700 "$results_dir"
-  cleanup_files+=("$results_dir")
+  parsed="$(make_tmp)"
+  read_entries > "$parsed"
 
-  read_entries > "$parsed_file"
-  load_credential_map "$parsed_file" "$map_file"
-
-  while IFS=$'\t' read -r name value; do
-    ((index += 1))
+  while IFS=$'\t' read -r kind _line_no name value; do
+    [[ "$kind" == ENTRY ]] || continue
 
     if is_placeholder "$value"; then
-      printf '%s\t%s\t%s\t%s\t%s\n' \
-        "$name" \
-        "NOT_CONFIGURED" \
-        "" \
-        "empty or placeholder value" \
-        "$(secret_fingerprint "$value")" \
-        > "${results_dir}/$(printf '%06d' "$index").tsv"
-      continue
-    fi
-
-    # Cloudflare requires both token and account id.
-    if [[ "$name" == "CLOUDFLARE_API_TOKEN" ]]; then
-      account_id="$(lookup_value "$map_file" "CLOUDFLARE_ACCOUNT_ID")"
-
-      (
-        validate_cloudflare_key "$value" "$account_id" \
-          > "${results_dir}/$(printf '%06d' "$index").tsv"
-      ) &
-      ((active_jobs += 1))
+      printf '%s\tNOT_CONFIGURED\t\tempty or placeholder value\n' "$name"
     elif [[ -n "${TEST_URLS[$name]:-}" ]]; then
-      method="${TEST_METHODS[$name]}"
-      url="${TEST_URLS[$name]}"
-
-      (
-        validate_http_key "$name" "$value" "$method" "$url" \
-          > "${results_dir}/$(printf '%06d' "$index").tsv"
-      ) &
-      ((active_jobs += 1))
+      validate_one "$name" "$value" "${TEST_URLS[$name]}" || true
     else
-      printf '%s\t%s\t%s\t%s\t%s\n' \
-        "$name" \
-        "UNTESTED" \
-        "" \
-        "no safe read-only validation endpoint configured" \
-        "$(secret_fingerprint "$value")" \
-        > "${results_dir}/$(printf '%06d' "$index").tsv"
+      printf '%s\tUNTESTED\t\tno safe read-only validation endpoint configured\n' "$name"
     fi
-
-    if (( active_jobs >= APIKEY_PARALLELISM )); then
-      wait -n || true
-      ((active_jobs -= 1))
-    fi
-  done < "$map_file"
-
-  wait || true
-
-  find "$results_dir" -maxdepth 1 -type f -name '*.tsv' -print0 |
-    sort -z |
-    xargs -0 cat
+  done < "$parsed"
 }
 
 test_keys() {
-  local results_file
-  local status=0
-  local valid=0
-  local invalid=0
-  local rate_limited=0
-  local unreachable=0
-  local untested=0
-  local other=0
+  local result
+  local name
+  local status
+  local code
+  local detail
+  local rc=0
 
-  results_file="$(make_temp)"
-  test_keys_tsv > "$results_file"
+  result="$(make_tmp)"
+  test_tsv > "$result"
 
-  while IFS=$'\t' read -r name result http_status detail fingerprint; do
-    printf '%-15s %-36s HTTP %-3s fingerprint=%s\n' \
-      "$result" \
-      "$name" \
-      "${http_status:--}" \
-      "$fingerprint"
+  while IFS=$'\t' read -r name status code detail; do
+    printf '%-22s %-36s HTTP %s\n' "$status" "$name" "${code:--}"
+    [[ "$status" == INVALID ]] && rc=1
 
-    case "$result" in
-      VALID)
-        ((valid += 1))
-        ;;
-      INVALID)
-        ((invalid += 1))
-        status=1
-        ;;
-      RATE_LIMITED)
-        ((rate_limited += 1))
-        ;;
-      NOT_CONFIGURED|UNTESTED)
-        ((untested += 1))
-        ;;
-      DNS_ERROR|CONNECTION_FAILED|TIMEOUT|TLS_ERROR|UNREACHABLE|NETWORK_ERROR_*)
-        ((unreachable += 1))
-        [[ "$status" -eq 0 ]] && status=2
-        ;;
-      *)
-        ((other += 1))
-        [[ "$status" -eq 0 ]] && status=2
+    case "$status" in
+      DNS_ERROR|CONNECTION_FAILED|TIMEOUT|TLS_ERROR|UNREACHABLE|NETWORK_ERROR_*|UNKNOWN|ENDPOINT_NOT_FOUND|PROVIDER_UNAVAILABLE)
+        [[ "$rc" -eq 0 ]] && rc=2
         ;;
     esac
-  done < "$results_file"
+  done < "$result"
 
-  printf '\n'
-  printf 'Validation summary: valid=%d invalid=%d rate_limited=%d unreachable=%d untested=%d other=%d\n' \
-    "$valid" "$invalid" "$rate_limited" "$unreachable" "$untested" "$other"
-
-  return "$status"
+  return "$rc"
 }
 
-# ------------------------------------------------------------------------------
-# CSV report
-# ------------------------------------------------------------------------------
+csv_escape() {
+  local value="${1//\"/\"\"}"
+  printf '"%s"' "$value"
+}
 
 write_report() {
-  local results_file
-  local report_dir
-  local generated_at
+  local result
+  local generated
+  local dir
+  local name status code detail
 
-  results_file="$(make_temp)"
-  test_keys_tsv > "$results_file"
-
-  report_dir="${APIKEY_REPORT%/*}"
-  if [[ "$report_dir" != "$APIKEY_REPORT" ]]; then
-    mkdir -p "$report_dir"
-  fi
-
-  generated_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  result="$(make_tmp)"
+  test_tsv > "$result"
+  generated="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  dir="${APIKEY_REPORT%/*}"
+  [[ "$dir" != "$APIKEY_REPORT" ]] && mkdir -p "$dir"
 
   {
-    printf 'generated_at,name,status,http_status,detail,fingerprint\n'
-
-    while IFS=$'\t' read -r name result http_status detail fingerprint; do
-      csv_escape "$generated_at"
-      printf ','
-      csv_escape "$name"
-      printf ','
-      csv_escape "$result"
-      printf ','
-      csv_escape "$http_status"
-      printf ','
-      csv_escape "$detail"
-      printf ','
-      csv_escape "$fingerprint"
-      printf '\n'
-    done < "$results_file"
+    printf 'generated_at,name,status,http_status,detail\n'
+    while IFS=$'\t' read -r name status code detail; do
+      csv_escape "$generated"; printf ','
+      csv_escape "$name"; printf ','
+      csv_escape "$status"; printf ','
+      csv_escape "$code"; printf ','
+      csv_escape "$detail"; printf '\n'
+    done < "$result"
   } > "$APIKEY_REPORT"
 
   chmod 600 "$APIKEY_REPORT"
-  info "Validation report written: $APIKEY_REPORT"
+  log "Report: $APIKEY_REPORT"
 }
-
-# ------------------------------------------------------------------------------
-# Help
-# ------------------------------------------------------------------------------
 
 usage() {
   cat <<EOF
-Usage:
-  $SCRIPT_NAME sanitize
-  $SCRIPT_NAME organize
-  $SCRIPT_NAME lint
-  $SCRIPT_NAME test
-  $SCRIPT_NAME report
-  $SCRIPT_NAME all
-  $SCRIPT_NAME help
+Usage: ${0##*/} {organize|lint|test|report|all|help}
+
+organize:
+  Preserves every line and normalizes only *_*_KEY assignments to NAME="VALUE".
+  Existing outer single/double quotes are removed before adding double quotes.
 
 Environment:
-  APIKEY_FILE              Credential file (default: .apikey)
-  APIKEY_REPORT            CSV report path (default: apikey-validation-report.csv)
-  APIKEY_TIMEOUT           Total request timeout seconds (default: 15)
-  APIKEY_CONNECT_TIMEOUT   Connection timeout seconds (default: 5)
-  APIKEY_PARALLELISM       Concurrent validation requests (default: 6)
-
-Behavior:
-  sanitize and organize preserve every line, comment, blank line, and duplicate.
-  _KEY assignments are sanitized and sorted A-Z; all other lines keep their order.
-  They remove only ', ", :, and backslash from _KEY values, then write NAME_KEY="sanitized_api_key". No line is deleted.
-  lint is read-only and never modifies the credential file.
-
-Examples:
-  APIKEY_FILE=.apikey ./$SCRIPT_NAME sanitize
-  APIKEY_FILE=.apikey ./$SCRIPT_NAME organize
-  APIKEY_FILE=.apikey ./$SCRIPT_NAME lint
-  APIKEY_FILE=.apikey ./$SCRIPT_NAME test
-  APIKEY_FILE=.apikey APIKEY_REPORT=reports/apikey.csv ./$SCRIPT_NAME report
-  APIKEY_FILE=.apikey ./$SCRIPT_NAME all
+  APIKEY_FILE
+  APIKEY_REPORT
+  APIKEY_TIMEOUT
+  APIKEY_CONNECT_TIMEOUT
 EOF
 }
 
-# ------------------------------------------------------------------------------
-# Main
-# ------------------------------------------------------------------------------
-
 main() {
   require_tools
-  validate_numeric_settings
 
   case "$COMMAND" in
-    help|-h|--help)
-      usage
-      ;;
-    sanitize|organize)
-      ensure_input_file
-      sanitize_file
-      ;;
-    lint)
-      ensure_input_file
-      lint
-      ;;
-    test)
-      ensure_input_file
-      test_keys
-      ;;
-    report)
-      ensure_input_file
-      write_report
-      ;;
+    help|-h|--help) usage ;;
+    organize) ensure_file; organize ;;
+    lint) ensure_file; lint ;;
+    test) ensure_file; test_keys ;;
+    report) ensure_file; write_report ;;
     all)
-      ensure_input_file
-      sanitize_file
-
+      ensure_file
+      organize
       printf '\n== Lint ==\n'
       lint || true
-
-      printf '\n== Remote validation ==\n'
+      printf '\n== Validation ==\n'
       test_keys || true
-
-      printf '\n== CSV report ==\n'
+      printf '\n== Report ==\n'
       write_report
       ;;
     *)
