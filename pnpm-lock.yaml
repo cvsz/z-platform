@@ -1,0 +1,29 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  apps/zchat: {}
+
+  apps/zow: {}
+
+  apps/zwallet: {}
+
+  packages/contracts: {}
+
+  services/agent-orchestrator: {}
+
+  services/agent-provider: {}
+
+  services/ai-gateway: {}
+
+  services/billing-ledger: {}
+
+  services/workspace-runtime: {}
+
+  tools/zai-factory: {}
