@@ -43,6 +43,7 @@ textarea {
 }
 
 button {
+  min-height: 44px;
   padding: 10px 14px;
   background: #155eef;
   color: #fff;
@@ -66,5 +67,32 @@ pre {
   padding: 16px;
   overflow: auto;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   background: #fff;
+}
+
+@media (max-width: 600px) {
+  main {
+    width: min(100% - 24px, 860px);
+    padding: 16px 0 24px;
+  }
+
+  header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  header button {
+    width: 100%;
+  }
+
+  textarea {
+    min-height: 140px;
+  }
+
+  pre {
+    min-height: 140px;
+    padding: 12px;
+  }
 }

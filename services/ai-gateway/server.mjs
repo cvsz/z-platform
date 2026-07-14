@@ -11,6 +11,7 @@ const defaultHost = process.env.HOST || "127.0.0.1";
 const defaultPort = Number(process.env.PORT || 8400);
 const maxRequestBytes = 10 * 1024 * 1024;
 const upstreamTimeoutMs = 60_000;
+const retryableStatuses = new Set([429, 500, 502, 503, 504]);
 
 function sendJson(response, status, payload, requestId) {
   response.writeHead(status, {
@@ -107,16 +108,37 @@ function isAbortError(error, signal) {
   return signal?.aborted || error?.name === "AbortError";
 }
 
-export function translateChatPayload(buffer, contentType = "application/json", provider = "openai-compatible") {
-  return translateAttachmentBuffer(buffer, contentType, { provider });
+function normalizeProviderConfig(entry, index) {
+  if (!entry || typeof entry !== "object") throw Object.assign(new Error(`upstream provider ${index} must be an object`), { code: "invalid_provider_config" });
+  const name = String(entry.name || `provider-${index + 1}`).trim();
+  const baseUrl = String(entry.base_url || entry.baseUrl || "").trim();
+  const apiKey = String(entry.api_key || entry.apiKey || "").trim();
+  const provider = String(entry.provider || "openai-compatible").trim();
+  if (!name || !baseUrl || !apiKey) throw Object.assign(new Error(`upstream provider ${index} requires name, base_url and api_key`), { code: "invalid_provider_config" });
+  return { name, baseUrl, apiKey, provider };
 }
 
-export async function upstream(path, request, body, env = process.env, fetchImpl = fetch, requestId = randomUUID(), signal) {
-  const base = env.UPSTREAM_BASE_URL?.trim();
-  const key = env.UPSTREAM_API_KEY;
-  if (!base || !key) throw new Error("Gateway upstream is not configured");
+export function resolveUpstreamProviders(env = process.env) {
+  const raw = env.UPSTREAM_PROVIDERS_JSON?.trim();
+  if (raw) {
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { throw Object.assign(new Error("UPSTREAM_PROVIDERS_JSON must be valid JSON"), { code: "invalid_provider_config" }); }
+    if (!Array.isArray(parsed) || parsed.length === 0) throw Object.assign(new Error("UPSTREAM_PROVIDERS_JSON must be a non-empty array"), { code: "invalid_provider_config" });
+    return parsed.map(normalizeProviderConfig);
+  }
+  const baseUrl = env.UPSTREAM_BASE_URL?.trim();
+  const apiKey = env.UPSTREAM_API_KEY?.trim();
+  if (!baseUrl || !apiKey) throw new Error("Gateway upstream is not configured");
+  return [{
+    name: env.UPSTREAM_NAME?.trim() || "primary",
+    baseUrl,
+    apiKey,
+    provider: env.UPSTREAM_PROVIDER?.trim() || "openai-compatible",
+  }];
+}
+
+function prepareUpstreamRequest(path, request, body, config) {
   const contentType = request.headers["content-type"] || "application/json";
-  const provider = env.UPSTREAM_PROVIDER?.trim() || "openai-compatible";
   let upstreamPath = path;
   let upstreamBody = body;
   let upstreamHeaders = {
@@ -124,13 +146,10 @@ export async function upstream(path, request, body, env = process.env, fetchImpl
     ...(request.headers["x-filename"] ? { "X-Filename": request.headers["x-filename"] } : {}),
   };
 
-  if (path === "/v1/chat/completions") {
-    upstreamBody = translateChatPayload(body, contentType, provider);
-  }
-
+  if (path === "/v1/chat/completions") upstreamBody = translateChatPayload(body, contentType, config.provider);
   if (path === "/v1/files") {
     const translatedUpload = translateUploadRequest(body, {
-      provider,
+      provider: config.provider,
       contentType,
       filename: request.headers["x-filename"],
     });
@@ -138,17 +157,49 @@ export async function upstream(path, request, body, env = process.env, fetchImpl
     upstreamBody = translatedUpload.body;
     upstreamHeaders = translatedUpload.headers;
   }
+  return { upstreamPath, upstreamBody, upstreamHeaders };
+}
 
-  return fetchImpl(upstreamUrl(base, upstreamPath), {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + key,
-      ...upstreamHeaders,
-      "X-Request-Id": requestId,
-    },
-    body: upstreamBody,
-    signal: linkedAbortSignal(signal),
-  });
+export function translateChatPayload(buffer, contentType = "application/json", provider = "openai-compatible") {
+  return translateAttachmentBuffer(buffer, contentType, { provider });
+}
+
+export async function upstream(path, request, body, env = process.env, fetchImpl = fetch, requestId = randomUUID(), signal, logger = console) {
+  const providers = resolveUpstreamProviders(env);
+  const providerChainEnabled = providers.length > 1;
+  let lastResponse;
+  let lastError;
+
+  for (let index = 0; index < providers.length; index += 1) {
+    const config = providers[index];
+    const attempt = index + 1;
+    try {
+      const prepared = prepareUpstreamRequest(path, request, body, config);
+      if (providerChainEnabled) audit(logger, { event: "upstream_attempt", request_id: requestId, path, provider: config.name, attempt });
+      const result = await fetchImpl(upstreamUrl(config.baseUrl, prepared.upstreamPath), {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + config.apiKey,
+          ...prepared.upstreamHeaders,
+          "X-Request-Id": requestId,
+        },
+        body: prepared.upstreamBody,
+        signal: linkedAbortSignal(signal),
+      });
+      result.zPlatformProvider = config.name;
+      result.zPlatformAttempt = attempt;
+      lastResponse = result;
+      if (result.ok || !retryableStatuses.has(result.status) || index === providers.length - 1) return result;
+      if (providerChainEnabled) audit(logger, { event: "upstream_failover", request_id: requestId, path, provider: config.name, attempt, upstream_status: result.status });
+    } catch (error) {
+      if (isAbortError(error, signal)) throw error;
+      lastError = error;
+      if (providerChainEnabled) audit(logger, { event: "upstream_failover", request_id: requestId, path, provider: config.name, attempt, code: error?.code || "network_error" });
+      if (index === providers.length - 1) throw error;
+    }
+  }
+  if (lastResponse) return lastResponse;
+  throw lastError || new Error("No upstream provider was attempted");
 }
 
 export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, logger = console, idGenerator = randomUUID } = {}) {
@@ -158,11 +209,13 @@ export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, lo
     response.setHeader("X-Request-Id", requestId);
 
     if (request.method === "GET" && request.url === "/health") {
+      let configured = false;
+      try { configured = resolveUpstreamProviders(env).length > 0; } catch {}
       audit(logger, { event: "health", request_id: requestId, status: 200 });
       return sendJson(response, 200, {
         status: "ok",
         service: "ai-gateway",
-        upstream_configured: Boolean(env.UPSTREAM_BASE_URL && env.UPSTREAM_API_KEY),
+        upstream_configured: configured,
       }, requestId);
     }
 
@@ -180,26 +233,32 @@ export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, lo
 
     try {
       const body = await readBody(request);
-      const result = await upstream(request.url, request, body, env, fetchImpl, requestId, clientSignal);
+      const result = await upstream(request.url, request, body, env, fetchImpl, requestId, clientSignal, logger);
       if (!result.ok) {
-        audit(logger, { event: "upstream_failure", request_id: requestId, path: request.url, upstream_status: result.status, status: 502 });
+        audit(logger, { event: "upstream_failure", request_id: requestId, path: request.url, provider: result.zPlatformProvider, attempt: result.zPlatformAttempt, upstream_status: result.status, status: 502 });
         return sendJson(response, 502, errorPayload("upstream_failed", "Upstream request failed", requestId), requestId);
       }
 
-      audit(logger, { event: "proxy_success", request_id: requestId, path: request.url, status: 200, stream: request.headers.accept?.includes("text/event-stream") || false });
+      response.setHeader("X-Z-Platform-Upstream", result.zPlatformProvider || "primary");
+      audit(logger, { event: "proxy_success", request_id: requestId, path: request.url, provider: result.zPlatformProvider, attempt: result.zPlatformAttempt, status: 200, stream: request.headers.accept?.includes("text/event-stream") || false });
       if (request.url === "/v1/chat/completions" && request.headers.accept?.includes("text/event-stream")) {
         response.writeHead(200, {
           "Content-Type": "text/event-stream; charset=utf-8",
           "Cache-Control": "no-cache, no-transform",
           "X-Accel-Buffering": "no",
           "X-Request-Id": requestId,
+          "X-Z-Platform-Upstream": result.zPlatformProvider || "primary",
         });
         return Readable.fromWeb(result.body).pipe(response);
       }
 
       const payload = Buffer.from(await result.arrayBuffer());
       await emitUsage({ env, fetchImpl, request, requestId, responsePayload: payload });
-      response.writeHead(200, { "Content-Type": result.headers.get("content-type") || "application/json", "X-Request-Id": requestId });
+      response.writeHead(200, {
+        "Content-Type": result.headers.get("content-type") || "application/json",
+        "X-Request-Id": requestId,
+        "X-Z-Platform-Upstream": result.zPlatformProvider || "primary",
+      });
       response.end(payload);
     } catch (error) {
       if (isAbortError(error, clientSignal)) {
@@ -208,7 +267,7 @@ export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, lo
         return;
       }
       const code = error?.code || "gateway_failure";
-      const status = ["invalid_json", "invalid_attachments", "invalid_upload", "unsupported_upload_provider"].includes(code) ? 400 : 500;
+      const status = ["invalid_json", "invalid_attachments", "invalid_upload", "unsupported_upload_provider", "invalid_provider_config"].includes(code) ? 400 : 500;
       const message = error instanceof Error ? error.message : "Gateway failure";
       audit(logger, { event: "gateway_error", request_id: requestId, path: request.url, status, code });
       sendJson(response, status, errorPayload(code, message, requestId), requestId);

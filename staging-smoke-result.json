@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "services": [
+    "gateway",
+    "agent",
+    "workspace",
+    "billing",
+    "provider",
+    "zwallet",
+    "zchat"
+  ],
+  "checks": [
+    "health",
+    "authentication",
+    "workspace-approval-denial",
+    "billing-idempotency",
+    "agent-submit-idempotency-approve-execute-audit",
+    "agent-cancellation",
+    "agent-real-failure-retry-success",
+    "workspace-metadata",
+    "backup-export-restore",
+    "metrics",
+    "zwallet-prohibited-capability-rejection",
+    "zchat-accessibility-mobile-session-static-qa"
+  ],
+  "job_id": "25bf077e-d5b7-4da8-bd6d-aa1e2ef885c5",
+  "retry_job_id": "7e36bfd2-f248-4b21-adac-8cdbb467d9dd",
+  "workspace_id": "workspace-1783989829569"
+}
