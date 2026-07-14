@@ -1,6 +1,6 @@
 # zctl
 
-`zctl` is the guarded Docker Compose lifecycle and source-control CLI for `z-platform`.
+`zctl` is the guarded Docker Compose lifecycle, source-control, and release-transition CLI for `z-platform`.
 
 Implemented commands:
 
@@ -9,16 +9,21 @@ Implemented commands:
 - `restart`, including `--recreate` and `--wait`
 - `build`, including `--service`, `--no-cache`, `--pull`, `--push`, and SBOM generation
 - `update`, using fetch plus fast-forward-only merge
+- `upgrade`, using checksum-bound plan/apply and explicit rollback
 - `status`, `health`, `logs`, `doctor`, and `version`
 
 Safety controls:
 
 - operation locking under `.zctl/operation.lock`
 - mode-0600 JSON audit records under `.zctl/audit`
+- checksum-bound upgrade plans under `.zctl/plans`
+- release and rollback evidence under `.zctl/releases`
 - service allow-list validation through `docker compose config --services`
-- dirty-tree rejection for build and update
+- dirty-tree rejection for build, update, and upgrade planning
+- immutable target resolution with `git rev-parse --verify <ref>^{commit}`
 - no reset, clean, rebase, or force-push operations
 - staging and production reject local image builds and destructive purge
+- production apply/rollback requires `--confirm-environment production`
 - OCI revision, source, created, and version labels on service images
 - SPDX JSON SBOM output under `.zctl/sbom`
 
@@ -37,26 +42,66 @@ Examples:
 bin/zctl doctor
 bin/zctl start --profile local --wait
 bin/zctl build --service ai-gateway --pull
-bin/zctl build --no-cache
-bin/zctl update --branch main --dry-run
-bin/zctl update --branch main
 bin/zctl update --branch main --restart
-bin/zctl health --json
-bin/zctl logs --service ai-gateway --follow
-bin/zctl stop --profile local --purge --confirm-destroy
+
+# Create a checksum-bound immutable plan
+bin/zctl upgrade --profile local --to v1.3.0 --plan
+
+# Apply exactly that plan
+bin/zctl upgrade --profile local --apply --plan-id <plan-id>
+
+# Explicit rollback to the plan's previous revision
+bin/zctl upgrade --profile local --rollback --plan-id <plan-id>
+
+# Production requires explicit environment confirmation
+bin/zctl upgrade --profile production --apply --plan-id <plan-id> \
+  --confirm-environment production
 ```
 
-`build` requires a clean Git tree. By default it also requires `syft` and writes one SPDX JSON SBOM per Compose image. Use `--skip-sbom` only for explicitly accepted local development workflows.
+## Governed upgrade sequence
 
-`update` performs:
+Planning performs:
 
 ```text
 verify clean tree
-→ git fetch --prune origin <branch>
-→ verify remote is a descendant of HEAD
-→ git merge --ff-only origin/<branch>
-→ frozen dependency synchronization
-→ optional Compose rebuild/restart
+→ resolve current and target immutable commits
+→ inspect Compose image references
+→ discover backup/migration/rollback hooks
+→ calculate plan checksum
+→ write mode-0600 plan evidence
 ```
 
-`--stash` is available for operator-requested temporary stashing. The stash is restored after the operation. Database migration, governed release upgrade, backup, and rollback remain Phase 3 scope.
+Apply performs:
+
+```text
+acquire exclusive operation lock
+→ validate plan ID, checksum, profile, and current revision
+→ require production environment confirmation
+→ execute backup hook
+→ switch to exact target commit
+→ pull images
+→ execute pre-migration hook
+→ deploy
+→ execute migration hook
+→ verify health
+→ write release evidence
+```
+
+A deployment, migration, or health failure triggers rollback to the exact `beforeRevision`, invokes the rollback hook when configured, redeploys, verifies health, and records `ROLLED_BACK` or `RELEASE_FAILED` evidence.
+
+Optional executable hooks:
+
+```text
+scripts/zctl/backup
+scripts/zctl/pre-migrate
+scripts/zctl/migrate
+scripts/zctl/rollback
+```
+
+Each hook is invoked directly without `sh -c` and receives:
+
+```text
+--plan-id <id> --before <sha> --target <sha> --profile <profile>
+```
+
+Staging and production plans require `scripts/zctl/backup`. Hooks must be executable and must not print secrets. Migration rollback remains application-specific; operators must ensure the rollback hook is compatible with each schema transition.
