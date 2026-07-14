@@ -32,10 +32,11 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - ZAI Coder web scheduled workspace cleanup runner with structured cleanup output.
 - ZAI Coder web production workspace metadata adapter with HTTP durable metadata service wiring.
 - Repository-local test workflows for Node and Python runtimes covering gateway-only ZAI Coder paths, model catalog, provider adapters, workspace metadata, uploads, streaming, and failure paths.
+- Eligible CI, dependency, secret-scan, SBOM, provenance, and deployed smoke evidence recorded for the Phase 6 verification commits.
 
 ### Remaining
 
-- Verify GitHub Actions result visibility after the next workflow run is reported by GitHub.
+- Record a new workflow result when a newer `main` head is selected as a release candidate; evidence from an earlier immutable commit must not be silently transferred to a later commit.
 
 **Done when:** ZAI Coder web and CLI use only the gateway; browser clients never receive provider secrets; tests cover chat, streaming, file upload, workspace metadata, model catalog, provider attachment adapters, and failure paths.
 
@@ -46,10 +47,11 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Defined `agent.job.requested.v1`, `agent.job.approved.v1`, and `agent.job.completed.v1` contracts with JSON schemas and validation tests.
 - Implemented the agent orchestrator job-store, queue, approval, sandbox worker, cancellation, retry, and audit adapter boundaries with lifecycle tests.
 - Added operator-approved production provider adapters for job storage, queueing, observability audit export, identity approval checks, and sandbox execution before external traffic.
+- Verified durable provider persistence, cancellation, deterministic failure, retry, and completed audit evidence in isolated Compose.
 
 ### Remaining
 
-- Verify production provider endpoints in the selected staging environment before setting `AGENT_EXTERNAL_TRAFFIC_ENABLED=true`.
+- Verify managed production provider endpoints, external identity mapping, and selected staging infrastructure before setting `AGENT_EXTERNAL_TRAFFIC_ENABLED=true`.
 
 **Done when:** an agent job can be submitted, approved, executed with scoped tools, cancelled, retried idempotently, and audited.
 
@@ -61,10 +63,11 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Replaced direct model/provider configuration with the AI Gateway model catalog.
 - Added tenant scope headers, shared conversation IDs, request IDs, and usage correlation.
 - Added streaming proxy support, logout/session-expiry handling, and accessible responsive UI structure with test coverage.
+- Added automated deployed static checks for semantic labels, live regions, responsive CSS, and logout storage clearing.
 
 ### Remaining
 
-- Run deployed-environment accessibility, mobile layout, and session-provider QA after the operator selects the platform identity provider.
+- Run human keyboard-only, screen-reader, target-device responsive, and external session-provider QA after the operator selects the platform identity provider.
 
 **Done when:** ZChat works against the platform gateway and no browser configuration can contain an upstream key.
 
@@ -92,10 +95,11 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Implemented credits and invoice intents in `services/billing-ledger`.
 - Integrated `apps/zwallet` only through audited billing-ledger adapters.
 - Blocked wallet signing, swaps, cards, KYC, MPC shares, and payment-provider credentials from the AI request path and ZWallet adapter boundary.
+- Verified deployed Billing Ledger idempotency and ZWallet prohibited-capability rejection contracts in isolated Compose.
 
 ### Remaining
 
-- Operator selection of billing currency, tax rules, payment processor, and jurisdiction before production payment collection.
+- Operator selection of billing currency, tax rules, payment processor, merchant-of-record responsibilities, and jurisdiction before production payment collection.
 
 **Done when:** usage can be reconciled to an idempotent ledger record without access to signing authority or payment-card data.
 
@@ -108,21 +112,32 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Defined Cloudflare Access service-to-service policy requirements.
 - Added health, structured logging, metrics, trace, backup, restore, and incident runbooks.
 - Added staging readiness review checklist before any production deployment.
+- Deployed and verified the seven-service isolated Compose readiness topology.
+- Verified durable Agent Provider state, backup/restore, restart persistence, retention cleanup, lifecycle cancellation, failure, retry, and audit evidence.
+- Verified Workspace Runtime approval boundaries, Billing Ledger idempotency, ZWallet denial paths, and automated ZChat static QA.
+- Recorded eligible workflow runs, SBOMs, provenance, smoke artifacts, rollback candidates, and repository-controlled execution evidence.
+- Added `docs/operations/phase-6-evidence-matrix.md` to separate repository, Compose, external staging, and production-approval evidence.
 
 ### Remaining
 
-- Operator must execute staging readiness review against the selected Cloudflare, identity, secret-management, observability, backup, and deployment environments.
+- Select and configure real Cloudflare Access, external identity, production secret management, managed data services, regional topology, external backup, observability, and alert-delivery environments.
+- Verify AI streaming, uploads, approved multi-provider routing, quotas, and failover using approved external accounts.
+- Inspect the actual deployed browser bundle and browser network traffic for credential isolation.
+- Complete human ZChat accessibility, target-device, and external session-provider QA.
+- Record billing/legal decisions, staging reviewer, production approver, incident owner, escalation route, and post-launch watch window.
+- Record a passing workflow and immutable artifacts for the exact commit selected as the next release candidate.
 
-**Done when:** every service has health checks, least-privilege identity, observability, rollback notes, and a passing CI gate.
+**Done when:** every service has health checks, least-privilege identity, observability, rollback notes, a passing CI gate for the selected release, completed external staging evidence, and explicit production approval.
 
 ## Required operator decisions
 
-- Identity provider and tenant model.
-- Queue/database/object-storage vendors and retention periods.
-- Approved upstream AI providers and model policy.
-- Billing currency, tax, payment processor, and jurisdiction requirements.
-- Cloudflare environment, domain routing, and secret-management location.
-- Production deployment approval for each environment.
+- Identity provider and tenant claim model.
+- Queue, database, object-storage vendors, regions, and retention periods.
+- Approved upstream AI providers, model allowlist, quota, failover, privacy, residency, and data-governance policy.
+- Billing currency, tax, payment processor, merchant responsibilities, and jurisdiction requirements.
+- Cloudflare environment, domain routing, and production secret-management location.
+- Observability platform, alert routing, external backup target, incident ownership, and watch window.
+- Production deployment approval for the exact release in each environment.
 
 ## Validation gate for every pull request
 
@@ -130,5 +145,6 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 2. No credentials or real production identifiers.
 3. Unit tests and lint pass for changed runtime.
 4. Input validation, authorization, timeout, and failure paths are tested.
-5. Migration manifest and runbook are updated.
-6. Financial, infrastructure, or destructive changes have explicit operator approval.
+5. Migration manifest, evidence matrix, and runbook are updated when readiness evidence changes.
+6. Financial, infrastructure, destructive, external-traffic, or production changes have explicit operator approval.
+7. Evidence is tied to an immutable commit or image digest and is not transferred to a newer release without verification.
