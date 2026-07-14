@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: tools/zctl/go.mod
-          cache-dependency-path: tools/zctl/go.sum
+          cache: false
       - name: Test and build zctl
         working-directory: tools/zctl
         run: |
