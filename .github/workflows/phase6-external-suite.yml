@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
 
-      - name: Validate protected runtime inputs
+      - name: Validate protected runtime inputs are present
         shell: bash
         run: |
           set -euo pipefail
@@ -74,9 +74,6 @@ jobs:
             printf 'Missing staging variables/secrets: %s\n' "${missing[*]}" >&2
             exit 2
           fi
-          for name in ALERT_TEST_URL ALERT_DELIVERY_STATUS_URL AI_UPLOAD_URL AI_FAILOVER_URL; do
-            [[ "${!name}" == https://* ]] || { echo "$name must use HTTPS" >&2; exit 2; }
-          done
 
       - name: Materialize protected suite configuration
         shell: bash
@@ -88,10 +85,9 @@ jobs:
           umask 077
           printf '%s' "$CONFIG_JSON" > /tmp/phase6-external-suite.json
           node -e 'JSON.parse(require("fs").readFileSync("/tmp/phase6-external-suite.json","utf8"))'
-          if grep -Eqi 'REPLACE_WITH|example\.invalid|pending:|<[^>]+>' /tmp/phase6-external-suite.json; then
-            echo "Phase 6 suite configuration contains placeholders" >&2
-            exit 2
-          fi
+
+      - name: Enforce real-only configuration and runtime policy
+        run: node scripts/validate-phase6-real-inputs.mjs /tmp/phase6-external-suite.json
 
       - name: Materialize protected browser evidence
         shell: bash
@@ -108,7 +104,31 @@ jobs:
           printf '%s' "$BROWSER_HAR_BASE64" | base64 --decode > artifacts/browser/session.har
           test -s artifacts/browser/app.js
           test -s artifacts/browser/session.har
-          node -e 'JSON.parse(require("fs").readFileSync("artifacts/browser/session.har","utf8"))'
+
+      - name: Validate deployed browser evidence is real
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const net = require('net');
+          const bundle = fs.readFileSync('artifacts/browser/app.js', 'utf8');
+          const har = JSON.parse(fs.readFileSync('artifacts/browser/session.har', 'utf8'));
+          if (bundle.length < 1024) throw new Error('browser bundle is too small to be a deployed application artifact');
+          const entries = har?.log?.entries;
+          if (!Array.isArray(entries) || entries.length === 0) throw new Error('HAR must contain at least one network entry');
+          const urls = entries.map((entry) => entry?.request?.url).filter(Boolean);
+          if (!urls.length) throw new Error('HAR contains no request URLs');
+          const placeholder = /pending|placeholder|replace[_-]?with|example\.(com|org|net|invalid)|localhost|127\.0\.0\.1|0\.0\.0\.0|dummy|fake|sample/i;
+          for (const value of urls) {
+            const url = new URL(value);
+            if (url.protocol !== 'https:') throw new Error(`HAR contains non-HTTPS request: ${url.origin}`);
+            if (net.isIP(url.hostname) || !url.hostname.includes('.')) throw new Error(`HAR contains non-FQDN request: ${url.hostname}`);
+            if (placeholder.test(value)) throw new Error(`HAR contains placeholder/local request: ${url.hostname}`);
+          }
+          if (new Set(urls.map((value) => new URL(value).origin)).size < 1) throw new Error('HAR has no external origin');
+          console.log(JSON.stringify({ result: 'REAL_BROWSER_EVIDENCE_VALIDATED', entries: entries.length }));
+          NODE
 
       - name: Execute external verification
         run: node scripts/phase6-external-suite.mjs /tmp/phase6-external-suite.json phase6-external-evidence
