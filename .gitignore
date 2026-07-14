@@ -6,6 +6,9 @@ coverage/
 .env
 .env.*
 !.env.example
+.apikey
+.apikey.backup.*
+apikey-validation-report.csv
 API-KEY.txt
 API-KEY*.txt
 *.log
