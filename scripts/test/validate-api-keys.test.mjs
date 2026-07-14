@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const script = new URL("../validate-api-keys.mjs", import.meta.url);
+const script = fileURLToPath(new URL("../validate-api-keys.mjs", import.meta.url));
 
 async function run(contents, ...args) {
   const directory = await mkdtemp(join(tmpdir(), "z-platform-api-key-test-"));
