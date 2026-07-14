@@ -1,6 +1,6 @@
 # Release Governance
 
-Phase A establishes the human-readable governance records and machine-readable YAML templates used to move a release from pending staging verification to an explicitly approved production deployment.
+Phase A establishes the human-readable governance records and machine-readable YAML templates used to move a release from pending staging verification to an explicitly approved production deployment. Phase B adds JSON Schemas and automated repository validation for those records.
 
 ## Records
 
@@ -21,7 +21,9 @@ Templates are stored under `.github/release-templates/`:
 - `operational-ownership.yaml`
 - `production-release-record.yaml`
 
-These templates are governance records, not Kubernetes Custom Resources. Phase B will add schemas and automated validation. Until then, placeholders must be replaced, secrets must remain external, image references must be digest-pinned, and every state transition must carry auditable evidence.
+These templates are governance records, not Kubernetes Custom Resources. Their JSON Schemas are stored under `schemas/release/`. Validation runs through `pnpm release:validate` and is also exercised by the repository test suite.
+
+The validator enforces template-to-schema mappings, API version and kind consistency, required governance sections, JSON Schema draft selection, immutable-revision definitions, and rejection of explicit floating image references. Placeholder-bearing templates remain valid until instantiated; populated release records must replace placeholders before approval.
 
 ## Current gates
 
