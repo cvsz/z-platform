@@ -1,0 +1,86 @@
+name: phase6-external-suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full immutable release SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  attestations: write
+  id-token: write
+
+jobs:
+  verify:
+    name: Execute Phase 6 external suite
+    runs-on: ubuntu-24.04
+    environment: staging
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      STAGING_REVIEWER: ${{ vars.STAGING_REVIEWER }}
+      STAGING_BEARER_TOKEN: ${{ secrets.STAGING_BEARER_TOKEN }}
+    steps:
+      - name: Validate immutable SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "release_sha must be a full lowercase SHA"; exit 2; }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify checked-out revision
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+
+      - name: Materialize protected suite configuration
+        shell: bash
+        env:
+          CONFIG_JSON: ${{ secrets.PHASE6_EXTERNAL_SUITE_CONFIG_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$CONFIG_JSON" || { echo "PHASE6_EXTERNAL_SUITE_CONFIG_JSON is required"; exit 2; }
+          umask 077
+          printf '%s' "$CONFIG_JSON" > /tmp/phase6-external-suite.json
+          node -e 'JSON.parse(require("fs").readFileSync("/tmp/phase6-external-suite.json","utf8"))'
+
+      - name: Execute external verification
+        run: node scripts/phase6-external-suite.mjs /tmp/phase6-external-suite.json phase6-external-evidence
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase6-external-evidence-${{ inputs.release_sha }}
+          path: phase6-external-evidence/phase6-external-evidence.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Attest evidence
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: phase6-external-evidence/phase6-external-evidence.json
+
+      - name: Publish summary
+        shell: bash
+        run: |
+          {
+            echo '## Phase 6 external verification'
+            echo
+            echo "Release: \`$RELEASE_SHA\`"
+            echo
+            jq -r '"Result: **" + .result + "**", "Checks: " + ((.checks|length)|tostring)' phase6-external-evidence/phase6-external-evidence.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove protected input
+        if: always()
+        run: rm -f /tmp/phase6-external-suite.json
