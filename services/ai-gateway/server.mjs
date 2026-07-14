@@ -208,14 +208,13 @@ export function createAiGatewayServer({ env = process.env, fetchImpl = fetch, lo
     response.setHeader("X-Request-Id", requestId);
 
     if (request.method === "GET" && request.url === "/health") {
-      let providerCount = 0;
-      try { providerCount = resolveUpstreamProviders(env).length; } catch {}
+      let configured = false;
+      try { configured = resolveUpstreamProviders(env).length > 0; } catch {}
       audit(logger, { event: "health", request_id: requestId, status: 200 });
       return sendJson(response, 200, {
         status: "ok",
         service: "ai-gateway",
-        upstream_configured: providerCount > 0,
-        upstream_provider_count: providerCount,
+        upstream_configured: configured,
       }, requestId);
     }
 
