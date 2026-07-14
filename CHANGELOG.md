@@ -8,6 +8,8 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- Immutable release-evidence validation that binds recorded, approved, and observed revisions to the exact release-candidate commit.
+- Migration feature matrix, execution records, and validation report for the release-evidence slice.
 - Project overview documentation under `docs/project`.
 - Master requirements documentation under `docs/requirements`.
 - Production master document and operations index under `docs/operations`.
@@ -17,6 +19,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Security
 
+- Release evidence copied from another commit is rejected before approval or deployment recording.
 - Documented gateway-only provider access and browser secret isolation.
 - Documented explicit approval gates for agent tools, workspace shell, workspace deploy, infrastructure, and production traffic.
 - Documented denial of wallet signing, cards, KYC, MPC, and swaps from AI and billing paths.
