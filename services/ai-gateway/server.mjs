@@ -166,6 +166,7 @@ export function translateChatPayload(buffer, contentType = "application/json", p
 
 export async function upstream(path, request, body, env = process.env, fetchImpl = fetch, requestId = randomUUID(), signal, logger = console) {
   const providers = resolveUpstreamProviders(env);
+  const providerChainEnabled = providers.length > 1;
   let lastResponse;
   let lastError;
 
@@ -174,7 +175,7 @@ export async function upstream(path, request, body, env = process.env, fetchImpl
     const attempt = index + 1;
     try {
       const prepared = prepareUpstreamRequest(path, request, body, config);
-      audit(logger, { event: "upstream_attempt", request_id: requestId, path, provider: config.name, attempt });
+      if (providerChainEnabled) audit(logger, { event: "upstream_attempt", request_id: requestId, path, provider: config.name, attempt });
       const result = await fetchImpl(upstreamUrl(config.baseUrl, prepared.upstreamPath), {
         method: "POST",
         headers: {
@@ -189,11 +190,11 @@ export async function upstream(path, request, body, env = process.env, fetchImpl
       result.zPlatformAttempt = attempt;
       lastResponse = result;
       if (result.ok || !retryableStatuses.has(result.status) || index === providers.length - 1) return result;
-      audit(logger, { event: "upstream_failover", request_id: requestId, path, provider: config.name, attempt, upstream_status: result.status });
+      if (providerChainEnabled) audit(logger, { event: "upstream_failover", request_id: requestId, path, provider: config.name, attempt, upstream_status: result.status });
     } catch (error) {
       if (isAbortError(error, signal)) throw error;
       lastError = error;
-      audit(logger, { event: "upstream_failover", request_id: requestId, path, provider: config.name, attempt, code: error?.code || "network_error" });
+      if (providerChainEnabled) audit(logger, { event: "upstream_failover", request_id: requestId, path, provider: config.name, attempt, code: error?.code || "network_error" });
       if (index === providers.length - 1) throw error;
     }
   }
