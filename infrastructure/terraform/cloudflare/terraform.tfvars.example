@@ -1,0 +1,28 @@
+cloudflare_api_token = "set-via-TF_VAR_cloudflare_api_token"
+cloudflare_account_id = "00000000000000000000000000000000"
+cloudflare_zone_id    = "00000000000000000000000000000000"
+cloudflare_tunnel_id  = "00000000-0000-0000-0000-000000000000"
+zone_name             = "zeaz.dev"
+
+app_routes = {
+  phase6 = {
+    hostname             = "api6.zeaz.dev"
+    service              = "http://phase6-api:8080"
+    access_enabled       = true
+    allowed_emails       = ["operator@zeaz.dev"]
+    allowed_email_domains = ["zeaz.dev"]
+  }
+
+  zchat = {
+    hostname       = "chat.zeaz.dev"
+    service        = "http://zchat:3021"
+    access_enabled = false
+  }
+
+  zwallet = {
+    hostname       = "wallet.zeaz.dev"
+    service        = "http://zwallet:3040"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
+}
