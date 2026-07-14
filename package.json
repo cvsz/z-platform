@@ -6,9 +6,11 @@
   "packageManager": "pnpm@11.4.0",
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "test": "pnpm -r --if-present test",
+    "test": "pnpm -r --if-present test && node --test scripts/test/*.test.mjs",
     "lint": "pnpm -r --if-present lint",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "pnpm -r --if-present typecheck",
+    "keys:validate": "node scripts/validate-api-keys.mjs",
+    "keys:check": "node scripts/validate-api-keys.mjs --syntax-only --strict"
   },
   "engines": {
     "node": ">=20",
