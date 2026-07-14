@@ -6,6 +6,8 @@ coverage/
 .env
 .env.*
 !.env.example
+API-KEY.txt
+API-KEY*.txt
 *.log
 .DS_Store
 .pnpm-store/
