@@ -22,6 +22,17 @@ export const REQUIRED_CHECKS = [
 
 const SHA_RE = /^[0-9a-f]{40}$/;
 const SAFE_STATUS = new Set(["verified", "failed"]);
+const PLACEHOLDER_PATTERNS = [
+  /^pending:/i,
+  /^replace_with/i,
+  /example\.com/i,
+  /<[^>]+>/,
+  /staging-observability-host/i,
+];
+
+function isPlaceholderEvidence(value) {
+  return PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(value.trim()));
+}
 
 export function validateManifest(manifest, releaseSha) {
   if (!SHA_RE.test(releaseSha)) throw new Error("release SHA must be a full 40-character lowercase Git SHA");
@@ -34,10 +45,16 @@ export function validateManifest(manifest, releaseSha) {
     if (!check || typeof check.id !== "string" || ids.has(check.id)) throw new Error("check IDs must be unique strings");
     ids.add(check.id);
     if (!REQUIRED_CHECKS.includes(check.id)) throw new Error(`unknown readiness check: ${check.id}`);
-    if (!['probe', 'attestation'].includes(check.mode)) throw new Error(`invalid mode for ${check.id}`);
+    if (!["probe", "attestation"].includes(check.mode)) throw new Error(`invalid mode for ${check.id}`);
     if (check.mode === "probe") {
-      const url = new URL(check.url);
+      let url;
+      try {
+        url = new URL(check.url);
+      } catch {
+        throw new Error(`probe ${check.id} has invalid URL`);
+      }
       if (url.protocol !== "https:") throw new Error(`probe ${check.id} must use HTTPS`);
+      if (isPlaceholderEvidence(check.url)) throw new Error(`probe ${check.id} uses placeholder URL`);
       if (check.expectedStatus && (!Number.isInteger(check.expectedStatus) || check.expectedStatus < 200 || check.expectedStatus > 599)) {
         throw new Error(`invalid expectedStatus for ${check.id}`);
       }
@@ -47,6 +64,7 @@ export function validateManifest(manifest, releaseSha) {
         if (typeof check[field] !== "string" || check[field].trim() === "") throw new Error(`attestation ${check.id} requires ${field}`);
       }
       if (Number.isNaN(Date.parse(check.reviewedAt))) throw new Error(`attestation ${check.id} has invalid reviewedAt`);
+      if (isPlaceholderEvidence(check.evidenceRef)) throw new Error(`attestation ${check.id} uses placeholder evidenceRef`);
     }
   }
   const missing = REQUIRED_CHECKS.filter((id) => !ids.has(id));

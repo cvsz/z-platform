@@ -40,6 +40,24 @@ test("rejects insecure probe URLs", () => {
   assert.throws(() => validateManifest(value, releaseSha), /must use HTTPS/);
 });
 
+test("rejects invalid or placeholder probe URLs", () => {
+  const value = manifest();
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "pending:dashboard" };
+  assert.throws(() => validateManifest(value, releaseSha), /invalid URL|must use HTTPS|placeholder URL/);
+});
+
+test("rejects pending attestation evidence", () => {
+  const value = manifest();
+  value.checks[0].evidenceRef = "pending:external-verification";
+  assert.throws(() => validateManifest(value, releaseSha), /placeholder evidenceRef/);
+});
+
+test("rejects replacement placeholders in attestation evidence", () => {
+  const value = manifest();
+  value.checks[0].evidenceRef = "REPLACE_WITH_NON_SECRET_EVIDENCE_REFERENCE";
+  assert.throws(() => validateManifest(value, releaseSha), /placeholder evidenceRef/);
+});
+
 test("requires operator ownership before evidence is verified", async () => {
   const evidence = await collectEvidence(manifest(), { releaseSha });
   assert.equal(evidence.result, "FAILED");
