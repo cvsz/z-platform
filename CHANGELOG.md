@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- CodeQL Advanced workflow update that runs on the self-hosted `z-runner` lane and loads the broader `security-and-quality` query suite, with repo-local workflow-shape tests; alert-closure evidence still requires a PR-head runner execution.
 - AI Gateway container startup contract tests covering the start command, health route, fail-closed authentication, and authorization-log redaction.
 - Root `Makefile` GPG helpers for signed commit, push, pull, and finalize workflows using the same `COMMIT_MSG` interface as the older `zeaz-platform` repo.
 - Current-head evidence record for `923c3a190fbf626faae076bf5faa43a4d03a9703`, preserving its failed deployed-smoke classification and immutable SBOM metadata.

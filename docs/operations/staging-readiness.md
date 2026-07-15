@@ -26,6 +26,12 @@ Current `main` SHA: `2db36e428fa95457e0559dabc224b7d8ff10d289` (2026-07-15).
 | Main security-alert state | BLOCKED | CodeQL alerts 1-5 and Dependabot alert 1 are open against `main`, inspected 2026-07-15 | Passing workflows do not make unresolved findings eligible for release. |
 | Security-alert remediation | IMPLEMENTED | Path containment, rate limiting, default-deny CORS, command-argument omission, and PostCSS override plus deterministic local tests on this branch | PR-head CodeQL, dependency audit, validation, and immutable artifacts are still required before VERIFIED. |
 
+## CodeQL Advanced z-runner slice
+
+| Claim | Status | Evidence | Limitations |
+|---|---|---|---|
+| Workflow and runner update | IMPLEMENTED | `CodeQL Advanced` now runs on the self-hosted `z-runner` lane and loads `.github/codeql/codeql-config.yml`, which adds the `security-and-quality` query suite; `scripts/test/codeql-workflow.test.mjs` checks the workflow shape | PR-head CodeQL execution on the exact SHA and alert-closure evidence on the self-hosted runner remain **PENDING_EXTERNAL**. |
+
 Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to this branch or a later release candidate.
 
 ## Prior immutable evidence

@@ -123,11 +123,13 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Implemented AI streaming, upload/file proxy, multi-provider, and failover verification harnesses; approved-account execution remains **PENDING_EXTERNAL**.
 - Implemented browser bundle and HAR credential scanners; actual deployed artifacts remain **PENDING_EXTERNAL**.
 - Implemented automated ZChat accessibility, responsive, session, and external-readiness contracts; human target-environment QA remains **PENDING_EXTERNAL**.
+- Implemented a CodeQL Advanced workflow that runs on the self-hosted `z-runner` lane with the broader `security-and-quality` query suite, plus repository-local drift tests for the workflow shape.
 
 ### Remaining
 
 - Record billing/legal decisions, staging reviewer, production approver, incident owner, escalation route, and post-launch watch window.
 - Record a passing workflow and immutable artifacts for the exact commit selected as the next release candidate.
+- Run CodeQL Advanced on the self-hosted `z-runner` for the exact selected SHA and capture the alert-closure evidence before promoting any new release candidate.
 - **VERIFIED** - Current `main` SHA `2db36e428fa95457e0559dabc224b7d8ff10d289` has passing CI, secret and browser scans, Compose build, deployed smoke, SBOM, provenance, and CodeQL workflows. `validate` run `29425992713` produced smoke artifact `8347285839` with digest `sha256:6d51c96fdd373274d428217f8e8860b32ebecda442414474c35c92ca5b612ef6`.
 - **BLOCKED** - Security release eligibility for that SHA is blocked by CodeQL alerts 1-5 and Dependabot alert 1 (`GHSA-qx2v-qp2m-jg93`). A successful workflow does not override open findings.
 - **IMPLEMENTED** - Repository-local remediations for the five original CodeQL findings, the PR-head logging follow-up, and the PostCSS advisory exist on this branch. PR-head CodeQL, dependency audit, validation, and immutable artifact evidence are still required before the branch can be selected as a release candidate.
