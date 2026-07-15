@@ -134,15 +134,15 @@ External decisions still required:
 
 ### AI Gateway
 
-- [ ] Verify streaming chat against an approved upstream account.
-- [ ] Verify upload/file proxy behavior against an approved upstream account.
+- [x] Verify streaming chat against an approved upstream account.
+- [x] Verify upload/file proxy behavior against an approved upstream account.
 - [x] Verify multiple approved upstream provider adapters via Redis AI Gateway Pool.
 - [x] Verify quota policy and automatic failover using approved provider accounts via Control Panel.
 
 ### Browser credential isolation
 
-- [ ] Inspect the actual production browser bundle.
-- [ ] Inspect deployed browser network traffic or HAR for provider keys, service tokens, and server-only identifiers.
+- [x] Inspect the actual production browser bundle.
+- [x] Inspect deployed browser network traffic or HAR for provider keys, service tokens, and server-only identifiers.
 
 ### Human client QA
 

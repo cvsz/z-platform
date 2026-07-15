@@ -1,4 +1,5 @@
 import express from 'express';
+import { Readable } from 'stream';
 import Redis from 'ioredis';
 import fetch from 'node-fetch';
 import helmet from 'helmet';
@@ -79,8 +80,15 @@ app.post('/v1/chat/completions', requireAuth, async (req, res) => {
       });
       
       if (response.ok) {
-        const data = await response.json();
-        return res.status(200).json(data);
+        if (req.body.stream) {
+          res.setHeader('Content-Type', 'text/event-stream');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.setHeader('Connection', 'keep-alive');
+          return Readable.fromWeb(response.body).pipe(res);
+        } else {
+          const data = await response.json();
+          return res.status(200).json(data);
+        }
       } else if (response.status === 429) {
         await redis.srem(`provider:${provider}:active_keys`, key);
         await redis.set(`provider:${provider}:cooldown_keys:${key}`, 'cooldown', 'EX', 3600);
