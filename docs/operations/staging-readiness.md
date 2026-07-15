@@ -30,7 +30,7 @@ Current `main` SHA: `36fc7f594c933137a1d8da2855bac752fb2f03b3` (2026-07-15).
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
-| Workflow and runner update | IMPLEMENTED | `CodeQL Advanced` now runs on the self-hosted `z-runner` lane and loads `.github/codeql/codeql-config.yml`, which adds the `security-and-quality` query suite; `scripts/test/codeql-workflow.test.mjs` checks the workflow shape | PR-head CodeQL execution on the exact SHA and alert-closure evidence on the self-hosted runner remain **PENDING_EXTERNAL**. |
+| Workflow and runner update | IMPLEMENTED | `CodeQL Advanced` now runs on the self-hosted `z-runner` lane, loads `.github/codeql/codeql-config.yml`, provisions Node/pnpm/Go/Python toolchains before CodeQL init, and adds the `security-and-quality` query suite; `scripts/test/codeql-workflow.test.mjs` checks the workflow shape and setup ordering | PR-head CodeQL execution on the exact SHA and alert-closure evidence on the self-hosted runner remain **PENDING_EXTERNAL**. |
 
 Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to this branch or a later release candidate.
 

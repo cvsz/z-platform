@@ -38,7 +38,7 @@ Status definitions use the issue #1 semantics: **VERIFIED**, **IMPLEMENTED**, **
 | Current `main` evidence (`36fc7f594c933137a1d8da2855bac752fb2f03b3`) | Seven-service topology and release gates | Runs `29431078328`, `29431079935`, `29431078865`, and `29431080079` pass; smoke artifact `8349399112`; SBOM IDs `8349364297`, `8349363768`, `8349360484` | GitHub Actions / isolated Compose | VERIFIED |
 | Current `main` security eligibility | CodeQL and Dependabot scanning | CodeQL workflow run `29431080079` passed; Dependabot alert state was not re-fetched with authenticated API access | GitHub security scanning | IMPLEMENTED |
 | AI Gateway disconnect-aware upstream cancellation | Branch-local gateway abort handling and disconnect regression test | Deterministic repository-local test coverage on this branch; PR-head workflow artifacts pending | Repository | IMPLEMENTED |
-| CodeQL Advanced z-runner lane | Self-hosted runner and broader query suite configuration | Workflow-shape regression test covers `runs-on: [self-hosted, linux, x64, z-runner]` and `security-and-quality` config loading | Repository / self-hosted runner | IMPLEMENTED |
+| CodeQL Advanced z-runner lane | Self-hosted runner, broader query suite configuration, and explicit language toolchain setup | Workflow-shape regression test covers `runs-on: [self-hosted, linux, x64, z-runner]`, `security-and-quality` config loading, and setup ordering for Node/pnpm/Go/Python analysis | Repository / self-hosted runner | IMPLEMENTED |
 
 ## Release selection rule
 
