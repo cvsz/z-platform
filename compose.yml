@@ -116,15 +116,17 @@ services:
     depends_on:
       billing-ledger:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       HOST: 0.0.0.0
       PORT: 8400
       Z_PLATFORM_SERVICE_TOKEN: ${Z_PLATFORM_SERVICE_TOKEN:?set Z_PLATFORM_SERVICE_TOKEN in .env}
+      REDIS_URL: redis://redis:6379/0
       UPSTREAM_BASE_URL: ${UPSTREAM_BASE_URL:-}
-      UPSTREAM_API_KEY: ${AI_GATEWAY_PROVIDER_TOKEN:-}
       UPSTREAM_PROVIDER: ${UPSTREAM_PROVIDER:-openai-compatible}
-      UPSTREAM_PROVIDERS_JSON: ${UPSTREAM_PROVIDERS_JSON:-}
-      Z_PLATFORM_BILLING_LEDGER_URL: http://billing-ledger:8700
+      CORS_ORIGIN: '*'
+      LOG_LEVEL: info
     ports:
       - "127.0.0.1:${AI_GATEWAY_PORT:-8400}:8400"
     healthcheck:
@@ -183,9 +185,34 @@ services:
       retries: 10
       start_period: 5s
 
+  agent-control-panel:
+    <<: *node-service
+    build:
+      context: .
+      dockerfile: deploy/docker/node-service.Dockerfile
+      args:
+        SERVICE_PATH: apps/agent-control-panel
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
 networks:
   z-platform-internal:
     driver: bridge
 
 volumes:
   agent-provider-data:
+  redis_data:

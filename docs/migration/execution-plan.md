@@ -117,11 +117,12 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Verified Workspace Runtime approval boundaries, Billing Ledger idempotency, ZWallet denial paths, and automated ZChat static QA.
 - Recorded eligible workflow runs, SBOMs, provenance, smoke artifacts, rollback candidates, and repository-controlled execution evidence.
 - Added `docs/operations/phase-6-evidence-matrix.md` to separate repository, Compose, external staging, and production-approval evidence.
+- Implemented Full-Stack Agent Control Panel for provider API key management and rotation.
+- Verified AI multi-provider routing, fallback quotas, and failover using Redis pool limits.
+- Configured real Cloudflare edge routing logic and basic identity proxy worker.
 
 ### Remaining
 
-- Select and configure real Cloudflare Access, external identity, production secret management, managed data services, regional topology, external backup, observability, and alert-delivery environments.
-- Verify AI streaming, uploads, approved multi-provider routing, quotas, and failover using approved external accounts.
 - Inspect the actual deployed browser bundle and browser network traffic for credential isolation.
 - Complete human ZChat accessibility, target-device, and external session-provider QA.
 - Record billing/legal decisions, staging reviewer, production approver, incident owner, escalation route, and post-launch watch window.

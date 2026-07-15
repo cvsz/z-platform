@@ -36,9 +36,9 @@ func ExitCode(err error) int {
 }
 
 type options struct {
-	profile                 string
-	dryRun, json, verbose   bool
-	timeout                 time.Duration
+	profile               string
+	dryRun, json, verbose bool
+	timeout               time.Duration
 }
 
 type config struct {
@@ -301,28 +301,54 @@ func reject(flags []string, allowed ...string) error {
 
 func (a application) start(ctx context.Context, args []string) error {
 	services, flags, err := splitServices(args)
-	if err != nil { return codedError{2, err} }
-	if err = reject(flags, "--wait", "--build"); err != nil { return codedError{2, err} }
-	if slices.Contains(flags, "--build") && !a.cfg.allowBuild { return codedError{4, errors.New("build is forbidden for this profile")} }
-	if err = a.validate(ctx, services); err != nil { return err }
+	if err != nil {
+		return codedError{2, err}
+	}
+	if err = reject(flags, "--wait", "--build"); err != nil {
+		return codedError{2, err}
+	}
+	if slices.Contains(flags, "--build") && !a.cfg.allowBuild {
+		return codedError{4, errors.New("build is forbidden for this profile")}
+	}
+	if err = a.validate(ctx, services); err != nil {
+		return err
+	}
 	cmd := []string{"up", "-d"}
-	if slices.Contains(flags, "--build") { cmd = append(cmd, "--build") }
+	if slices.Contains(flags, "--build") {
+		cmd = append(cmd, "--build")
+	}
 	cmd = append(cmd, services...)
-	if err = a.compose(ctx, cmd...); err != nil { return err }
-	if slices.Contains(flags, "--wait") { return a.wait(ctx, services) }
+	if err = a.compose(ctx, cmd...); err != nil {
+		return err
+	}
+	if slices.Contains(flags, "--wait") {
+		return a.wait(ctx, services)
+	}
 	return a.compose(ctx, "ps")
 }
 
 func (a application) stop(ctx context.Context, args []string) error {
 	services, flags, err := splitServices(args)
-	if err != nil { return codedError{2, err} }
-	if err = reject(flags, "--remove-orphans", "--purge", "--confirm-destroy"); err != nil { return codedError{2, err} }
-	if err = a.validate(ctx, services); err != nil { return err }
+	if err != nil {
+		return codedError{2, err}
+	}
+	if err = reject(flags, "--remove-orphans", "--purge", "--confirm-destroy"); err != nil {
+		return codedError{2, err}
+	}
+	if err = a.validate(ctx, services); err != nil {
+		return err
+	}
 	if slices.Contains(flags, "--purge") {
-		if !a.cfg.allowPurge { return codedError{4, errors.New("purge is forbidden for this profile")} }
-		if !slices.Contains(flags, "--confirm-destroy") { return codedError{4, errors.New("--purge requires --confirm-destroy")} }
+		if !a.cfg.allowPurge {
+			return codedError{4, errors.New("purge is forbidden for this profile")}
+		}
+		if !slices.Contains(flags, "--confirm-destroy") {
+			return codedError{4, errors.New("--purge requires --confirm-destroy")}
+		}
 		cmd := []string{"down", "--volumes"}
-		if slices.Contains(flags, "--remove-orphans") { cmd = append(cmd, "--remove-orphans") }
+		if slices.Contains(flags, "--remove-orphans") {
+			cmd = append(cmd, "--remove-orphans")
+		}
 		return a.compose(ctx, cmd...)
 	}
 	return a.compose(ctx, append([]string{"stop"}, services...)...)
@@ -330,21 +356,37 @@ func (a application) stop(ctx context.Context, args []string) error {
 
 func (a application) restart(ctx context.Context, args []string) error {
 	services, flags, err := splitServices(args)
-	if err != nil { return codedError{2, err} }
-	if err = reject(flags, "--wait", "--recreate"); err != nil { return codedError{2, err} }
-	if err = a.validate(ctx, services); err != nil { return err }
+	if err != nil {
+		return codedError{2, err}
+	}
+	if err = reject(flags, "--wait", "--recreate"); err != nil {
+		return codedError{2, err}
+	}
+	if err = a.validate(ctx, services); err != nil {
+		return err
+	}
 	cmd := []string{"restart"}
-	if slices.Contains(flags, "--recreate") { cmd = []string{"up", "-d", "--force-recreate"} }
+	if slices.Contains(flags, "--recreate") {
+		cmd = []string{"up", "-d", "--force-recreate"}
+	}
 	cmd = append(cmd, services...)
-	if err = a.compose(ctx, cmd...); err != nil { return err }
-	if slices.Contains(flags, "--wait") { return a.wait(ctx, services) }
+	if err = a.compose(ctx, cmd...); err != nil {
+		return err
+	}
+	if slices.Contains(flags, "--wait") {
+		return a.wait(ctx, services)
+	}
 	return a.compose(ctx, "ps")
 }
 
 func (a application) logs(ctx context.Context, args []string) error {
 	services, flags, err := splitServices(args)
-	if err != nil { return codedError{2, err} }
-	if err = a.validate(ctx, services); err != nil { return err }
+	if err != nil {
+		return codedError{2, err}
+	}
+	if err = a.validate(ctx, services); err != nil {
+		return err
+	}
 	cmd := []string{"logs"}
 	for i := 0; i < len(flags); i++ {
 		if slices.Contains([]string{"--follow", "-f", "--timestamps"}, flags[i]) {
@@ -362,47 +404,87 @@ func (a application) logs(ctx context.Context, args []string) error {
 }
 
 func (a application) build(ctx context.Context, args []string, rec *auditRecord) error {
-	if !a.cfg.allowBuild { return codedError{4, errors.New("build is forbidden for this profile")} }
+	if !a.cfg.allowBuild {
+		return codedError{4, errors.New("build is forbidden for this profile")}
+	}
 	services, flags, err := splitServices(args)
-	if err != nil { return codedError{2, err} }
-	if err = reject(flags, "--no-cache", "--pull", "--push", "--skip-sbom"); err != nil { return codedError{2, err} }
-	if err = a.validate(ctx, services); err != nil { return err }
-	if dirty, err := a.gitOutput(ctx, "status", "--porcelain"); err != nil { return err } else if strings.TrimSpace(string(dirty)) != "" { return codedError{2, errors.New("build refused because the working tree is dirty")} }
+	if err != nil {
+		return codedError{2, err}
+	}
+	if err = reject(flags, "--no-cache", "--pull", "--push", "--skip-sbom"); err != nil {
+		return codedError{2, err}
+	}
+	if err = a.validate(ctx, services); err != nil {
+		return err
+	}
+	if dirty, err := a.gitOutput(ctx, "status", "--porcelain"); err != nil {
+		return err
+	} else if strings.TrimSpace(string(dirty)) != "" {
+		return codedError{2, errors.New("build refused because the working tree is dirty")}
+	}
 	rev, err := a.gitOutput(ctx, "rev-parse", "HEAD")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	revision := strings.TrimSpace(string(rev))
 	rec.TargetRevision = revision
 	created := time.Now().UTC().Format(time.RFC3339)
 	cmd := []string{"build", "--build-arg", "OCI_REVISION=" + revision, "--build-arg", "OCI_SOURCE=https://github.com/cvsz/z-platform", "--build-arg", "OCI_CREATED=" + created, "--build-arg", "OCI_VERSION=" + revision[:min(12, len(revision))]}
-	for _, flag := range flags { if flag != "--skip-sbom" && flag != "--push" { cmd = append(cmd, flag) } }
+	for _, flag := range flags {
+		if flag != "--skip-sbom" && flag != "--push" {
+			cmd = append(cmd, flag)
+		}
+	}
 	cmd = append(cmd, services...)
-	if err = a.compose(ctx, cmd...); err != nil { return err }
-	if slices.Contains(flags, "--push") { if err = a.compose(ctx, append([]string{"push"}, services...)...); err != nil { return err } }
+	if err = a.compose(ctx, cmd...); err != nil {
+		return err
+	}
+	if slices.Contains(flags, "--push") {
+		if err = a.compose(ctx, append([]string{"push"}, services...)...); err != nil {
+			return err
+		}
+	}
 	images, err := a.output(ctx, "config", "--images")
 	if err == nil {
 		rec.ImageDigests = map[string]string{}
 		for _, image := range strings.Fields(string(images)) {
 			inspected, inspectErr := a.run.output(ctx, "docker", "image", "inspect", "--format", "{{index .RepoDigests 0}}", image)
-			if inspectErr == nil { rec.ImageDigests[image] = strings.TrimSpace(string(inspected)) }
+			if inspectErr == nil {
+				rec.ImageDigests[image] = strings.TrimSpace(string(inspected))
+			}
 		}
 	}
-	if !slices.Contains(flags, "--skip-sbom") { return a.sbom(ctx, revision, strings.Fields(string(images))) }
+	if !slices.Contains(flags, "--skip-sbom") {
+		return a.sbom(ctx, revision, strings.Fields(string(images)))
+	}
 	return nil
 }
 
 func (a application) sbom(ctx context.Context, revision string, images []string) error {
-	if _, err := exec.LookPath("syft"); err != nil { return codedError{3, errors.New("syft is required for SBOM generation; install syft or use --skip-sbom")} }
-	if a.opts.dryRun { return nil }
-	if err := os.MkdirAll(a.cfg.sbomDir, 0o700); err != nil { return err }
+	if _, err := exec.LookPath("syft"); err != nil {
+		return codedError{3, errors.New("syft is required for SBOM generation; install syft or use --skip-sbom")}
+	}
+	if a.opts.dryRun {
+		return nil
+	}
+	if err := os.MkdirAll(a.cfg.sbomDir, 0o700); err != nil {
+		return err
+	}
 	for _, image := range images {
 		name := strings.NewReplacer("/", "_", ":", "_", "@", "_").Replace(image)
 		path := filepath.Join(a.cfg.sbomDir, fmt.Sprintf("%s-%s.spdx.json", name, revision[:min(12, len(revision))]))
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		err = a.run.run(ctx, file, "syft", image, "-o", "spdx-json")
 		closeErr := file.Close()
-		if err != nil { return err }
-		if closeErr != nil { return closeErr }
+		if err != nil {
+			return err
+		}
+		if closeErr != nil {
+			return closeErr
+		}
 	}
 	return nil
 }
@@ -412,37 +494,67 @@ func (a application) update(ctx context.Context, args []string, rec *auditRecord
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--branch":
-			if i+1 >= len(args) { return codedError{2, errors.New("--branch requires a value")} }
-			i++; branch = args[i]
-		case "--restart": restart = true
-		case "--stash": stash = true
-		default: return codedError{2, fmt.Errorf("unknown update flag %q", args[i])}
+			if i+1 >= len(args) {
+				return codedError{2, errors.New("--branch requires a value")}
+			}
+			i++
+			branch = args[i]
+		case "--restart":
+			restart = true
+		case "--stash":
+			stash = true
+		default:
+			return codedError{2, fmt.Errorf("unknown update flag %q", args[i])}
 		}
 	}
-	if _, err := exec.LookPath("git"); err != nil { return codedError{3, errors.New("git is unavailable")} }
+	if _, err := exec.LookPath("git"); err != nil {
+		return codedError{3, errors.New("git is unavailable")}
+	}
 	before, err := a.gitOutput(ctx, "rev-parse", "HEAD")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	rec.BeforeRevision = strings.TrimSpace(string(before))
 	dirty, err := a.gitOutput(ctx, "status", "--porcelain")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	hasChanges := strings.TrimSpace(string(dirty)) != ""
-	if hasChanges && !stash { return codedError{2, errors.New("update refused because local changes exist")} }
+	if hasChanges && !stash {
+		return codedError{2, errors.New("update refused because local changes exist")}
+	}
 	stashed := false
 	if hasChanges {
-		if err = a.gitRun(ctx, "stash", "push", "--include-untracked", "--message", "zctl-update-"+rec.OperationID); err != nil { return err }
+		if err = a.gitRun(ctx, "stash", "push", "--include-untracked", "--message", "zctl-update-"+rec.OperationID); err != nil {
+			return err
+		}
 		stashed = true
 	}
-	if stashed { defer func() { _ = a.gitRun(context.Background(), "stash", "pop") }() }
-	if err = a.gitRun(ctx, "fetch", "--prune", a.cfg.remote, branch); err != nil { return err }
+	if stashed {
+		defer func() { _ = a.gitRun(context.Background(), "stash", "pop") }()
+	}
+	if err = a.gitRun(ctx, "fetch", "--prune", a.cfg.remote, branch); err != nil {
+		return err
+	}
 	target := a.cfg.remote + "/" + branch
-	if err = a.gitRun(ctx, "merge-base", "--is-ancestor", "HEAD", target); err != nil { return codedError{2, errors.New("update refused because remote cannot be fast-forwarded from local HEAD")} }
-	if err = a.gitRun(ctx, "merge", "--ff-only", target); err != nil { return err }
+	if err = a.gitRun(ctx, "merge-base", "--is-ancestor", "HEAD", target); err != nil {
+		return codedError{2, errors.New("update refused because remote cannot be fast-forwarded from local HEAD")}
+	}
+	if err = a.gitRun(ctx, "merge", "--ff-only", target); err != nil {
+		return err
+	}
 	after, err := a.gitOutput(ctx, "rev-parse", "HEAD")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	rec.TargetRevision = strings.TrimSpace(string(after))
-	if err = a.syncDependencies(ctx); err != nil { return err }
+	if err = a.syncDependencies(ctx); err != nil {
+		return err
+	}
 	if restart {
-		if err = a.preflight(ctx); err != nil { return err }
+		if err = a.preflight(ctx); err != nil {
+			return err
+		}
 		return a.compose(ctx, "up", "-d", "--build")
 	}
 	return nil
@@ -450,30 +562,46 @@ func (a application) update(ctx context.Context, args []string, rec *auditRecord
 
 func (a application) syncDependencies(ctx context.Context) error {
 	if _, err := os.Stat("pnpm-lock.yaml"); err == nil {
-		if _, err = exec.LookPath("pnpm"); err != nil { return codedError{3, errors.New("pnpm-lock.yaml exists but pnpm is unavailable")} }
+		if _, err = exec.LookPath("pnpm"); err != nil {
+			return codedError{3, errors.New("pnpm-lock.yaml exists but pnpm is unavailable")}
+		}
 		return a.run.run(ctx, a.stdout, "pnpm", "install", "--frozen-lockfile")
 	}
-	if _, err := os.Stat("package-lock.json"); err == nil { return a.run.run(ctx, a.stdout, "npm", "ci") }
+	if _, err := os.Stat("package-lock.json"); err == nil {
+		return a.run.run(ctx, a.stdout, "npm", "ci")
+	}
 	return nil
 }
 
 func (a application) health(ctx context.Context, args []string) error {
-	if len(args) > 1 || (len(args) == 1 && args[0] != "--wait") { return codedError{2, errors.New("health only accepts --wait")} }
-	if len(args) == 1 { return a.wait(ctx, nil) }
+	if len(args) > 1 || (len(args) == 1 && args[0] != "--wait") {
+		return codedError{2, errors.New("health only accepts --wait")}
+	}
+	if len(args) == 1 {
+		return a.wait(ctx, nil)
+	}
 	return a.healthOnce(ctx, nil)
 }
 
 func (a application) healthOnce(ctx context.Context, services []string) error {
 	if len(services) == 0 {
 		out, err := a.output(ctx, "config", "--services")
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		services = strings.Fields(string(out))
 	}
 	out, err := a.output(ctx, "ps", "--status", "running", "--services")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	running := strings.Fields(string(out))
 	missing := []string{}
-	for _, service := range services { if !slices.Contains(running, service) { missing = append(missing, service) } }
+	for _, service := range services {
+		if !slices.Contains(running, service) {
+			missing = append(missing, service)
+		}
+	}
 	if a.opts.json {
 		_ = json.NewEncoder(a.stdout).Encode(map[string]any{"healthy": len(missing) == 0, "services": services, "missing": missing})
 	} else if len(missing) == 0 {
@@ -481,16 +609,23 @@ func (a application) healthOnce(ctx context.Context, services []string) error {
 	} else {
 		fmt.Fprintf(a.stdout, "unhealthy: %s\n", strings.Join(missing, ", "))
 	}
-	if len(missing) > 0 { return errors.New("one or more services are not running") }
+	if len(missing) > 0 {
+		return errors.New("one or more services are not running")
+	}
 	return nil
 }
 
 func (a application) wait(ctx context.Context, services []string) error {
 	deadline := time.Now().Add(a.cfg.healthTimeout)
 	for {
-		if err := a.healthOnce(ctx, services); err == nil { return nil } else if time.Now().After(deadline) { return err }
+		if err := a.healthOnce(ctx, services); err == nil {
+			return nil
+		} else if time.Now().After(deadline) {
+			return err
+		}
 		select {
-		case <-ctx.Done(): return ctx.Err()
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-time.After(2 * time.Second):
 		}
 	}
@@ -499,22 +634,44 @@ func (a application) wait(ctx context.Context, services []string) error {
 func (a application) doctor(ctx context.Context) error {
 	checks := map[string]string{}
 	for _, dependency := range []string{"docker", "git", "syft"} {
-		if _, err := exec.LookPath(dependency); err == nil { checks[dependency] = "ok" } else { checks[dependency] = "missing" }
+		if _, err := exec.LookPath(dependency); err == nil {
+			checks[dependency] = "ok"
+		} else {
+			checks[dependency] = "missing"
+		}
 	}
 	for key, path := range map[string]string{"composeFile": a.cfg.compose, "environmentFile": a.cfg.env} {
-		if _, err := os.Stat(path); err == nil { checks[key] = "ok" } else { checks[key] = "missing" }
+		if _, err := os.Stat(path); err == nil {
+			checks[key] = "ok"
+		} else {
+			checks[key] = "missing"
+		}
 	}
 	ok := checks["docker"] == "ok" && checks["git"] == "ok" && checks["composeFile"] == "ok" && checks["environmentFile"] == "ok"
-	if a.opts.json { _ = json.NewEncoder(a.stdout).Encode(map[string]any{"healthy": ok, "checks": checks}) } else { for _, key := range []string{"docker", "git", "syft", "composeFile", "environmentFile"} { fmt.Fprintf(a.stdout, "%-16s %s\n", key, checks[key]) } }
-	if !ok { return codedError{3, errors.New("doctor checks failed")} }
+	if a.opts.json {
+		_ = json.NewEncoder(a.stdout).Encode(map[string]any{"healthy": ok, "checks": checks})
+	} else {
+		for _, key := range []string{"docker", "git", "syft", "composeFile", "environmentFile"} {
+			fmt.Fprintf(a.stdout, "%-16s %s\n", key, checks[key])
+		}
+	}
+	if !ok {
+		return codedError{3, errors.New("doctor checks failed")}
+	}
 	return nil
 }
 
 func (a application) locked(operation string, fn func() error) error {
-	if a.opts.dryRun { return fn() }
-	if err := os.MkdirAll(filepath.Dir(a.cfg.lock), 0o700); err != nil { return err }
+	if a.opts.dryRun {
+		return fn()
+	}
+	if err := os.MkdirAll(filepath.Dir(a.cfg.lock), 0o700); err != nil {
+		return err
+	}
 	file, err := os.OpenFile(a.cfg.lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil { return codedError{5, fmt.Errorf("operation conflict: %s", a.cfg.lock)} }
+	if err != nil {
+		return codedError{5, fmt.Errorf("operation conflict: %s", a.cfg.lock)}
+	}
 	_ = json.NewEncoder(file).Encode(map[string]any{"operation": operation, "pid": os.Getpid(), "actor": actor(), "startedAt": time.Now().UTC()})
 	_ = file.Close()
 	defer os.Remove(a.cfg.lock)
@@ -522,11 +679,17 @@ func (a application) locked(operation string, fn func() error) error {
 }
 
 func (a application) audit(record auditRecord) error {
-	if a.opts.dryRun { return nil }
-	if err := os.MkdirAll(a.cfg.audit, 0o700); err != nil { return err }
+	if a.opts.dryRun {
+		return nil
+	}
+	if err := os.MkdirAll(a.cfg.audit, 0o700); err != nil {
+		return err
+	}
 	path := filepath.Join(a.cfg.audit, fmt.Sprintf("%s-%s-%s.json", record.StartedAt.Format("20060102T150405Z"), record.Command, record.OperationID))
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer file.Close()
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
@@ -540,14 +703,18 @@ func id() string {
 }
 
 func actor() string {
-	if current, err := user.Current(); err == nil { return current.Username }
+	if current, err := user.Current(); err == nil {
+		return current.Username
+	}
 	return "unknown"
 }
 
 func redact(value string) string {
 	lower := strings.ToLower(value)
 	for _, marker := range []string{"token=", "password=", "api_key=", "authorization:"} {
-		if index := strings.Index(lower, marker); index >= 0 { return value[:index] + marker + "[REDACTED]" }
+		if index := strings.Index(lower, marker); index >= 0 {
+			return value[:index] + marker + "[REDACTED]"
+		}
 	}
 	return value
 }

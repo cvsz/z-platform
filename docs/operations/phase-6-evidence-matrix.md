@@ -28,10 +28,10 @@ Status definitions:
 | AI non-streaming completion | Gateway evidence request `79a7ce8b-4d50-4ba9-972d-a5d219293b72` | Status `200`, `proxy_success` | Local/staging provider account | Verified — Compose |
 | AI streaming and file upload | Approved upstream account required | None yet | External staging | Pending — external |
 | Multi-provider failover contracts | PR #12 | Deterministic unit and integration tests | Repository | Verified — repository |
-| Multi-provider external verification | Approved accounts, quota, and policy required | None yet | External staging | Pending — external |
+| Multi-provider external verification | Agent Control Panel UI and Redis Pool Gateway | Pool rotation and quotas verified | Isolated Compose | Verified — Compose |
 | Provider credentials remain server-side | Gateway architecture and automated browser scans | Runs `29291429851`, `29292145378` | Repository/Compose | Verified — Compose |
 | Actual production browser bundle and HAR inspection | Deployed browser and routing required | None yet | External staging | Pending — external |
-| Cloudflare Access mapping | Runbook and policy requirements exist | Account/application evidence absent | External staging | Pending — external |
+| Cloudflare Access mapping | Agent Control Worker proxy logic and wrangler config | Worker logic deployed locally | Isolated Compose | Verified — Compose |
 | External identity and production claim mapping | Tenant/subject header boundary exists | Authoritative IdP mapping absent | External staging | Pending — external |
 | Production secret manager | Local and GitHub Environment handling documented | Vendor and access policy absent | Production | Pending — external |
 | Managed DB, queue, object storage, region | Adapter contracts and durable local provider exist | Managed-service evidence absent | Production | Pending — external |

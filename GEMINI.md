@@ -23,6 +23,7 @@ This file mirrors the repository guidance for Gemini-style coding assistants.
 - Do not add wallet signing, card handling, KYC, MPC, or swap capability to AI or billing paths.
 - Do not bypass approval gates.
 - Do not bulk-copy legacy code without tests, inventory, security review, and rollback notes.
+- Do not install files, configs, or binaries outside the `z-platform` directory. The installation must remain standalone.
 
 ## Output expectations
 

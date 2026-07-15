@@ -3,5 +3,9 @@ packages:
   - services/*
   - packages/*
   - tools/*
+  - workers/*
+
+allowBuilds:
+  unrs-resolver: set this to true or false
 
 minimumReleaseAge: "0"

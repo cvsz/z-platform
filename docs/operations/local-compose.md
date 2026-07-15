@@ -1,11 +1,15 @@
 # Local Compose Operations
 
-The repository root contains a runnable `compose.yml` for the four services that currently expose executable Node HTTP servers:
+The repository root contains a runnable `compose.yml` for the services that currently expose executable Node HTTP servers:
 
+- Agent Control Panel on host loopback port `3000`
+- ZChat on host loopback port `3021`
+- ZWallet on host loopback port `3040`
 - AI Gateway on host loopback port `8400`
 - Agent Orchestrator on host loopback port `8500`
 - Workspace Runtime on host loopback port `8600`
 - Billing Ledger on host loopback port `8700`
+- Agent Provider on host loopback port `8800`
 
 ## Start
 
@@ -28,6 +32,9 @@ curl --fail --silent --show-error http://127.0.0.1:8400/health
 curl --fail --silent --show-error http://127.0.0.1:8500/health
 curl --fail --silent --show-error http://127.0.0.1:8600/health
 curl --fail --silent --show-error http://127.0.0.1:8700/health
+curl --fail --silent --show-error http://127.0.0.1:8800/health
+curl --fail --silent --show-error http://127.0.0.1:3040/health
+curl --fail --silent --show-error http://127.0.0.1:3021/health
 ```
 
 ## Real internal endpoint
