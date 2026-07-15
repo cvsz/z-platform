@@ -110,9 +110,7 @@ services:
     <<: *node-service
     build:
       context: .
-      dockerfile: deploy/docker/node-service.Dockerfile
-      args:
-        SERVICE_PATH: services/ai-gateway
+      dockerfile: deploy/docker/ai-gateway.Dockerfile
     depends_on:
       billing-ledger:
         condition: service_healthy

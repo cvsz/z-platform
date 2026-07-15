@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"No test specified\" && exit 0"
+    "start": "node index.js",
+    "test": "node --test test/*.test.mjs"
   },
   "keywords": [],
   "author": "",

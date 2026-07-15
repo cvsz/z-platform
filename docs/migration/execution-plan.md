@@ -119,16 +119,17 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Added `docs/operations/phase-6-evidence-matrix.md` to separate repository, Compose, external staging, and production-approval evidence.
 - Implemented Full-Stack Agent Control Panel for provider API key management and rotation.
 - Verified AI multi-provider routing, fallback quotas, and failover using Redis pool limits.
-- Configured real Cloudflare edge routing logic and basic identity proxy worker.
-- Verified AI streaming chat and upload/file proxy behavior through AI Gateway.
-- Inspected the deployed browser bundle and network traffic for credential isolation; verified no provider keys leak to clients.
-- Completed human ZChat accessibility, target-device responsive CSS, and external session-provider QA with Cloudflare Access JWT.
+- Implemented Cloudflare edge routing and identity proxy configuration; real external account and policy evidence remains **PENDING_EXTERNAL**.
+- Implemented AI streaming, upload/file proxy, multi-provider, and failover verification harnesses; approved-account execution remains **PENDING_EXTERNAL**.
+- Implemented browser bundle and HAR credential scanners; actual deployed artifacts remain **PENDING_EXTERNAL**.
+- Implemented automated ZChat accessibility, responsive, session, and external-readiness contracts; human target-environment QA remains **PENDING_EXTERNAL**.
 
 ### Remaining
 
 - Record billing/legal decisions, staging reviewer, production approver, incident owner, escalation route, and post-launch watch window.
 - Record a passing workflow and immutable artifacts for the exact commit selected as the next release candidate.
-- Run a new `validate.yml` CI run on current `main` head (`624183524fd3edc9666ddce7c64acafa1130fa7e`) before selecting it as a release candidate.
+- **BLOCKED** - Current `main` SHA `923c3a190fbf626faae076bf5faa43a4d03a9703` has successful CI, security, Compose-build, SBOM, provenance, and SHA-binding jobs, but `validate` run `29420810446` failed deployed smoke and produced no smoke artifact.
+- **IMPLEMENTED** - The AI Gateway startup remediation exists on this branch; a passing PR-head `validate` run and deployed-smoke artifact are still required before selecting it as a release candidate.
 
 **Done when:** every service has health checks, least-privilege identity, observability, rollback notes, a passing CI gate for the selected release, completed external staging evidence, and explicit production approval.
 
