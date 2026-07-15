@@ -10,8 +10,10 @@ import {
   lastUserMessage,
   loadChatState,
   loadPromptTemplates,
+  loadThemeMode,
   persistChatState,
   persistPromptTemplates,
+  persistThemeMode,
   renameActiveConversation,
   replaceMessage,
   removePromptTemplate,
@@ -32,6 +34,7 @@ const templatePrompt = document.querySelector("#template-prompt");
 const copyMarkdown = document.querySelector("#copy-markdown");
 const downloadJson = document.querySelector("#download-json");
 const conversationTitle = document.querySelector("#conversation-title");
+const themeToggle = document.querySelector("#theme-toggle");
 const composer = document.querySelector("#composer");
 const systemPrompt = document.querySelector("#system-prompt");
 const model = document.querySelector("#model");
@@ -50,7 +53,35 @@ const storage = window.localStorage;
 
 let state = loadChatState(storage);
 let promptTemplates = loadPromptTemplates(storage);
+let themeMode = loadThemeMode(storage);
 let busy = false;
+const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+function resolveTheme(mode) {
+  if (mode === "dark" || mode === "light") return mode;
+  return themeQuery.matches ? "dark" : "light";
+}
+
+function renderTheme() {
+  const resolved = resolveTheme(themeMode);
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.style.colorScheme = resolved;
+  themeToggle.textContent = resolved === "dark" ? "Light mode" : "Dark mode";
+  themeToggle.setAttribute("aria-pressed", String(resolved === "dark"));
+  themeToggle.setAttribute("aria-label", resolved === "dark" ? "Switch to light mode" : "Switch to dark mode");
+}
+
+function cycleThemeMode(mode) {
+  if (mode === "system") return "dark";
+  if (mode === "dark") return "light";
+  return "system";
+}
+
+function applyThemeMode(nextMode) {
+  themeMode = nextMode;
+  persistThemeMode(storage, themeMode);
+  renderTheme();
+}
 
 function setStatus(message, tone = "idle") {
   status.dataset.tone = tone;
@@ -66,6 +97,7 @@ function setBusy(nextBusy) {
   copyMarkdown.disabled = nextBusy;
   downloadJson.disabled = nextBusy;
   conversationTitle.disabled = nextBusy;
+  themeToggle.disabled = nextBusy;
   prompt.disabled = nextBusy;
   systemPrompt.disabled = nextBusy;
   templateForm.querySelectorAll("input, textarea, button").forEach((element) => {
@@ -276,6 +308,7 @@ function render() {
   }
   renderHistory();
   renderTemplates();
+  renderTheme();
 }
 
 function createMessage(role, content, overrides = {}) {
@@ -448,6 +481,16 @@ conversationTitle.addEventListener("input", () => {
   conversationLabel.textContent = activeConversationSummary(state).title;
   conversationLabel.title = `${activeConversationSummary(state).title} · ${activeConversationSummary(state).messageCount} messages`;
   renderHistory();
+});
+
+themeToggle.addEventListener("click", () => {
+  applyThemeMode(cycleThemeMode(themeMode));
+});
+
+themeQuery.addEventListener("change", () => {
+  if (themeMode === "system") {
+    renderTheme();
+  }
 });
 
 templateForm.addEventListener("submit", (event) => {

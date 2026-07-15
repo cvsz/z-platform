@@ -18,12 +18,14 @@ import {
   loadPromptTemplates,
   persistChatState,
   persistPromptTemplates,
+  loadThemeMode,
   removePromptTemplate,
   renameActiveConversation,
   selectConversation,
   startNewConversation,
   setActiveSystemPrompt,
   setActiveConversationTitle,
+  persistThemeMode,
 } from "../public/chat-state.mjs";
 
 function createStorage(entries = {}) {
@@ -51,6 +53,17 @@ test("loadPromptTemplates seeds browser-local defaults when storage is empty", (
   assert.equal(templates.length, 3);
   assert.equal(templates[0].builtIn, true);
   assert.equal(templates[0].id, "summarize");
+});
+
+test("theme mode defaults to system and persists valid values only", () => {
+  const storage = createStorage();
+
+  assert.equal(loadThemeMode(storage), "system");
+  persistThemeMode(storage, "dark");
+  assert.equal(loadThemeMode(storage), "dark");
+
+  persistThemeMode(storage, "neon");
+  assert.equal(loadThemeMode(storage), "system");
 });
 
 test("prompt template helpers support save, remove, and persistence", () => {

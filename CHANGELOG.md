@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- ZChat browser-local dark mode preference with system fallback.
 - ZChat manual conversation title editing that updates the active chat and history sidebar.
 - ZChat active conversation export controls for markdown copy and JSON download.
 - ZChat browser-local prompt template library with built-in presets, custom template saving, and "start from template" chat creation.

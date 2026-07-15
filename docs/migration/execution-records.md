@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — ZChat browser-local dark mode preference
+
+- Base revision: `b34da941ef2c8d8e226cbf41e69675bcc4a050cb`
+- Scope: one repository-local ZChat UI slice.
+- Implementation: added a browser-local dark mode toggle with persisted preference and system-color-scheme fallback.
+- Compatibility: transcript rendering, conversation history selection, manual titles, system prompts, prompt templates, export actions, retry, logout, and gateway-only forwarding remain unchanged.
+- Security: browser code still receives no provider credentials or upstream base URLs; the theme preference is local browser state only.
+- Tests: conversation-state coverage now includes theme preference normalization and persistence on the branch head.
+- Limitations: repository-local validation only; no external staging or operator approval is claimed.
+
 ## 2026-07-16 — ZChat manual conversation title editing
 
 - Base revision: `7035295df2bcd0b8c10f0a8e88f0db2edbe06ae3`

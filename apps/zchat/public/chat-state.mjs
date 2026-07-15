@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   model: "zchat.model",
   messages: "zchat.messages",
   promptTemplates: "zchat.promptTemplates",
+  themeMode: "zchat.themeMode",
   systemPrompt: "zchat.systemPrompt",
   sessionStartedAt: "zchat.sessionStartedAt",
 };
@@ -58,6 +59,12 @@ function truncateTemplatePrompt(prompt) {
   const content = normalizeText(prompt);
   if (!content) return "";
   return content.length > 96 ? `${content.slice(0, 96).trimEnd()}…` : content;
+}
+
+const THEME_MODES = new Set(["system", "light", "dark"]);
+
+function normalizeThemeMode(value) {
+  return THEME_MODES.has(value) ? value : "system";
 }
 
 export function summarizeConversation(conversation) {
@@ -244,9 +251,17 @@ export function loadPromptTemplates(storage, now = Date.now(), randomId = crypto
   return parsed.map((template) => normalizePromptTemplate(template, now, randomId));
 }
 
+export function loadThemeMode(storage) {
+  return normalizeThemeMode(storage.getItem(STORAGE_KEYS.themeMode));
+}
+
 export function persistPromptTemplates(storage, templates) {
   const normalized = Array.isArray(templates) ? templates.map((template) => normalizePromptTemplate(template)) : [];
   storage.setItem(STORAGE_KEYS.promptTemplates, JSON.stringify(normalized));
+}
+
+export function persistThemeMode(storage, themeMode) {
+  storage.setItem(STORAGE_KEYS.themeMode, normalizeThemeMode(themeMode));
 }
 
 export function addPromptTemplate(templates, template, now = Date.now(), randomId = crypto.randomUUID) {
