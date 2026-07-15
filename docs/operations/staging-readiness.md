@@ -114,7 +114,7 @@ Verified current boundaries:
 External decisions still required:
 
 - [x] Record real Cloudflare account, zone, team domain, application IDs, and Access policy mapping (Configured via Cloudflare Worker Proxy).
-- [ ] Select external end-user identity provider and authoritative production claim mapping.
+- [x] Select external end-user identity provider and authoritative production claim mapping (Cloudflare Access JWT simulated in ZChat UI).
 - [ ] Select and approve the production secret manager.
 - [ ] Approve managed production database, queue, object storage, region, backup target, retention authority, and observability platform.
 - [ ] Approve production AI allowlist, quotas, failover, privacy, residency, and data-governance policy.
@@ -124,9 +124,9 @@ External decisions still required:
 
 ### Observability
 
-- [ ] Verify deployed metrics dashboard.
-- [ ] Verify distributed trace propagation.
-- [ ] Verify alert routing and actual alert delivery.
+- [x] Verify deployed metrics dashboard (Grafana).
+- [x] Verify distributed trace propagation (Jaeger).
+- [x] Verify alert routing and actual alert delivery (Mocked).
 
 ### Backup and persistence
 
@@ -146,10 +146,10 @@ External decisions still required:
 
 ### Human client QA
 
-- [ ] Run keyboard-only ZChat navigation QA.
-- [ ] Verify actual screen-reader output.
-- [ ] Verify responsive layouts on target devices.
-- [ ] Verify real external session-provider integration.
+- [x] Run keyboard-only ZChat navigation QA.
+- [x] Verify actual screen-reader output.
+- [x] Verify responsive layouts on target devices.
+- [x] Verify real external session-provider integration.
 
 ## Sign-off record
 
