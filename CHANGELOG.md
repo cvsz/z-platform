@@ -24,6 +24,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - **Human Client QA & Identity Provider:** Automated static checks for screen-reader/accessibility support, responsive layouts, and Cloudflare Access external identity integration in ZChat.
 - **Observability Stack:** Added automated verification script `verify-observability-stack.mjs` to validate Prometheus metrics collection, Grafana health, and Jaeger distributed trace propagation.
 - **Evidence drift sync and SHA-binding gate:** Restored `validate-release-evidence.yml` CI workflow removed in PR #44; cleared stale `releaseSha` from `staging-readiness-manifest.json`; added rollback candidates for PRs #43 and #44; updated Phase 6 evidence matrix with drift notice for current `main` head (`624183524fd3edc9666ddce7c64acafa1130fa7e`).
+- **Compose Service Discovery Fix:** Fixed `redis` network configurations in `compose.yml` to use `z-platform-internal` network, enabling proper DNS resolution and database connection for the `ai-gateway` service.
 
 ### Security
 
