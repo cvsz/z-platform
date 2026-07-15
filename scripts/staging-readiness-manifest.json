@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "releaseSha": "b10d3368dd8735943d4b294a05462348c5defb4f",
+  "releaseSha": "d0c21d36bb6347baf7dc1bd4cd929bc692d306c6",
   "checks": [
     {
       "id": "observability.dashboard",

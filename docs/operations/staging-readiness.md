@@ -21,6 +21,7 @@ This document distinguishes four evidence levels:
 - Host smoke endpoint fix: `04f7b287f33156fa54199894d194d29ca2407c68`
 - Seven-service topology and failure injection: `cda0308a11199eec0345052ebe3cc3dd0ab58489`
 - Final repository-side runtime verification: `d8207aa1a7880899c1fcea4de5e6903fc140805a`
+- Staging smoke verification on fix branch: `d0c21d36bb6347baf7dc1bd4cd929bc692d306c6`
 
 ## CI and supply-chain artifacts
 
@@ -59,6 +60,14 @@ Recorded artifacts:
 - `z-platform-sbom.spdx.json`, ID `8295428677`, digest `sha256:f96218f9854d71ab4ae3bf15d40c28dde23b23de476cba6b42da71a51b743aaf`
 
 The current `main` head after later tooling and documentation merges requires a new workflow result before it is selected as a production release candidate. Prior eligible Phase 6 evidence remains valid for the recorded commits and artifacts.
+
+### Local smoke verification on fix branch (`d0c21d36bb6347baf7dc1bd4cd929bc692d306c6`)
+
+- Environment: Isolated Compose
+- Evidence File: [artifacts/staging-smoke-result.json](file:///home/zeazdev/z-platform/artifacts/staging-smoke-result.json)
+- Digest: `sha256:663e24a17fab95c31cd979baca860e8280b483e34c5158308aeb0c934901aa2f`
+- Verified features: health, authentication, workspace-approval-denial, billing-idempotency, agent-submit-idempotency-approve-execute-audit, agent-cancellation, agent-real-failure-retry-success, workspace-metadata, backup-export-restore, metrics, zwallet-prohibited-capability-rejection, zchat-accessibility-mobile-session-static-qa.
+
 
 ## GitHub Environments
 
