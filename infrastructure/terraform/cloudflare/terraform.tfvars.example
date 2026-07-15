@@ -25,4 +25,67 @@ app_routes = {
     access_enabled = true
     allowed_email_domains = ["zeaz.dev"]
   }
+
+  ai_gateway = {
+    hostname       = "ai.zeaz.dev"
+    service        = "http://z-platform-ai-gateway-1:8400"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
+
+  billing_ledger = {
+    hostname       = "billing.zeaz.dev"
+    service        = "http://z-platform-billing-ledger-1:8700"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
+
+  agent_orchestrator = {
+    hostname       = "orchestrator.zeaz.dev"
+    service        = "http://z-platform-agent-orchestrator-1:8500"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
+
+  agent_provider = {
+    hostname       = "provider.zeaz.dev"
+    service        = "http://z-platform-agent-provider-1:8800"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
+
+  workspace_runtime = {
+    hostname       = "workspace.zeaz.dev"
+    service        = "http://z-platform-workspace-runtime-1:8600"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
+
+  grafana = {
+    hostname       = "grafana.zeaz.dev"
+    service        = "http://z-platform-phase6-grafana-1:3000"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
+
+  prometheus = {
+    hostname       = "prometheus.zeaz.dev"
+    service        = "http://z-platform-phase6-prometheus-1:9090"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
+
+  jaeger = {
+    hostname       = "jaeger.zeaz.dev"
+    service        = "http://z-platform-phase6-jaeger-1:16686"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
+
+  zaicoder_web = {
+    hostname       = "zaicoder.zeaz.dev"
+    service        = "http://zaicoder-web:3005"
+    access_enabled = true
+    allowed_email_domains = ["zeaz.dev"]
+  }
 }
