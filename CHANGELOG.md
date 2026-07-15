@@ -8,6 +8,8 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- CodeQL Advanced workflow update that runs on the self-hosted `z-runner` lane and loads the broader `security-and-quality` query suite, with repo-local workflow-shape tests; alert-closure evidence still requires a PR-head runner execution.
+- CI and validate Node workspace jobs now install dependencies before testing so the AI Gateway disconnect contract can resolve its app imports in GitHub Actions.
 - ZChat browser-local dark mode preference with system fallback.
 - ZChat manual conversation title editing that updates the active chat and history sidebar.
 - ZChat active conversation export controls for markdown copy and JSON download.

@@ -1,5 +1,14 @@
 # Migration Execution Records
 
+## 2026-07-16 — CodeQL Advanced self-hosted runner lane
+
+- Base revision: `1f44d9588fe4a42370f3477eea22a70e1e4cbd22`
+- Scope: one repository-local CodeQL workflow slice.
+- Implementation: updated `CodeQL Advanced` to run on the self-hosted `z-runner` lane and to load a repository CodeQL config that adds the `security-and-quality` query suite.
+- Compatibility: the security workflow still analyzes the same repository languages and does not alter runtime application code, provider access, or production gates.
+- Security: no credentials, service tokens, or production identifiers were added; the change only moves analysis to the designated CI runner and broadens query coverage.
+- Tests: `scripts/test/codeql-workflow.test.mjs` now checks the runner label, config-file binding, and query-suite selection.
+- Limitations: repository-local validation only; PR-head CodeQL execution, artifact binding, and alert-closure evidence on the self-hosted runner remain pending.
 ## 2026-07-16 — ZChat browser-local dark mode preference
 
 - Base revision: `b34da941ef2c8d8e226cbf41e69675bcc4a050cb`

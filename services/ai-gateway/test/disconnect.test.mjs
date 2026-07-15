@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { test } from 'node:test';
 import { once } from 'node:events';
-import pino from 'pino';
 
 import { createGatewayApp } from '../index.js';
 
@@ -15,6 +14,30 @@ function createRedisStub() {
     async srem() {},
     async set() {},
     async sadd() {}
+  };
+}
+
+function createSilentLogger() {
+  return {
+    child() {
+      return this;
+    },
+    levels: {
+      values: {
+        debug: 20,
+        error: 50,
+        fatal: 60,
+        info: 30,
+        trace: 10,
+        warn: 40
+      }
+    },
+    debug() {},
+    error() {},
+    fatal() {},
+    info() {},
+    trace() {},
+    warn() {}
   };
 }
 
@@ -45,7 +68,7 @@ test('client disconnect aborts the upstream request without retrying', async () 
     const { app } = createGatewayApp({
       redis: createRedisStub(),
       fetchImpl,
-      logger: pino({ enabled: false })
+      logger: createSilentLogger()
     });
 
     server = app.listen(0);
