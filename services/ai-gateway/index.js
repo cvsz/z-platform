@@ -6,6 +6,8 @@ import cors from 'cors';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 import dotenv from 'dotenv';
+import { rateLimit } from 'express-rate-limit';
+import { corsConfig, rateLimitConfig } from './security-config.mjs';
 
 dotenv.config();
 
@@ -22,9 +24,10 @@ const app = express();
 
 // Enterprise security and middleware
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' })); // Restrict in production
+app.use(cors(corsConfig()));
 app.use(express.json({ limit: '10mb' }));
 app.use(pinoHttp({ logger }));
+app.use('/v1', rateLimit(rateLimitConfig()));
 
 // Persistence
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';

@@ -10,6 +10,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 - AI Gateway container startup contract tests covering the start command, health route, fail-closed authentication, and authorization-log redaction.
 - Current-head evidence record for `923c3a190fbf626faae076bf5faa43a4d03a9703`, preserving its failed deployed-smoke classification and immutable SBOM metadata.
+- Current-head evidence synchronization for `2db36e428fa95457e0559dabc224b7d8ff10d289`, including its passing SHA-bound deployed-smoke and SBOM artifacts while keeping unresolved security alerts blocked.
 - Immutable release-evidence validation that binds recorded, approved, and observed revisions to the exact release-candidate commit.
 - Migration feature matrix, execution records, and validation report for the release-evidence slice.
 - Project overview documentation under `docs/project`.
@@ -30,6 +31,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Security
 
+- Resolve CodeQL findings for workspace path containment, AI Gateway rate limiting, default-deny CORS, and Cloudflare installer authorization-header logging; override transitive PostCSS to patched version `8.5.19`.
 - Kept production and external traffic disabled while making Gateway runtime dependency installation explicit and scoped to that image.
 - Release evidence copied from another commit is rejected before approval or deployment recording.
 - Documented gateway-only provider access and browser secret isolation.

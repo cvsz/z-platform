@@ -35,8 +35,9 @@ Status definitions use the issue #1 semantics: **VERIFIED**, **IMPLEMENTED**, **
 | Staging reviewer and review time | Review controls exist | Named completed review absent | External staging | PENDING_OPERATOR |
 | Incident owner, escalation, watch window | Incident runbook exists | Named operational record absent | Production | PENDING_OPERATOR |
 | Production release approval | Production environment requires approval | Explicit release SHA approval absent | Production | PENDING_OPERATOR |
-| Current `main` evidence (`923c3a190fbf626faae076bf5faa43a4d03a9703`) | SHA-binding gate restored | Runs `29420810124`, `29420810135`, and `29420810333` pass; run `29420810446` deployed smoke fails; SBOM IDs `8345118355`, `8345117963` | GitHub Actions | BLOCKED |
-| AI Gateway startup remediation | Start command, built-in fetch, lockfile-based dedicated image, regression tests | Local Compose health passes; local smoke produced no result; PR-head CI pending | Repository / isolated Compose | IMPLEMENTED |
+| Current `main` evidence (`2db36e428fa95457e0559dabc224b7d8ff10d289`) | Seven-service topology and release gates | Runs `29425990792`, `29425992713`, `29425992683`, and `29425992884` pass; smoke artifact `8347285839`; SBOM IDs `8347268150`, `8347267792`, `8347266561` | GitHub Actions / isolated Compose | VERIFIED |
+| Current `main` security eligibility | CodeQL and Dependabot scanning | CodeQL alerts 1-5 and Dependabot alert 1 remain open | GitHub security scanning | BLOCKED |
+| Security-alert remediation | Path containment, rate limiting, default-deny CORS, command-argument omission, patched PostCSS resolution | Deterministic local success, denial, and security tests pass; PR-head workflows pending | Repository / isolated Compose | IMPLEMENTED |
 
 ## Release selection rule
 

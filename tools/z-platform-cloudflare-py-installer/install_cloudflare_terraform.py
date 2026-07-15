@@ -13,7 +13,7 @@ class Error(RuntimeError): pass
 
 def log(s): print(f'\n==> {s}', flush=True)
 def run(cmd,cwd=None,env=None,check=True,capture=False):
-    print('+',' '.join(cmd),flush=True)
+    print('+ executing command (arguments omitted)',flush=True)
     return subprocess.run(cmd,cwd=cwd,env=env,check=check,text=True,capture_output=capture)
 
 def parse_env(path:Path):

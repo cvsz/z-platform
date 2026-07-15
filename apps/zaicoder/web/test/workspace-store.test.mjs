@@ -47,6 +47,18 @@ test("rejects unsafe workspace ids and retention", async () => {
   }
 });
 
+test("resolves workspace files inside the configured root", async () => {
+  const root = await mkdtemp(join(tmpdir(), "zaicoder-workspaces-"));
+  try {
+    const adapter = new FileWorkspaceAdapter({ root: join(root, "nested", "..", "store") });
+    assert.equal(adapter.pathFor("workspace-1"), join(root, "store", "workspace-1.json"));
+    assert.throws(() => adapter.pathFor("../outside"), WorkspaceStoreError);
+    assert.throws(() => adapter.pathFor("/absolute"), WorkspaceStoreError);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("enforces tenant owner when supplied", async () => {
   const root = await mkdtemp(join(tmpdir(), "zaicoder-workspaces-"));
   try {

@@ -12,3 +12,6 @@ allowBuilds:
   workerd: false
 
 minimumReleaseAge: "0"
+
+overrides:
+  postcss: ">=8.5.10"
