@@ -1,192 +1,82 @@
 # Staging Readiness Review
 
-Production and external traffic remain disabled until every required external verification and explicit operator sign-off is complete.
+Production and external traffic remain **DISABLED**. Issue #1 remains open until external staging evidence and explicit operator approval are recorded for the same immutable release SHA.
 
-This document distinguishes four evidence levels:
+## Status definitions
 
-1. **Repository verified** — implementation and automated tests are present in the repository.
-2. **Isolated Compose verified** — deployed checks passed in the repository-controlled Compose topology.
-3. **External staging pending** — verification requires operator-selected external accounts, infrastructure, or devices.
-4. **Production approval pending** — production release requires a separate explicit approving operator record.
+- **VERIFIED** - backed by repository, CI, artifact, or isolated deployed evidence.
+- **IMPLEMENTED** - implementation exists, but external deployment evidence may still be required.
+- **PENDING_EXTERNAL** - requires selected external infrastructure, account, endpoint, or deployed environment.
+- **PENDING_OPERATOR** - requires an explicit operator decision, reviewer identity, or production approval.
+- **BLOCKED** - cannot be completed until the named dependency is supplied.
+- **DISABLED** - intentionally disabled by the safety gate.
 
-## Release evidence
+## Current-head evidence
 
-- Baseline release candidate: `6079f078e5055c9fdf8bf2313d935028e4b5709b`
-- Initial readiness execution: `a653b327e1a552d673e674ba276ecb5f2ee089b9`
-- Local Compose deployment: `6296042e8cc3d737fd971b8001bdb268f1067e22`
-- Readiness evidence update: `c0f01c953dde08e013e077bfb3437afca5f7f189`
-- Durable providers and supply-chain readiness: `51b32e658e0d991be74b022b1fbbf75e7bb4ba26`
-- Agent Provider volume-permission fix: `7c5bc9d42d2e11699644edb736c67b28d1d5e23b`
-- Deep deployed readiness verification: `00805525f7707c17d87fb15f405686d71ae92b59`
-- Host smoke endpoint fix: `04f7b287f33156fa54199894d194d29ca2407c68`
-- Seven-service topology and failure injection: `cda0308a11199eec0345052ebe3cc3dd0ab58489`
-- Final repository-side runtime verification: `d8207aa1a7880899c1fcea4de5e6903fc140805a`
-- Observability stack verification: `b10d3368dd8735943d4b294a05462348c5defb4f` (PR #43)
-- Warnings cleanup and services restoration: `624183524fd3edc9666ddce7c64acafa1130fa7e` (PR #44)
-- Evidence drift sync and SHA-binding gate: PENDING_MERGE — PR #45 `feat/evidence-drift-sync-sha-gate`
+Current `main` SHA: `923c3a190fbf626faae076bf5faa43a4d03a9703` (PR #45 merge, 2026-07-15).
 
-## CI and supply-chain artifacts
+| Claim | Status | Evidence | Limitations |
+|---|---|---|---|
+| Node and Python tests and dependency audits | VERIFIED | `CI` run `29420810124`, success, 2026-07-15, GitHub Actions | Repository-local CI evidence only. |
+| Secret and browser credential scans | VERIFIED | `validate` run `29420810446`, `secret-patterns` job success, 2026-07-15 | The overall workflow failed in deployed smoke. |
+| Compose configuration and image builds | VERIFIED | `validate` run `29420810446`, `compose` job success, 2026-07-15 | Build success is not deployed health evidence. |
+| SPDX SBOM | VERIFIED | `validate` run `29420810446`; `z-platform-sbom` ID `8345118355`, digest `sha256:a690b1bb472eab7418738ae077b7b4b130196311fffd9e7ecb42ec0b40faa1ed`; `z-platform-sbom.spdx.json` ID `8345117963`, digest `sha256:a4b895ac079c0ca38c6e53557fe1b0b85bd032851ff9aff7bad547aac917ccca` | Artifacts are bound only to `923c3a1`. |
+| Dependency and provenance policy | VERIFIED | `operations` run `29420810135`, `dependency-and-provenance` success, 2026-07-15 | Valid only for `923c3a1`. |
+| Release-evidence SHA binding | VERIFIED | `validate-release-evidence` run `29420810333`, success, 2026-07-15 | Does not make a failed release candidate eligible. |
+| Seven-service deployed smoke | BLOCKED | `validate` run `29420810446`, `deployed-smoke` failed; no smoke artifact was produced | `923c3a1` is not eligible as a release candidate. |
+| AI Gateway startup remediation | IMPLEMENTED | Gateway start script, lockfile-based dedicated image, startup contract tests, and local Compose health validation on this branch | Local smoke did not produce a result; passing PR-head CI and a deployed-smoke artifact are required before VERIFIED. |
 
-Eligible `main` provenance run (valid for commit `1010de5c05c7c251d355ca5482718496e5aa1fb5`):
+Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to `923c3a1` or this branch.
 
-- Run: `29291429851`
-- Head SHA: `1010de5c05c7c251d355ca5482718496e5aa1fb5`
-- [x] Node tests and dependency audit pass.
-- [x] Python tests and dependency audit pass.
-- [x] Secret-pattern and browser credential-exposure scans pass.
-- [x] Compose validation, image build, and deployed smoke pass.
-- [x] SPDX JSON SBOM generation and upload pass.
-- [x] Build provenance attestation passes on `main`.
+## Prior immutable evidence
 
-Recorded artifacts (bound to `1010de5c`):
+| Evidence | Status | Release SHA | Command or workflow | Artifact | Environment | Limitation |
+|---|---|---|---|---|---|---|
+| Eligible main provenance run | VERIFIED | `1010de5c05c7c251d355ca5482718496e5aa1fb5` | `validate` run `29291429851` | `staging-smoke-evidence` ID `8295190680`, digest `sha256:9b6b6e0ac2b3fa6e4ade420ae71bd97b16dabf6a6181aa6bbf9a04b32a49cc6b`; SBOM IDs `8295182927`, `8295182600` | GitHub Actions / isolated Compose | Not evidence for later commits. |
+| Final repository runtime verification | VERIFIED | PR head `d4e7158a7ce4d98b090e66929efb45b3270ef05e`; merge `d8207aa1a7880899c1fcea4de5e6903fc140805a` | `validate` run `29292145378` | `staging-smoke-evidence` ID `8295434594`, digest `sha256:33fdfbcc6b5d674b337c223d5dadd5cacbccc62eb7d16ad83ec499d8bde78e04` | GitHub Actions / isolated Compose | Not evidence for later commits. |
 
-- `staging-smoke-evidence`, ID `8295190680`, digest `sha256:9b6b6e0ac2b3fa6e4ade420ae71bd97b16dabf6a6181aa6bbf9a04b32a49cc6b`
-- `z-platform-sbom`, ID `8295182927`, digest `sha256:af9e3f01435a2bb0a0508114f610da4f5378db9db55bdc8add5c0fdd78c2aac8`
-- `z-platform-sbom.spdx.json`, ID `8295182600`, digest `sha256:3ad4fa2361b488ac53e6d79b575b4b0a4116023dc9cb76164cecb87e1a6bdd88`
+## Repository and isolated Compose baseline
 
-Final repository-side verification run (valid for commit `d8207aa1a7880899c1fcea4de5e6903fc140805a`):
+- **VERIFIED** - Seven-service topology: `ai-gateway`, `agent-orchestrator`, `workspace-runtime`, `billing-ledger`, `agent-provider`, `zwallet`, and `zchat`.
+- **VERIFIED** - Health checks, structured logs, Agent Provider metrics, non-root durable provider storage, backup/restore, and restart persistence for their recorded immutable evidence commits.
+- **VERIFIED** - Agent submit, duplicate submit, approval, execution, cancellation, deterministic failure, retry, completion, and audit paths for their recorded immutable evidence commits.
+- **VERIFIED** - Workspace Runtime authentication and approval denials, Billing Ledger idempotency, ZWallet prohibited-capability rejection, and ZChat static accessibility/mobile/session checks for their recorded immutable evidence commits.
+- **IMPLEMENTED** - AI Gateway streaming, upload, and multi-provider/failover harnesses exist; approved external-account execution evidence is still required.
 
-- Run: `29292145378`
-- PR head SHA: `d4e7158a7ce4d98b090e66929efb45b3270ef05e`
-- Merge SHA: `d8207aa1a7880899c1fcea4de5e6903fc140805a`
-- [x] Seven-service Compose deployment and health polling pass.
-- [x] Agent cancellation and deterministic real failure/retry contracts pass.
-- [x] ZWallet prohibited-capability rejection contracts pass.
-- [x] ZChat static accessibility/mobile/session contracts pass.
-- [x] Browser-delivered asset secret-identifier scan passes.
+## PENDING_EXTERNAL
 
-Recorded artifacts (bound to `d8207aa1`):
+- **PENDING_EXTERNAL** - Real Cloudflare account, zone, team domain, application, and Access policy mapping.
+- **PENDING_EXTERNAL** - Operator-designated external backup target and successful isolated restore evidence.
+- **PENDING_EXTERNAL** - Deployed metrics dashboard, distributed traces, alert routing, and delivered-alert evidence.
+- **PENDING_EXTERNAL** - Streaming, upload/file proxy, multi-provider, and quota/failover verification through approved upstream accounts.
+- **PENDING_EXTERNAL** - Actual deployed browser bundle and HAR/network credential-isolation evidence.
+- **PENDING_EXTERNAL** - Human keyboard, screen-reader, target-device responsive, and external session-provider QA evidence.
+- **PENDING_EXTERNAL** - Managed production data services and selected staging endpoints.
 
-- `staging-smoke-evidence`, ID `8295434594`, digest `sha256:33fdfbcc6b5d674b337c223d5dadd5cacbccc62eb7d16ad83ec499d8bde78e04`
-- `z-platform-sbom`, ID `8295428938`, digest `sha256:ecd86ca950233bb75a3749f3f365f978ea45d83a1137a7bcfeb7f6f1dc3c1d3c`
-- `z-platform-sbom.spdx.json`, ID `8295428677`, digest `sha256:f96218f9854d71ab4ae3bf15d40c28dde23b23de476cba6b42da71a51b743aaf`
+## PENDING_OPERATOR
 
-> **Evidence drift notice:** The current `main` head (`624183524fd3edc9666ddce7c64acafa1130fa7e`, merged 2026-07-15) has not yet produced a new eligible CI run. Prior Phase 6 evidence remains valid only for the commits and artifacts it identifies. A new passing `validate.yml` run on `main` is required before selecting any later commit as a release candidate. The `validate-release-evidence.yml` SHA-binding gate has been restored to enforce this requirement.
+- **PENDING_OPERATOR** - Authoritative external identity provider and production claim mapping.
+- **PENDING_OPERATOR** - Production secret manager and workload-identity policy.
+- **PENDING_OPERATOR** - Production database, queue, object storage, region, retention authority, observability platform, and backup target selections.
+- **PENDING_OPERATOR** - Production AI allowlist, quotas, failover, privacy, residency, and data-governance policy.
+- **PENDING_OPERATOR** - Billing currency, jurisdiction, tax treatment, merchant-of-record responsibilities, and payment processor.
+- **PENDING_OPERATOR** - Staging reviewer identity and review time for the exact release SHA.
+- **PENDING_OPERATOR** - Incident owner, escalation route, and post-launch watch window.
+- **PENDING_OPERATOR** - Explicit production approval by an authorized operator for the exact release SHA.
 
-## GitHub Environments
+## Rollback
 
-- [x] `ci` exists with no production secrets or deployment authority.
-- [x] `staging` exists with required reviewer controls.
-- [x] `staging` deployment branches are restricted to `main` or protected branches.
-- [x] Staging-only values are stored outside the repository.
-- [x] `production` exists with explicit operator approval required.
-- [x] Production deployment branches are restricted.
-- [x] Production and external traffic remain disabled.
-
-## Verified Compose topology
-
-The isolated readiness topology contains seven healthy services:
-
-- `ai-gateway` — `127.0.0.1:8400`
-- `agent-orchestrator` — `127.0.0.1:8500`
-- `workspace-runtime` — `127.0.0.1:8600`
-- `billing-ledger` — `127.0.0.1:8700`
-- `agent-provider` — `127.0.0.1:8800`
-- `zwallet` — `127.0.0.1:3040`
-- `zchat` — `127.0.0.1:3021`
-
-Verified repository-controlled behavior:
-
-- [x] All seven service health checks pass.
-- [x] Structured JSON logs are emitted.
-- [x] Agent Provider runs as non-root `zplatform` and persists writable `/data` state.
-- [x] Agent Orchestrator uses production HTTP provider adapters in Compose.
-- [x] Prometheus-format Agent Provider metrics are available.
-- [x] Backup export and restore pass in isolated Compose.
-- [x] Durable job, audit, and workspace metadata survive service restart.
-- [x] Retention cleanup implementation and tests pass.
-- [x] Agent submit, duplicate submit, approve, execute, cancel, failure, retry, completion, and audit paths pass.
-- [x] Workspace Runtime rejects unauthenticated and unapproved mutating requests.
-- [x] Billing Ledger idempotency and duplicate rejection pass.
-- [x] ZWallet rejects signing, card, KYC, MPC, and swap-shaped payloads.
-- [x] ZChat static semantic-label, live-region, responsive-CSS, and logout-storage checks pass.
-
-## Provider and identity decision record
-
-Verified current boundaries:
-
-- Service authentication uses bearer `Z_PLATFORM_SERVICE_TOKEN`.
-- Tenant context uses `X-Tenant-Id`.
-- Subject context uses `X-Subject-Id`.
-- Provider credentials remain server-side.
-- Browser-exposed provider/service credential identifiers are rejected by automated scans.
-- Hugging Face Router is approved for local/staging evaluation.
-- `Qwen/Qwen2.5-Coder-32B-Instruct` completed a non-streaming request through AI Gateway.
-- Multi-provider failover contracts exist for retryable network, `429`, and `5xx` failures.
-
-External decisions still required:
-
-- [x] Record real Cloudflare account, zone, team domain, application IDs, and Access policy mapping (Configured via Cloudflare Worker Proxy).
-- [x] Select external end-user identity provider and authoritative production claim mapping (Cloudflare Access JWT simulated in ZChat UI).
-- [ ] Select and approve the production secret manager.
-- [ ] Approve managed production database, queue, object storage, region, backup target, retention authority, and observability platform.
-- [ ] Approve production AI allowlist, quotas, failover, privacy, residency, and data-governance policy.
-- [ ] Record billing currency, jurisdiction, tax treatment, merchant-of-record responsibilities, and payment processor.
-
-## External staging verification still required
-
-### Observability
-
-- [x] Verify deployed metrics dashboard (Grafana).
-- [x] Verify distributed trace propagation (Jaeger).
-- [x] Verify alert routing and actual alert delivery (Mocked).
-
-### Backup and persistence
-
-- [ ] Execute backup and restore against the operator-designated external staging backup target.
-
-### AI Gateway
-
-- [x] Verify streaming chat against an approved upstream account.
-- [x] Verify upload/file proxy behavior against an approved upstream account.
-- [x] Verify multiple approved upstream provider adapters via Redis AI Gateway Pool.
-- [x] Verify quota policy and automatic failover using approved provider accounts via Control Panel.
-
-### Browser credential isolation
-
-- [x] Inspect the actual production browser bundle.
-- [x] Inspect deployed browser network traffic or HAR for provider keys, service tokens, and server-only identifiers.
-
-### Human client QA
-
-- [x] Run keyboard-only ZChat navigation QA.
-- [x] Verify actual screen-reader output.
-- [x] Verify responsive layouts on target devices.
-- [x] Verify real external session-provider integration.
-
-## Sign-off record
-
-- [x] Baseline and verification commit SHAs recorded.
-- [x] Eligible workflow runs, artifacts, and provenance evidence recorded.
-- [x] Rollback candidates and local verification commands recorded.
-- [ ] Staging reviewer identity and review time recorded after external staging checks.
-- [ ] Production approving operator and explicit release approval recorded.
-- [ ] Incident owner, escalation route, and post-launch watch window recorded.
-
-Operator authorization on 2026-07-14 approves execution of all remaining repository-side and staging-readiness work under the documented safety controls. This authorization is not evidence that external tests passed and is not production-release approval.
-
-## Rollback candidates
-
-- Before durable-provider rollout: `c0f01c953dde08e013e077bfb3437afca5f7f189`
-- Before volume-permission fix: `51b32e658e0d991be74b022b1fbbf75e7bb4ba26`
-- Before deep deployed verification: `7c5bc9d42d2e11699644edb736c67b28d1d5e23b`
-- Before seven-service final verification: `04f7b287f33156fa54199894d194d29ca2407c68`
-- Before observability slice (PR #43): `d8207aa1a7880899c1fcea4de5e6903fc140805a`
-- Before warnings cleanup (PR #44): `b10d3368dd8735943d4b294a05462348c5defb4f`
+The rollback target for this slice is `923c3a190fbf626faae076bf5faa43a4d03a9703`. Rolling back removes only the Gateway startup remediation; it does not enable production or external traffic.
 
 ```bash
-git checkout <approved-rollback-sha>
-docker compose down
-docker compose build --no-cache
-docker compose up -d
+git checkout 923c3a190fbf626faae076bf5faa43a4d03a9703
+docker compose down -v
+docker compose up -d --build --wait
 docker compose ps
-for port in 3021 3040 8400 8500 8600 8700 8800; do
-  curl -fsS "http://127.0.0.1:${port}/health"
-done
 ```
 
 ## Safety gate
 
-Do not commit or post credentials, provider tokens, payment secrets, wallet keys, MPC material, KYC data, tax identifiers, or sensitive production infrastructure identifiers.
-
-Issue #1 remains open until external staging evidence, human QA, operational ownership, and explicit production sign-off are complete.
+- **DISABLED** - Production deployment and external traffic.
+- **DISABLED** - Agent external traffic (`AGENT_EXTERNAL_TRAFFIC_ENABLED=false`).
+- **DISABLED** - Production release without protected Environment review and explicit operator approval.

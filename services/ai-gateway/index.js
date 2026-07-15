@@ -1,7 +1,6 @@
 import express from 'express';
 import { Readable } from 'stream';
 import Redis from 'ioredis';
-import fetch from 'node-fetch';
 import helmet from 'helmet';
 import cors from 'cors';
 import pino from 'pino';

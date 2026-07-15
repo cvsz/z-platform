@@ -8,6 +8,8 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- AI Gateway container startup contract tests covering the start command, health route, fail-closed authentication, and authorization-log redaction.
+- Current-head evidence record for `923c3a190fbf626faae076bf5faa43a4d03a9703`, preserving its failed deployed-smoke classification and immutable SBOM metadata.
 - Immutable release-evidence validation that binds recorded, approved, and observed revisions to the exact release-candidate commit.
 - Migration feature matrix, execution records, and validation report for the release-evidence slice.
 - Project overview documentation under `docs/project`.
@@ -23,11 +25,12 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - **Browser Credential Isolation:** Automated verification scripts ensure `sk-` keys and `Z_PLATFORM_SERVICE_TOKEN` are completely blocked from frontend bundles.
 - **Human Client QA & Identity Provider:** Automated static checks for screen-reader/accessibility support, responsive layouts, and Cloudflare Access external identity integration in ZChat.
 - **Observability Stack:** Added automated verification script `verify-observability-stack.mjs` to validate Prometheus metrics collection, Grafana health, and Jaeger distributed trace propagation.
-- **Evidence drift sync and SHA-binding gate:** Restored `validate-release-evidence.yml` CI workflow removed in PR #44; cleared stale `releaseSha` from `staging-readiness-manifest.json`; added rollback candidates for PRs #43 and #44; updated Phase 6 evidence matrix with drift notice for current `main` head (`624183524fd3edc9666ddce7c64acafa1130fa7e`).
+- **Evidence drift sync and SHA-binding gate:** Restored `validate-release-evidence.yml` CI workflow removed in PR #44; cleared stale `releaseSha` from `staging-readiness-manifest.json`; added rollback candidates for PRs #43 and #44; recorded the then-current `main` head (`624183524fd3edc9666ddce7c64acafa1130fa7e`). The current-head record now supersedes that drift notice.
 - **Compose Service Discovery Fix:** Fixed `redis` network configurations in `compose.yml` to use `z-platform-internal` network, enabling proper DNS resolution and database connection for the `ai-gateway` service.
 
 ### Security
 
+- Kept production and external traffic disabled while making Gateway runtime dependency installation explicit and scoped to that image.
 - Release evidence copied from another commit is rejected before approval or deployment recording.
 - Documented gateway-only provider access and browser secret isolation.
 - Documented explicit approval gates for agent tools, workspace shell, workspace deploy, infrastructure, and production traffic.
