@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — ZChat conversation history sidebar and new chat control
+
+- Base revision: `8d92346446a70aebeb918c1bd670904f00147fbc`
+- Scope: one repository-local ZChat UI slice.
+- Implementation: added a browser-local conversation history sidebar with active-conversation selection, a dedicated new-chat action, active-conversation clearing, and conversation metadata summaries.
+- Compatibility: transcript rendering, stream handling, retry, logout, and gateway-only model forwarding remain unchanged; legacy flat browser storage still hydrates into the new history container.
+- Security: browser code still receives no provider credentials or upstream base URLs.
+- Tests: conversation-state coverage now includes history hydration, selection, reset, and server-id rebasing on the branch head.
+- Limitations: repository-local validation only; no external staging or operator approval is claimed.
+
 ## 2026-07-16 — ZChat safe markdown rendering upgrade
 
 - Base revision: `b43140e26d3ec0dc2a38ae5e5805989d2f393e3d`

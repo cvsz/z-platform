@@ -1,20 +1,29 @@
 import {
+  activeConversationSummary,
+  appendMessage,
+  clearActiveConversation,
   clearChatState,
+  conversationSummaries,
   lastUserMessage,
   loadChatState,
   persistChatState,
+  renameActiveConversation,
   replaceMessage,
+  selectConversation,
+  startNewConversation,
 } from "./chat-state.mjs";
 import { renderMarkdownFragment } from "./markdown.mjs";
 import { readEventStream } from "./chat-stream.mjs";
 
 const transcript = document.querySelector("#transcript");
+const historyList = document.querySelector("#history");
 const composer = document.querySelector("#composer");
 const model = document.querySelector("#model");
 const prompt = document.querySelector("#prompt");
 const send = document.querySelector("#send");
 const retry = document.querySelector("#retry");
 const clear = document.querySelector("#clear");
+const newChat = document.querySelector("#new-chat");
 const login = document.querySelector("#login");
 const logout = document.querySelector("#logout");
 const status = document.querySelector("#status");
@@ -36,11 +45,25 @@ function setBusy(nextBusy) {
   send.disabled = nextBusy;
   retry.disabled = nextBusy || !lastUserMessage(state.messages);
   clear.disabled = nextBusy;
+  newChat.disabled = nextBusy;
   prompt.disabled = nextBusy;
+  model.disabled = nextBusy;
+  historyList.querySelectorAll("button").forEach((button) => {
+    button.disabled = nextBusy;
+  });
 }
 
 function formatRole(role) {
   return role === "assistant" ? "ZChat" : "You";
+}
+
+function formatTimestamp(timestamp) {
+  return new Date(timestamp).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function renderMessage(message) {
@@ -72,16 +95,70 @@ function renderMessage(message) {
   return item;
 }
 
+function renderHistoryItem(summary) {
+  const item = document.createElement("li");
+  item.className = "history__item";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "history__button";
+  button.dataset.active = String(summary.id === state.activeConversationId);
+  button.setAttribute("aria-pressed", String(summary.id === state.activeConversationId));
+  button.setAttribute("aria-label", `${summary.title}. ${summary.preview}. ${summary.messageCount} messages.`);
+
+  const title = document.createElement("span");
+  title.className = "history__title";
+  title.textContent = summary.title;
+
+  const meta = document.createElement("span");
+  meta.className = "history__meta";
+  meta.textContent = `${summary.messageCount} message${summary.messageCount === 1 ? "" : "s"} · ${formatTimestamp(summary.updatedAt)}`;
+
+  const preview = document.createElement("span");
+  preview.className = "history__preview";
+  preview.textContent = summary.preview;
+
+  button.append(title, meta, preview);
+  button.addEventListener("click", () => {
+    if (busy || summary.id === state.activeConversationId) return;
+    state = selectConversation(state, summary.id);
+    persistChatState(storage, state);
+    prompt.value = "";
+    render();
+    setStatus(`Switched to ${summary.title}`, "ready");
+  });
+
+  item.append(button);
+  return item;
+}
+
+function renderHistory() {
+  const summaries = conversationSummaries(state);
+  if (!summaries.length) {
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "history__empty";
+    emptyItem.textContent = "No saved chats yet.";
+    historyList.replaceChildren(emptyItem);
+    return;
+  }
+
+  historyList.replaceChildren(...summaries.map(renderHistoryItem));
+}
+
 function render() {
+  const activeSummary = activeConversationSummary(state);
   transcript.replaceChildren(...state.messages.map(renderMessage));
   emptyState.hidden = state.messages.length > 0;
-  conversationLabel.textContent = state.conversationId.slice(0, 8);
+  conversationLabel.textContent = activeSummary.title;
+  conversationLabel.title = `${activeSummary.title} · ${activeSummary.messageCount} messages`;
   model.value = state.model;
   retry.disabled = busy || !lastUserMessage(state.messages);
   clear.disabled = busy || state.messages.length === 0;
+  newChat.disabled = busy;
   if (state.messages.length) {
     transcript.scrollTop = transcript.scrollHeight;
   }
+  renderHistory();
 }
 
 function createMessage(role, content, overrides = {}) {
@@ -96,12 +173,10 @@ function createMessage(role, content, overrides = {}) {
 }
 
 function syncConversationId(nextConversationId) {
-  state = {
-    ...state,
-    conversationId: nextConversationId,
-  };
+  if (!nextConversationId || nextConversationId === state.activeConversationId) return;
+  state = renameActiveConversation(state, nextConversationId);
   persistChatState(storage, state);
-  conversationLabel.textContent = state.conversationId.slice(0, 8);
+  conversationLabel.textContent = activeConversationSummary(state).title;
 }
 
 function readSelectedModel() {
@@ -197,14 +272,9 @@ async function sendMessage(promptText, { retrying = false } = {}) {
 
   const userMessage = createMessage("user", trimmed);
   const assistantMessage = createMessage("assistant", "", { pending: true });
-  const nextConversationId = state.conversationId || crypto.randomUUID();
 
-  state = {
-    ...state,
-    conversationId: nextConversationId,
-    model: readSelectedModel(),
-    messages: [...state.messages, userMessage, assistantMessage],
-  };
+  state = appendMessage(state, userMessage);
+  state = appendMessage(state, assistantMessage);
   persistChatState(storage, state);
   prompt.value = "";
   render();
@@ -218,12 +288,12 @@ async function sendMessage(promptText, { retrying = false } = {}) {
       headers: {
         "Content-Type": "application/json",
         "X-Session-Started-At": state.sessionStartedAt,
-        "X-Usage-Correlation-Id": state.conversationId,
+        "X-Usage-Correlation-Id": state.activeConversationId,
       },
       body: JSON.stringify({
         model: readSelectedModel(),
         prompt: trimmed,
-        conversation_id: state.conversationId,
+        conversation_id: state.activeConversationId,
       }),
     });
     requestSucceeded = true;
@@ -272,9 +342,19 @@ retry.addEventListener("click", () => {
 
 clear.addEventListener("click", () => {
   if (busy) return;
-  state = clearChatState(storage);
+  state = clearActiveConversation(state);
+  persistChatState(storage, state);
   prompt.value = "";
-  setStatus("Ready", "ready");
+  setStatus("Conversation cleared", "ready");
+  render();
+});
+
+newChat.addEventListener("click", () => {
+  if (busy) return;
+  state = startNewConversation(state);
+  persistChatState(storage, state);
+  prompt.value = "";
+  setStatus("New chat ready", "ready");
   render();
 });
 

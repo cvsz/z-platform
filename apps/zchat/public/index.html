@@ -21,34 +21,45 @@
     </header>
 
     <section class="workspace" aria-label="Chat workspace">
-      <div class="toolbar" aria-label="Chat controls">
-        <label for="model">Model</label>
-        <select id="model" aria-label="Model"></select>
-        <div class="toolbar__buttons">
-          <button id="retry" type="button" aria-label="Retry last message">Retry</button>
-          <button id="clear" type="button" aria-label="Clear conversation">Clear</button>
+      <aside class="history-panel" aria-label="Conversation history">
+        <div class="history-panel__header">
+          <div>
+            <h2>History</h2>
+            <p>Recent chats stay on the browser side only.</p>
+          </div>
+          <button id="new-chat" type="button" aria-label="Start a new chat">New chat</button>
         </div>
-      </div>
+        <ol id="history" class="history" aria-label="Saved conversations"></ol>
+      </aside>
 
-      <p id="status" class="status" role="status" aria-live="polite" data-tone="ready">Loading models</p>
-
-      <section class="transcript" aria-label="Conversation transcript">
-        <ol id="transcript" class="messages" role="log" aria-live="polite" aria-relevant="additions text"></ol>
-        <div id="empty-state" class="empty-state">
-          Start a conversation. Replies stream into the timeline and stay on the server gateway path.
+      <section class="workspace__main" aria-label="Active conversation">
+        <div class="toolbar" aria-label="Chat controls">
+          <label for="model">Model</label>
+          <select id="model" aria-label="Model"></select>
+          <div class="toolbar__buttons">
+            <button id="retry" type="button" aria-label="Retry last message">Retry</button>
+            <button id="clear" type="button" aria-label="Clear conversation">Clear</button>
+          </div>
         </div>
+
+        <p id="status" class="status" role="status" aria-live="polite" data-tone="ready">Loading models</p>
+
+        <section class="transcript" aria-label="Conversation transcript">
+          <ol id="transcript" class="messages" role="log" aria-live="polite" aria-relevant="additions text"></ol>
+          <div id="empty-state" class="empty-state">
+            Start a conversation. Replies stream into the timeline and stay on the server gateway path.
+          </div>
+        </section>
+
+        <form id="composer" class="composer">
+          <label for="prompt">Message</label>
+          <textarea id="prompt" rows="5" placeholder="Write a message"></textarea>
+          <div class="composer__actions">
+            <p class="hint">Enter sends. Shift+Enter inserts a new line.</p>
+            <button id="send" type="submit">Send</button>
+          </div>
+        </form>
       </section>
-
-      <form id="composer" class="composer">
-        <label for="prompt">Message</label>
-        <textarea id="prompt" rows="5" placeholder="Write a message"></textarea>
-        <div class="composer__actions">
-          <p class="hint">Enter sends. Shift+Enter inserts a new line.</p>
-          <button id="send" type="submit">Send</button>
-        </div>
-      </form>
-
-      <pre id="result" class="sr-only" aria-hidden="true"></pre>
     </section>
   </main>
   <script type="module" src="/app.js"></script>
