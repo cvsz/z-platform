@@ -33,6 +33,12 @@
       </aside>
 
       <section class="workspace__main" aria-label="Active conversation">
+        <section class="prompt-panel" aria-label="Conversation instructions">
+          <label for="system-prompt">System prompt</label>
+          <textarea id="system-prompt" rows="4" placeholder="Set the instructions for this conversation"></textarea>
+          <p class="hint">Saved with the current chat and sent before each user message.</p>
+        </section>
+
         <div class="toolbar" aria-label="Chat controls">
           <label for="model">Model</label>
           <select id="model" aria-label="Model"></select>

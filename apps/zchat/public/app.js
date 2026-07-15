@@ -11,6 +11,7 @@ import {
   replaceMessage,
   selectConversation,
   startNewConversation,
+  setActiveSystemPrompt,
 } from "./chat-state.mjs";
 import { renderMarkdownFragment } from "./markdown.mjs";
 import { readEventStream } from "./chat-stream.mjs";
@@ -18,6 +19,7 @@ import { readEventStream } from "./chat-stream.mjs";
 const transcript = document.querySelector("#transcript");
 const historyList = document.querySelector("#history");
 const composer = document.querySelector("#composer");
+const systemPrompt = document.querySelector("#system-prompt");
 const model = document.querySelector("#model");
 const prompt = document.querySelector("#prompt");
 const send = document.querySelector("#send");
@@ -47,6 +49,7 @@ function setBusy(nextBusy) {
   clear.disabled = nextBusy;
   newChat.disabled = nextBusy;
   prompt.disabled = nextBusy;
+  systemPrompt.disabled = nextBusy;
   model.disabled = nextBusy;
   historyList.querySelectorAll("button").forEach((button) => {
     button.disabled = nextBusy;
@@ -151,6 +154,7 @@ function render() {
   emptyState.hidden = state.messages.length > 0;
   conversationLabel.textContent = activeSummary.title;
   conversationLabel.title = `${activeSummary.title} · ${activeSummary.messageCount} messages`;
+  systemPrompt.value = state.systemPrompt || "";
   model.value = state.model;
   retry.disabled = busy || !lastUserMessage(state.messages);
   clear.disabled = busy || state.messages.length === 0;
@@ -293,6 +297,7 @@ async function sendMessage(promptText, { retrying = false } = {}) {
       body: JSON.stringify({
         model: readSelectedModel(),
         prompt: trimmed,
+        system_prompt: state.systemPrompt || "",
         conversation_id: state.activeConversationId,
       }),
     });
@@ -317,6 +322,11 @@ async function sendMessage(promptText, { retrying = false } = {}) {
 composer.addEventListener("submit", (event) => {
   event.preventDefault();
   void sendMessage(prompt.value);
+});
+
+systemPrompt.addEventListener("input", () => {
+  state = setActiveSystemPrompt(state, systemPrompt.value);
+  persistChatState(storage, state);
 });
 
 prompt.addEventListener("keydown", (event) => {

@@ -15,6 +15,7 @@ import {
   renameActiveConversation,
   selectConversation,
   startNewConversation,
+  setActiveSystemPrompt,
 } from "../public/chat-state.mjs";
 
 function createStorage(entries = {}) {
@@ -41,6 +42,7 @@ test("createChatState seeds one conversation with matching active id", () => {
   assert.equal(state.activeConversationId, "conversation-1");
   assert.equal(state.conversationId, "conversation-1");
   assert.equal(state.sessionStartedAt, "1700000000000");
+  assert.equal(state.systemPrompt, "");
   assert.equal(state.conversations.length, 1);
   assert.equal(state.conversations[0].id, "conversation-1");
 });
@@ -54,6 +56,7 @@ test("loadChatState hydrates persisted conversation history and selection", () =
         id: "conversation-1",
         title: "First chat",
         model: "hf:first",
+        systemPrompt: "Always answer briefly.",
         messages: [{ id: "1", role: "user", content: "hello" }],
         createdAt: 1700000000000,
         updatedAt: 1700000000100,
@@ -62,6 +65,7 @@ test("loadChatState hydrates persisted conversation history and selection", () =
         id: "conversation-2",
         title: "Second chat",
         model: "hf:second",
+        systemPrompt: "Answer as a reviewer.",
         messages: [{ id: "2", role: "assistant", content: "hi" }],
         createdAt: 1700000000200,
         updatedAt: 1700000000300,
@@ -73,6 +77,7 @@ test("loadChatState hydrates persisted conversation history and selection", () =
   assert.equal(state.activeConversationId, "conversation-2");
   assert.equal(state.messages.length, 1);
   assert.equal(state.model, "hf:second");
+  assert.equal(state.systemPrompt, "Answer as a reviewer.");
   assert.equal(activeConversationSummary(state).title, "Second chat");
   assert.equal(conversationSummaries(state)[0].id, "conversation-2");
 });
@@ -90,6 +95,7 @@ test("legacy storage hydrates into the active conversation", () => {
   assert.equal(state.conversations.length, 1);
   assert.equal(state.messages.length, 1);
   assert.equal(state.model, "hf:test");
+  assert.equal(state.systemPrompt, "");
 });
 
 test("persistChatState writes active conversation and history records", () => {
@@ -103,11 +109,13 @@ test("persistChatState writes active conversation and history records", () => {
   persistChatState(storage, {
     ...state,
     model: "hf:test",
+    systemPrompt: "Be concise.",
   });
 
   const snapshot = storage.snapshot();
   assert.equal(snapshot[STORAGE_KEYS.activeConversationId], "conversation-1");
   assert.equal(snapshot[STORAGE_KEYS.model], "hf:test");
+  assert.equal(snapshot[STORAGE_KEYS.systemPrompt], "Be concise.");
   assert.ok(snapshot[STORAGE_KEYS.messages].includes("assistant"));
   assert.ok(snapshot[STORAGE_KEYS.conversations].includes("conversation-1"));
 });
@@ -123,6 +131,7 @@ test("history helpers preserve selection and support new chat and clearing", () 
   assert.equal(rotated.activeConversationId, "conversation-2");
   assert.equal(conversationSummaries(rotated)[0].id, "conversation-2");
   assert.equal(conversationSummaries(rotated)[1].title, "hello there");
+  assert.equal(rotated.systemPrompt, "");
 
   const restored = selectConversation(rotated, "conversation-1");
   assert.equal(restored.activeConversationId, "conversation-1");
@@ -132,6 +141,14 @@ test("history helpers preserve selection and support new chat and clearing", () 
   assert.equal(cleared.activeConversationId, "conversation-1");
   assert.equal(cleared.messages.length, 0);
   assert.equal(activeConversationSummary(cleared).title, "New chat");
+});
+
+test("setActiveSystemPrompt persists with the active conversation", () => {
+  const seeded = createChatState(1700000000000, () => "conversation-1");
+  const updated = setActiveSystemPrompt(seeded, "Be precise.");
+
+  assert.equal(updated.systemPrompt, "Be precise.");
+  assert.equal(updated.conversations[0].systemPrompt, "Be precise.");
 });
 
 test("renameActiveConversation rebases the active conversation id", () => {

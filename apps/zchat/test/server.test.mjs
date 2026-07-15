@@ -84,7 +84,7 @@ test("chat rejects missing prompt before calling the gateway", { concurrency: fa
 test("chat forwards prompt through gateway with tenant, conversation, and usage correlation", { concurrency: false }, async () => {
   const calls = [];
   const result = await chat(
-    { prompt: "  hello  ", model: "hf:test", conversation_id: "conversation-1" },
+    { prompt: "  hello  ", model: "hf:test", conversation_id: "conversation-1", system_prompt: "Be concise." },
     env,
     async (url, options) => {
       calls.push({ url, options });
@@ -102,7 +102,10 @@ test("chat forwards prompt through gateway with tenant, conversation, and usage 
   assert.equal(calls[0].options.headers["X-Request-Id"], "request-1");
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     model: "hf:test",
-    messages: [{ role: "user", content: "hello" }],
+    messages: [
+      { role: "system", content: "Be concise." },
+      { role: "user", content: "hello" },
+    ],
     stream: false,
     metadata: {
       z_platform: {
@@ -112,6 +115,18 @@ test("chat forwards prompt through gateway with tenant, conversation, and usage 
       },
     },
   });
+});
+
+test("chat rejects non-string system prompts before calling the gateway", { concurrency: false }, async () => {
+  let called = false;
+  await assert.rejects(
+    chat({ prompt: "hello", system_prompt: 42 }, env, async () => {
+      called = true;
+      throw new Error("should not call gateway");
+    }),
+    /System prompt must be a string/,
+  );
+  assert.equal(called, false);
 });
 
 test("chat does not duplicate v1 when gateway url already includes it", { concurrency: false }, async () => {
@@ -148,6 +163,29 @@ test("chat stream forwards streaming request and returns gateway stream", { conc
   assert.equal(calls[0].body.stream, true);
   assert.equal(result.conversation_id, "conversation-1");
   assert.ok(result.stream);
+});
+
+test("chat stream includes the pinned system prompt before the user prompt", { concurrency: false }, async () => {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("data: hello\\n\\n"));
+      controller.close();
+    },
+  });
+  const calls = [];
+  await chatStream(
+    { prompt: "hello", conversation_id: "conversation-1", system_prompt: "Be concise." },
+    env,
+    async (url, options) => {
+      calls.push({ url, body: JSON.parse(options.body) });
+      return new Response(stream, { status: 200, headers: { "Content-Type": "text/event-stream" } });
+    },
+  );
+
+  assert.deepEqual(calls[0].body.messages, [
+    { role: "system", content: "Be concise." },
+    { role: "user", content: "hello" },
+  ]);
 });
 
 test("session expiry blocks chat before gateway call", { concurrency: false }, async () => {

@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   conversations: "zchat.conversations",
   model: "zchat.model",
   messages: "zchat.messages",
+  systemPrompt: "zchat.systemPrompt",
   sessionStartedAt: "zchat.sessionStartedAt",
 };
 
@@ -43,6 +44,7 @@ export function summarizeConversation(conversation) {
     title,
     preview,
     model: typeof conversation?.model === "string" ? conversation.model : "",
+    systemPrompt: typeof conversation?.systemPrompt === "string" ? conversation.systemPrompt : "",
     messageCount: messages.length,
     createdAt: toTimestamp(conversation?.createdAt),
     updatedAt: toTimestamp(conversation?.updatedAt),
@@ -67,6 +69,7 @@ export function createConversation(now = Date.now(), randomId = crypto.randomUUI
     id,
     title: typeof overrides.title === "string" && overrides.title.trim() ? overrides.title.trim() : "New chat",
     model: typeof overrides.model === "string" ? overrides.model : "",
+    systemPrompt: typeof overrides.systemPrompt === "string" ? overrides.systemPrompt : "",
     messages: Array.isArray(overrides.messages) ? overrides.messages.map(normalizeMessage) : [],
     createdAt: toTimestamp(overrides.createdAt, now),
     updatedAt: toTimestamp(overrides.updatedAt, now),
@@ -78,6 +81,7 @@ function normalizeConversation(conversation, now = Date.now(), randomId = crypto
     id: conversation?.id || conversation?.conversationId,
     title: conversation?.title,
     model: conversation?.model,
+    systemPrompt: conversation?.systemPrompt,
     messages: conversation?.messages,
     createdAt: conversation?.createdAt,
     updatedAt: conversation?.updatedAt,
@@ -127,6 +131,9 @@ function materializeState(state, now = Date.now(), randomId = crypto.randomUUID)
   const activeModel = typeof state?.model === "string" && state.model
     ? state.model
     : activeConversation.model;
+  const activeSystemPrompt = typeof state?.systemPrompt === "string" && state.systemPrompt.trim()
+    ? state.systemPrompt
+    : activeConversation.systemPrompt;
   const activeMessages = !hadConversationRecords && Array.isArray(state?.messages) && state.messages.length
     ? legacyMessages
     : activeConversation.messages;
@@ -135,6 +142,7 @@ function materializeState(state, now = Date.now(), randomId = crypto.randomUUID)
     return {
       ...conversation,
       model: activeModel,
+      systemPrompt: activeSystemPrompt,
       messages: activeMessages,
     };
   });
@@ -145,6 +153,7 @@ function materializeState(state, now = Date.now(), randomId = crypto.randomUUID)
     conversationId: activeConversation.id,
     sessionStartedAt: typeof state?.sessionStartedAt === "string" && state.sessionStartedAt ? state.sessionStartedAt : String(now),
     model: activeModel,
+    systemPrompt: activeSystemPrompt,
     messages: activeMessages,
     conversations: sortedConversations,
   };
@@ -155,6 +164,7 @@ function migrateLegacyState(storage, now = Date.now(), randomId = crypto.randomU
   const conversation = createConversation(now, randomId, {
     id: storage.getItem(STORAGE_KEYS.conversationId) || storage.getItem(STORAGE_KEYS.activeConversationId),
     model: storage.getItem(STORAGE_KEYS.model) || "",
+    systemPrompt: storage.getItem(STORAGE_KEYS.systemPrompt) || "",
     messages: Array.isArray(legacyMessages) ? legacyMessages : [],
     createdAt: toTimestamp(storage.getItem(STORAGE_KEYS.sessionStartedAt), now),
     updatedAt: now,
@@ -163,6 +173,7 @@ function migrateLegacyState(storage, now = Date.now(), randomId = crypto.randomU
   return materializeState({
     activeConversationId: conversation.id,
     sessionStartedAt: storage.getItem(STORAGE_KEYS.sessionStartedAt) || String(now),
+    systemPrompt: conversation.systemPrompt,
     conversations: [conversation],
   }, now, randomId);
 }
@@ -222,6 +233,7 @@ export function persistChatState(storage, state) {
   storage.setItem(STORAGE_KEYS.conversationId, normalized.conversationId);
   storage.setItem(STORAGE_KEYS.sessionStartedAt, normalized.sessionStartedAt);
   storage.setItem(STORAGE_KEYS.model, normalized.model || "");
+  storage.setItem(STORAGE_KEYS.systemPrompt, normalized.systemPrompt || "");
   storage.setItem(STORAGE_KEYS.messages, JSON.stringify(normalized.messages));
   storage.setItem(STORAGE_KEYS.conversations, JSON.stringify(normalized.conversations));
 }
@@ -245,6 +257,7 @@ export function selectConversation(state, conversationId, now = Date.now(), rand
   return materializeState({
     ...normalized,
     activeConversationId: selected.id,
+    systemPrompt: selected.systemPrompt,
   }, now, randomId);
 }
 
@@ -252,6 +265,7 @@ export function startNewConversation(state, now = Date.now(), randomId = crypto.
   const normalized = materializeState(state, now, randomId);
   const nextConversation = createConversation(now, randomId, {
     model: normalized.model,
+    systemPrompt: normalized.systemPrompt,
   });
   return materializeState({
     ...normalized,
@@ -304,6 +318,15 @@ export function appendMessage(state, message, now = Date.now(), randomId = crypt
       updatedAt: now,
     };
   }, now, randomId);
+}
+
+export function setActiveSystemPrompt(state, systemPrompt, now = Date.now(), randomId = crypto.randomUUID) {
+  const normalizedPrompt = typeof systemPrompt === "string" ? systemPrompt : "";
+  return withActiveConversation(state, (conversation) => ({
+    ...conversation,
+    systemPrompt: normalizedPrompt,
+    updatedAt: now,
+  }), now, randomId);
 }
 
 export function replaceMessage(state, messageId, updates, now = Date.now(), randomId = crypto.randomUUID) {

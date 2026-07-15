@@ -55,6 +55,23 @@ function gatewayHeaders(env, request, conversationId = randomUUID()) {
   };
 }
 
+function coerceSystemPrompt(body) {
+  if (body.system_prompt == null) return "";
+  if (typeof body.system_prompt !== "string") {
+    throw new Error("System prompt must be a string");
+  }
+  return body.system_prompt.trim();
+}
+
+function chatMessages(prompt, systemPrompt) {
+  const messages = [];
+  if (systemPrompt) {
+    messages.push({ role: "system", content: systemPrompt });
+  }
+  messages.push({ role: "user", content: prompt });
+  return messages;
+}
+
 export function zchatHealthSnapshot(env = process.env) {
   return {
     status: "ok",
@@ -82,6 +99,7 @@ export async function chat(body, env = process.env, fetchImpl = fetch, request =
   if (!url || !token) throw new Error("AI gateway is not configured");
   if (sessionExpired(request, env)) throw new Error("Session expired");
   if (typeof body.prompt !== "string" || !body.prompt.trim()) throw new Error("Prompt is required");
+  const systemPrompt = coerceSystemPrompt(body);
 
   const conversationId = typeof body.conversation_id === "string" && body.conversation_id.trim() ? body.conversation_id.trim() : randomUUID();
   const result = await fetchImpl(gatewayUrl(url, "/chat/completions"), {
@@ -89,7 +107,7 @@ export async function chat(body, env = process.env, fetchImpl = fetch, request =
     headers: gatewayHeaders(env, request, conversationId),
     body: JSON.stringify({
       model: typeof body.model === "string" && body.model ? body.model : "default",
-      messages: [{ role: "user", content: body.prompt.trim() }],
+      messages: chatMessages(body.prompt.trim(), systemPrompt),
       stream: false,
       metadata: {
         z_platform: {
@@ -115,6 +133,7 @@ export async function chatStream(body, env = process.env, fetchImpl = fetch, req
   if (!url || !token) throw new Error("AI gateway is not configured");
   if (sessionExpired(request, env)) throw new Error("Session expired");
   if (typeof body.prompt !== "string" || !body.prompt.trim()) throw new Error("Prompt is required");
+  const systemPrompt = coerceSystemPrompt(body);
 
   const conversationId = typeof body.conversation_id === "string" && body.conversation_id.trim() ? body.conversation_id.trim() : randomUUID();
   const result = await fetchImpl(gatewayUrl(url, "/chat/completions"), {
@@ -122,7 +141,7 @@ export async function chatStream(body, env = process.env, fetchImpl = fetch, req
     headers: gatewayHeaders(env, request, conversationId),
     body: JSON.stringify({
       model: typeof body.model === "string" && body.model ? body.model : "default",
-      messages: [{ role: "user", content: body.prompt.trim() }],
+      messages: chatMessages(body.prompt.trim(), systemPrompt),
       stream: true,
       metadata: {
         z_platform: {

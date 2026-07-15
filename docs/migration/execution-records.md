@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — ZChat pinned system prompt support
+
+- Base revision: `c4edcf86a748e4420b4b64fb0e3d6619df712d16`
+- Scope: one repository-local ZChat UI slice.
+- Implementation: added a browser-persisted per-conversation system prompt editor and forwarded it through the zchat chat and streaming request paths as a system message before the user message.
+- Compatibility: transcript rendering, conversation history selection, retry, logout, and gateway-only model forwarding remain unchanged; legacy flat browser storage still hydrates into the new prompt-aware conversation container.
+- Security: browser code still receives no provider credentials or upstream base URLs, and non-string system prompts are rejected server-side before the gateway call.
+- Tests: conversation-state coverage now includes system prompt persistence and selection, and server tests now verify system-message forwarding and invalid prompt rejection on the branch head.
+- Limitations: repository-local validation only; no external staging or operator approval is claimed.
+
 ## 2026-07-16 — ZChat conversation history sidebar and new chat control
 
 - Base revision: `8d92346446a70aebeb918c1bd670904f00147fbc`
