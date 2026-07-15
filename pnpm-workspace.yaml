@@ -6,6 +6,7 @@ packages:
   - workers/*
 
 allowBuilds:
-  unrs-resolver: set this to true or false
+  - unrs-resolver
+  - sharp
 
 minimumReleaseAge: "0"
