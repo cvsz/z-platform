@@ -1,5 +1,19 @@
 # Migration Validation Report
 
+## AI Gateway disconnect-aware upstream cancellation
+
+Date: 2026-07-15
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local AI Gateway slice only. |
+| Disconnect handling | pass | The gateway aborts the upstream request when the client disconnects and does not retry after close. |
+| Deterministic coverage | pass | Added a real-socket regression test for client disconnects plus existing startup-contract coverage. |
+| Format, lint, typecheck, build | pass | `pnpm --dir services/ai-gateway test`, `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed in this worktree. |
+| Compose validation | pass | `docker compose config --quiet` and `docker compose build ai-gateway` passed in this worktree. |
+
+This slice remains repository-local. It does not claim external staging, operator approval, or production readiness.
+
 ## Immutable release evidence binding
 
 Date: 2026-07-15

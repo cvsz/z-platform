@@ -35,9 +35,9 @@ Status definitions use the issue #1 semantics: **VERIFIED**, **IMPLEMENTED**, **
 | Staging reviewer and review time | Review controls exist | Named completed review absent | External staging | PENDING_OPERATOR |
 | Incident owner, escalation, watch window | Incident runbook exists | Named operational record absent | Production | PENDING_OPERATOR |
 | Production release approval | Production environment requires approval | Explicit release SHA approval absent | Production | PENDING_OPERATOR |
-| Current `main` evidence (`2db36e428fa95457e0559dabc224b7d8ff10d289`) | Seven-service topology and release gates | Runs `29425990792`, `29425992713`, `29425992683`, and `29425992884` pass; smoke artifact `8347285839`; SBOM IDs `8347268150`, `8347267792`, `8347266561` | GitHub Actions / isolated Compose | VERIFIED |
-| Current `main` security eligibility | CodeQL and Dependabot scanning | CodeQL alerts 1-5 and Dependabot alert 1 remain open | GitHub security scanning | BLOCKED |
-| Security-alert remediation | Path containment, rate limiting, default-deny CORS, command-argument omission, patched PostCSS resolution | Deterministic local success, denial, and security tests pass; PR-head workflows pending | Repository / isolated Compose | IMPLEMENTED |
+| Current `main` evidence (`36fc7f594c933137a1d8da2855bac752fb2f03b3`) | Seven-service topology and release gates | Runs `29431078328`, `29431079935`, `29431078865`, and `29431080079` pass; smoke artifact `8349399112`; SBOM IDs `8349364297`, `8349363768`, `8349360484` | GitHub Actions / isolated Compose | VERIFIED |
+| Current `main` security eligibility | CodeQL and Dependabot scanning | CodeQL workflow run `29431080079` passed; Dependabot alert state was not re-fetched with authenticated API access | GitHub security scanning | IMPLEMENTED |
+| AI Gateway disconnect-aware upstream cancellation | Branch-local gateway abort handling and disconnect regression test | Deterministic repository-local test coverage on this branch; PR-head workflow artifacts pending | Repository | IMPLEMENTED |
 
 ## Release selection rule
 

@@ -13,18 +13,18 @@ Production and external traffic remain **DISABLED**. Issue #1 remains open until
 
 ## Current-head evidence
 
-Current `main` SHA: `2db36e428fa95457e0559dabc224b7d8ff10d289` (2026-07-15).
+Current `main` SHA: `36fc7f594c933137a1d8da2855bac752fb2f03b3` (2026-07-15).
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
-| Node and Python tests and dependency audits | VERIFIED | `CI` run `29425990792`, success, 2026-07-15, GitHub Actions | Repository-local CI evidence only. |
-| Secret and browser credential scans | VERIFIED | `validate` run `29425992713`, `secret-patterns` job `87388407955`, success, 2026-07-15 | Pattern checks do not supersede CodeQL or Dependabot findings. |
-| Compose configuration and image builds | VERIFIED | `validate` run `29425992713`, `compose` job `87388408351`, success, 2026-07-15 | Build success is not external staging evidence. |
-| SPDX SBOM | VERIFIED | `validate` run `29425992713`; `z-platform-sbom` ID `8347268150`, digest `sha256:aa9cca3bfb86be6f368019d1ce7b4d5930b5d4596d03d716c48e6ddb03d02c29`; `z-platform-sbom.spdx.json` ID `8347267792`, digest `sha256:e98b7e6284dc6458db6ae4b0db89acd57208eaa04c19c7cd5d9a21d578354bbf` | Artifacts are bound only to `2db36e4`. |
-| Dependency and provenance policy | VERIFIED | `operations` run `29425992683`, success; `sbom-spdx-json` ID `8347266561`, digest `sha256:2ccbea7d556d8c5d1de538db418697db453f16d35ebacc8fbb32de7c1f5a11a6`, 2026-07-15 | Valid only for `2db36e4`. |
-| Seven-service deployed smoke | VERIFIED | `validate` run `29425992713`, job `87388407954`, success; `staging-smoke-evidence` ID `8347285839`, digest `sha256:6d51c96fdd373274d428217f8e8860b32ebecda442414474c35c92ca5b612ef6` | Isolated Compose evidence only; not external staging. |
-| Main security-alert state | BLOCKED | CodeQL alerts 1-5 and Dependabot alert 1 are open against `main`, inspected 2026-07-15 | Passing workflows do not make unresolved findings eligible for release. |
-| Security-alert remediation | IMPLEMENTED | Path containment, rate limiting, default-deny CORS, command-argument omission, and PostCSS override plus deterministic local tests on this branch | PR-head CodeQL, dependency audit, validation, and immutable artifacts are still required before VERIFIED. |
+| Node and Python tests and dependency audits | VERIFIED | `CI` run `29431078328`, success, 2026-07-15, GitHub Actions | Repository-local CI evidence only. |
+| Secret and browser credential scans | VERIFIED | `validate` run `29431079935`, `secret-patterns` job `87405925283`, success, 2026-07-15 | Pattern checks do not supersede CodeQL or Dependabot findings. |
+| Compose configuration and image builds | VERIFIED | `validate` run `29431079935`, `compose` job `87405925253`, success, 2026-07-15 | Build success is not external staging evidence. |
+| SPDX SBOM | VERIFIED | `validate` run `29431079935`; `z-platform-sbom` ID `8349364297`, digest `sha256:36df0f176b0a4db2421c10dcb72d28d5e163d5b75ba8906b3950b9b8fa8fbc13`; `z-platform-sbom.spdx.json` ID `8349363768`, digest `sha256:b355f72d5d1af1e7c54b5cbb7dd3dfe169366aefd3138a19e6fb4be453bce83a` | Artifacts are bound only to `36fc7f5`. |
+| Dependency and provenance policy | VERIFIED | `operations` run `29431078865`, success; `sbom-spdx-json` ID `8349360484`, digest `sha256:56bcb3bb88cd155d13aafd533c50a9bb92f51cd13b431e6761a61150ad412b45`, 2026-07-15 | Valid only for `36fc7f5`. |
+| Seven-service deployed smoke | VERIFIED | `validate` run `29431079935`, job `87405925323`, success; `staging-smoke-evidence` ID `8349399112`, digest `sha256:68526290de0f0325123e58e0adfe68246ecf57d617fbd207eff1e568a6bd6495` | Isolated Compose evidence only; not external staging. |
+| Main security-alert state | IMPLEMENTED | CodeQL workflow on `36fc7f5` passed in run `29431080079`; Dependabot alert state was not re-fetched with authenticated API access | Passing workflows do not by themselves prove alert closure. |
+| AI Gateway disconnect-aware upstream cancellation | IMPLEMENTED | Branch-local gateway factory, disconnect abort handling, and deterministic client-disconnect regression test on this branch | PR-head workflow, immutable artifact binding, and any external staging evidence are still pending. |
 
 Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to this branch or a later release candidate.
 

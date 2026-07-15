@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- AI Gateway disconnect-aware upstream cancellation with a real-socket regression test for client disconnects.
 - AI Gateway container startup contract tests covering the start command, health route, fail-closed authentication, and authorization-log redaction.
 - Current-head evidence record for `923c3a190fbf626faae076bf5faa43a4d03a9703`, preserving its failed deployed-smoke classification and immutable SBOM metadata.
 - Current-head evidence synchronization for `2db36e428fa95457e0559dabc224b7d8ff10d289`, including its passing SHA-bound deployed-smoke and SBOM artifacts while keeping unresolved security alerts blocked.
