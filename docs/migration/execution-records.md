@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — ZChat manual conversation title editing
+
+- Base revision: `7035295df2bcd0b8c10f0a8e88f0db2edbe06ae3`
+- Scope: one repository-local ZChat UI slice.
+- Implementation: added a browser-editable conversation title field that persists with the active conversation, updates the history sidebar, and remains stable across later message appends.
+- Compatibility: transcript rendering, history navigation, system prompts, prompt templates, export actions, retry, logout, and gateway-only forwarding remain unchanged.
+- Security: browser code still receives no provider credentials or upstream base URLs; the title stays local to browser storage.
+- Tests: conversation-state coverage now includes explicit title editing and persistence across later message appends on the branch head.
+- Limitations: repository-local validation only; no external staging or operator approval is claimed.
+
 ## 2026-07-16 — ZChat active conversation export controls
 
 - Base revision: `412ef335ca2b2166b8bd83acdab0d46fa356b9b1`

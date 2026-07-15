@@ -18,6 +18,7 @@ import {
   selectConversation,
   startNewConversation,
   setActiveSystemPrompt,
+  setActiveConversationTitle,
 } from "./chat-state.mjs";
 import { renderMarkdownFragment } from "./markdown.mjs";
 import { readEventStream } from "./chat-stream.mjs";
@@ -30,6 +31,7 @@ const templateTitle = document.querySelector("#template-title");
 const templatePrompt = document.querySelector("#template-prompt");
 const copyMarkdown = document.querySelector("#copy-markdown");
 const downloadJson = document.querySelector("#download-json");
+const conversationTitle = document.querySelector("#conversation-title");
 const composer = document.querySelector("#composer");
 const systemPrompt = document.querySelector("#system-prompt");
 const model = document.querySelector("#model");
@@ -63,6 +65,7 @@ function setBusy(nextBusy) {
   newChat.disabled = nextBusy;
   copyMarkdown.disabled = nextBusy;
   downloadJson.disabled = nextBusy;
+  conversationTitle.disabled = nextBusy;
   prompt.disabled = nextBusy;
   systemPrompt.disabled = nextBusy;
   templateForm.querySelectorAll("input, textarea, button").forEach((element) => {
@@ -262,6 +265,7 @@ function render() {
   emptyState.hidden = state.messages.length > 0;
   conversationLabel.textContent = activeSummary.title;
   conversationLabel.title = `${activeSummary.title} · ${activeSummary.messageCount} messages`;
+  conversationTitle.value = activeSummary.title;
   systemPrompt.value = state.systemPrompt || "";
   model.value = state.model;
   retry.disabled = busy || !lastUserMessage(state.messages);
@@ -436,6 +440,14 @@ composer.addEventListener("submit", (event) => {
 systemPrompt.addEventListener("input", () => {
   state = setActiveSystemPrompt(state, systemPrompt.value);
   persistChatState(storage, state);
+});
+
+conversationTitle.addEventListener("input", () => {
+  state = setActiveConversationTitle(state, conversationTitle.value);
+  persistChatState(storage, state);
+  conversationLabel.textContent = activeConversationSummary(state).title;
+  conversationLabel.title = `${activeConversationSummary(state).title} · ${activeConversationSummary(state).messageCount} messages`;
+  renderHistory();
 });
 
 templateForm.addEventListener("submit", (event) => {

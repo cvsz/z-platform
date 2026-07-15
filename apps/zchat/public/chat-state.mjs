@@ -420,6 +420,15 @@ export function setActiveSystemPrompt(state, systemPrompt, now = Date.now(), ran
   }), now, randomId);
 }
 
+export function setActiveConversationTitle(state, title, now = Date.now(), randomId = crypto.randomUUID) {
+  const normalizedTitle = normalizeText(title) || "New chat";
+  return withActiveConversation(state, (conversation) => ({
+    ...conversation,
+    title: normalizedTitle,
+    updatedAt: now,
+  }), now, randomId);
+}
+
 export function replaceMessage(state, messageId, updates, now = Date.now(), randomId = crypto.randomUUID) {
   return withActiveConversation(state, (conversation) => ({
     ...conversation,

@@ -23,6 +23,7 @@ import {
   selectConversation,
   startNewConversation,
   setActiveSystemPrompt,
+  setActiveConversationTitle,
 } from "../public/chat-state.mjs";
 
 function createStorage(entries = {}) {
@@ -217,6 +218,26 @@ test("setActiveSystemPrompt persists with the active conversation", () => {
 
   assert.equal(updated.systemPrompt, "Be precise.");
   assert.equal(updated.conversations[0].systemPrompt, "Be precise.");
+});
+
+test("setActiveConversationTitle persists a manual conversation title", () => {
+  const seeded = appendMessage(
+    createChatState(1700000000000, () => "conversation-1"),
+    { id: "1", role: "user", content: "hello" },
+    1700000000100,
+  );
+  const updated = setActiveConversationTitle(seeded, "Project planning");
+
+  assert.equal(updated.conversations[0].title, "Project planning");
+  assert.equal(activeConversationSummary(updated).title, "Project planning");
+});
+
+test("manual conversation titles survive later message appends", () => {
+  const seeded = setActiveConversationTitle(createChatState(1700000000000, () => "conversation-1"), "Project planning");
+  const updated = appendMessage(seeded, { id: "1", role: "user", content: "new question" }, 1700000000100);
+
+  assert.equal(updated.conversations[0].title, "Project planning");
+  assert.equal(activeConversationSummary(updated).title, "Project planning");
 });
 
 test("renameActiveConversation rebases the active conversation id", () => {
