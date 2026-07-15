@@ -11,7 +11,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "keys:validate": "node scripts/validate-api-keys.mjs",
     "keys:check": "node scripts/validate-api-keys.mjs --syntax-only --strict",
-    "release:validate": "node scripts/validate-release-templates.mjs"
+    "release:validate": "node scripts/validate-release-templates.mjs",
+    "release:evidence:validate": "node scripts/validate-release-evidence.mjs"
   },
   "engines": {
     "node": ">=20",
