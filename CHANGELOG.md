@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- ZChat active conversation export controls for markdown copy and JSON download.
 - ZChat browser-local prompt template library with built-in presets, custom template saving, and "start from template" chat creation.
 - ZChat per-conversation system prompt editing with browser persistence and gateway forwarding.
 - AI Gateway disconnect-aware upstream cancellation with a real-socket regression test for client disconnects.

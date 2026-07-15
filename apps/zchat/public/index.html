@@ -33,6 +33,19 @@
       </aside>
 
       <section class="workspace__main" aria-label="Active conversation">
+        <section class="export-panel" aria-label="Conversation export">
+          <div class="export-panel__header">
+            <div>
+              <h2>Export</h2>
+              <p>Copy the active conversation as Markdown or download it as JSON.</p>
+            </div>
+          </div>
+          <div class="export-panel__actions">
+            <button id="copy-markdown" type="button" aria-label="Copy active conversation as markdown">Copy markdown</button>
+            <button id="download-json" type="button" aria-label="Download active conversation as JSON">Download JSON</button>
+          </div>
+        </section>
+
         <section class="template-panel" aria-label="Prompt templates">
           <div class="template-panel__header">
             <div>

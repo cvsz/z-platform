@@ -11,6 +11,8 @@ import {
   conversationSummaries,
   createChatState,
   createPromptTemplate,
+  conversationToExportData,
+  conversationToMarkdown,
   lastUserMessage,
   loadChatState,
   loadPromptTemplates,
@@ -76,6 +78,30 @@ test("prompt template helpers support save, remove, and persistence", () => {
   const removed = removePromptTemplate(extended, "template-1");
   assert.equal(removed.length, 1);
   assert.equal(removed[0].id, "template-2");
+});
+
+test("conversation export helpers produce markdown and JSON-safe data", () => {
+  const state = appendMessage(
+    appendMessage(
+      setActiveSystemPrompt(createChatState(1700000000000, () => "conversation-1"), "Be concise.", 1700000000100),
+      { id: "1", role: "user", content: "hello" },
+      1700000000200,
+    ),
+    { id: "2", role: "assistant", content: "hi" },
+    1700000000300,
+  );
+
+  const markdown = conversationToMarkdown(state);
+  assert.ok(markdown.includes("# hello"));
+  assert.ok(markdown.includes("## System Prompt"));
+  assert.ok(markdown.includes("Be concise."));
+  assert.ok(markdown.includes("## Assistant"));
+
+  const data = conversationToExportData(state);
+  assert.equal(data.id, "conversation-1");
+  assert.equal(data.systemPrompt, "Be concise.");
+  assert.equal(data.messages.length, 2);
+  assert.equal(data.messages[0].role, "user");
 });
 
 test("createChatState seeds one conversation with matching active id", () => {

@@ -4,6 +4,8 @@ import {
   clearActiveConversation,
   clearChatState,
   conversationSummaries,
+  conversationToExportData,
+  conversationToMarkdown,
   addPromptTemplate,
   lastUserMessage,
   loadChatState,
@@ -26,6 +28,8 @@ const templatesList = document.querySelector("#templates");
 const templateForm = document.querySelector("#template-form");
 const templateTitle = document.querySelector("#template-title");
 const templatePrompt = document.querySelector("#template-prompt");
+const copyMarkdown = document.querySelector("#copy-markdown");
+const downloadJson = document.querySelector("#download-json");
 const composer = document.querySelector("#composer");
 const systemPrompt = document.querySelector("#system-prompt");
 const model = document.querySelector("#model");
@@ -57,6 +61,8 @@ function setBusy(nextBusy) {
   retry.disabled = nextBusy || !lastUserMessage(state.messages);
   clear.disabled = nextBusy;
   newChat.disabled = nextBusy;
+  copyMarkdown.disabled = nextBusy;
+  downloadJson.disabled = nextBusy;
   prompt.disabled = nextBusy;
   systemPrompt.disabled = nextBusy;
   templateForm.querySelectorAll("input, textarea, button").forEach((element) => {
@@ -224,6 +230,30 @@ function renderTemplateItem(template) {
 
 function renderTemplates() {
   templatesList.replaceChildren(...promptTemplates.map(renderTemplateItem));
+}
+
+async function copyActiveConversationMarkdown() {
+  const markdown = conversationToMarkdown(activeConversationSummary(state));
+  if (!navigator.clipboard?.writeText) {
+    throw new Error("Clipboard access is unavailable");
+  }
+  await navigator.clipboard.writeText(markdown);
+  setStatus("Copied active conversation as markdown", "ready");
+}
+
+function downloadActiveConversationJson() {
+  const exportData = conversationToExportData(activeConversationSummary(state));
+  const blob = new Blob([`${JSON.stringify(exportData, null, 2)}\n`], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${exportData.id || "zchat-conversation"}.json`;
+  anchor.rel = "noopener";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  setStatus("Downloaded active conversation as JSON", "ready");
 }
 
 function render() {
@@ -428,6 +458,22 @@ templateForm.addEventListener("submit", (event) => {
   templateForm.reset();
   render();
   setStatus(`Saved ${savedTitle}`, "ready");
+});
+
+copyMarkdown.addEventListener("click", () => {
+  if (busy) return;
+  void copyActiveConversationMarkdown().catch((error) => {
+    setStatus(error instanceof Error ? error.message : "Unable to copy conversation", "error");
+  });
+});
+
+downloadJson.addEventListener("click", () => {
+  if (busy) return;
+  try {
+    downloadActiveConversationJson();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Unable to download conversation", "error");
+  }
 });
 
 prompt.addEventListener("keydown", (event) => {

@@ -451,4 +451,58 @@ export function conversationSummaries(state) {
   return materializeState(state).conversations.map((conversation) => summarizeConversation(conversation));
 }
 
+function formatExportStamp(timestamp) {
+  return new Date(timestamp).toISOString();
+}
+
+export function conversationToExportData(conversation) {
+  const normalized = summarizeConversation(conversation);
+  return {
+    id: normalized.id,
+    title: normalized.title,
+    model: normalized.model,
+    systemPrompt: normalized.systemPrompt,
+    createdAt: normalized.createdAt,
+    updatedAt: normalized.updatedAt,
+    messages: normalized.messages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      createdAt: message.createdAt,
+      pending: Boolean(message.pending),
+      error: Boolean(message.error),
+    })),
+  };
+}
+
+export function conversationToMarkdown(conversation) {
+  const normalized = summarizeConversation(conversation);
+  const lines = [
+    `# ${normalized.title}`,
+    "",
+    `- Conversation ID: ${normalized.id || "unknown"}`,
+    `- Model: ${normalized.model || "default"}`,
+    `- Created: ${formatExportStamp(normalized.createdAt)}`,
+    `- Updated: ${formatExportStamp(normalized.updatedAt)}`,
+  ];
+
+  if (normalized.systemPrompt) {
+    lines.push("", "## System Prompt", "", normalized.systemPrompt.trim());
+  }
+
+  for (const message of normalized.messages) {
+    lines.push(
+      "",
+      `## ${message.role === "assistant" ? "Assistant" : "User"}`,
+      "",
+      `- Message ID: ${message.id}`,
+      `- Created: ${formatExportStamp(message.createdAt)}`,
+      "",
+      message.content || "",
+    );
+  }
+
+  return lines.join("\n").trimEnd() + "\n";
+}
+
 export { STORAGE_KEYS };

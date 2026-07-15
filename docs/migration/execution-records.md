@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — ZChat active conversation export controls
+
+- Base revision: `412ef335ca2b2166b8bd83acdab0d46fa356b9b1`
+- Scope: one repository-local ZChat UI slice.
+- Implementation: added active-conversation export helpers plus UI controls to copy the current chat as markdown or download it as JSON.
+- Compatibility: transcript rendering, conversation history selection, pinned system prompts, prompt templates, retry, logout, and gateway-only forwarding remain unchanged.
+- Security: browser code still receives no provider credentials or upstream base URLs; export output only reflects browser-local conversation content.
+- Tests: conversation-state coverage now includes markdown and JSON export serialization on the branch head.
+- Limitations: repository-local validation only; no external staging or operator approval is claimed.
+
 ## 2026-07-16 — ZChat browser-local prompt template library
 
 - Base revision: `ca0caff`
