@@ -58,6 +58,7 @@ Use `mode: probe` only for an HTTPS endpoint whose expected response status is m
 2. Complete the staging manifest with the same release SHA.
 3. Store the manifest and decision record in the protected `staging` Environment.
 4. Run **external-staging-readiness** with `request_production_approval=false`.
+5. The workflow validates that the requested release SHA exists in `cvsz/z-platform` before it checks out the code, so an invalid or stale SHA fails closed before deployment evidence is collected.
 5. Review the uploaded and attested `external-staging-evidence-<sha>` artifact.
 6. Record the workflow run, artifact digest, staging reviewer, and review time in Issue #1.
 

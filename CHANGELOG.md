@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- Deployment readiness workflows now verify that the requested release SHA exists in `cvsz/z-platform` before checkout, so stale or invalid SHAs fail closed instead of surfacing as broken deployment records.
 - Cloudflare Terraform examples and installer defaults now use service-named public hostnames such as `phase6.zeaz.dev`, `zchat.zeaz.dev`, and `zai.zeaz.dev`.
 - Shared readiness probe helpers now set `Content-Type: application/json` whenever a JSON body is present, so POST-based external checks are sent with the expected content type.
 - External readiness manifest validation now rejects placeholder HTTPS probe URLs such as `staging.example.invalid` and localhost-style endpoints.
