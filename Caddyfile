@@ -1,0 +1,24 @@
+{
+  email {$ACME_EMAIL}
+}
+
+{$PHASE6_DOMAIN} {
+  encode zstd gzip
+
+  handle_path /grafana/* {
+    reverse_proxy grafana:3000
+  }
+
+  handle_path /jaeger/* {
+    reverse_proxy jaeger:16686
+  }
+
+  handle {
+    reverse_proxy phase6-api:8080
+  }
+
+  log {
+    output stdout
+    format json
+  }
+}

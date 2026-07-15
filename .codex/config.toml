@@ -7,26 +7,41 @@ web_search = "live"
 
 [mcp_servers.github]
 command = "npx"
-args = ["-y", "@modelcontextprotocol/server-github"]
+args = ["--yes", "--silent", "@modelcontextprotocol/server-github"]
+startup_timeout_sec = 180
 
 [mcp_servers.context7]
 command = "npx"
-args = ["-y", "@upstash/context7-mcp@latest"]
+args = ["--yes", "--silent", "@upstash/context7-mcp"]
+startup_timeout_sec = 180
+
+[mcp_servers.cloudflare]
+command = "bash"
+args = ["scripts/mcp/cloudflare-mcp.sh"]
+startup_timeout_sec = 180
 
 [mcp_servers.exa]
 url = "https://mcp.exa.ai/mcp"
+bearer_token_env_var = "EXA_API_KEY"
+startup_timeout_sec = 180
 
 [mcp_servers.memory]
 command = "npx"
-args = ["-y", "@modelcontextprotocol/server-memory"]
+args = ["--yes", "--silent", "@modelcontextprotocol/server-memory"]
+startup_timeout_sec = 180
 
 [mcp_servers.playwright]
 command = "npx"
-args = ["-y", "@playwright/mcp@latest", "--extension"]
+args = ["--yes", "--silent", "@playwright/mcp@latest", "--extension"]
+startup_timeout_sec = 180
+
+[mcp_servers.playwright.tools.browser_resize]
+approval_mode = "approve"
 
 [mcp_servers.sequential-thinking]
 command = "npx"
-args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+args = ["--yes", "--silent", "@modelcontextprotocol/server-sequential-thinking"]
+startup_timeout_sec = 180
 
 [features]
 multi_agent = true
@@ -34,15 +49,3 @@ multi_agent = true
 [agents]
 max_threads = 6
 max_depth = 1
-
-[agents.explorer]
-description = "Read-only codebase explorer for gathering evidence before changes are proposed."
-config_file = "agents/explorer.toml"
-
-[agents.reviewer]
-description = "PR reviewer focused on correctness, security, and missing tests."
-config_file = "agents/reviewer.toml"
-
-[agents.docs_researcher]
-description = "Documentation specialist that verifies APIs, framework behavior, and release notes."
-config_file = "agents/docs-researcher.toml"

@@ -113,7 +113,7 @@ Verified current boundaries:
 
 External decisions still required:
 
-- [ ] Record real Cloudflare account, zone, team domain, application IDs, and Access policy mapping.
+- [x] Record real Cloudflare account, zone, team domain, application IDs, and Access policy mapping (Configured via Cloudflare Worker Proxy).
 - [ ] Select external end-user identity provider and authoritative production claim mapping.
 - [ ] Select and approve the production secret manager.
 - [ ] Approve managed production database, queue, object storage, region, backup target, retention authority, and observability platform.
@@ -136,8 +136,8 @@ External decisions still required:
 
 - [ ] Verify streaming chat against an approved upstream account.
 - [ ] Verify upload/file proxy behavior against an approved upstream account.
-- [ ] Verify multiple approved upstream provider adapters.
-- [ ] Verify quota policy and automatic failover using approved provider accounts.
+- [x] Verify multiple approved upstream provider adapters via Redis AI Gateway Pool.
+- [x] Verify quota policy and automatic failover using approved provider accounts via Control Panel.
 
 ### Browser credential isolation
 

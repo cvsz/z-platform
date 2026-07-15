@@ -14,6 +14,9 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - Platform operations workflow for dependency checks, SBOM generation, and provenance verification.
 - CI coverage for migrated Node and Python runtimes.
 - AI Gateway, ZAI Coder, ZChat, agent orchestration, workspace runtime, billing ledger, and ZWallet migration boundaries.
+- **Agent Control Panel:** Full-stack UI for managing multi-provider API keys and automatic rotation logic.
+- **AI Gateway Redis Pool:** Multi-provider rotation pool, failure injection limits, and fallback strategies.
+- **Cloudflare Edge Worker:** Initial proxy script and `wrangler.toml` for authentication and routing at the edge.
 
 ### Security
 
