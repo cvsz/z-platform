@@ -30,3 +30,16 @@ Date: 2026-07-15
 | Tests | CI pending | Root `pnpm test` includes `scripts/test/*.test.mjs`. |
 
 The pull request is the authoritative source for CI results. Evidence must not be promoted to a release record until checks pass for the exact PR head commit.
+
+## CodeQL Advanced workflow toolchain hardening
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local workflow-hardening slice only. |
+| Toolchain setup | pass | `CodeQL Advanced` now provisions Node, pnpm, Go, and Python before `github/codeql-action/init@v4` on the self-hosted `z-runner` lane. |
+| Deterministic coverage | pass | `scripts/test/codeql-workflow.test.mjs` asserts the runner label, config binding, setup ordering, and `security-and-quality` query suite. |
+| Format and workflow validation | pass | `python3` YAML parse of `.github/workflows/codeql.yml`, `node --test scripts/test/codeql-workflow.test.mjs`, and repo pre-push checks passed in this worktree. |
+
+This slice is repository-local. PR-head CodeQL execution, alert-closure evidence, and immutable artifact binding still depend on GitHub Actions for the exact commit SHA.
