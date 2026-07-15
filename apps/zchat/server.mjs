@@ -32,6 +32,49 @@ function gatewayUrl(baseUrl, path) {
   return base.endsWith("/v1") ? base + path : base + "/v1" + path;
 }
 
+function combineAbortSignals(...signals) {
+  const activeSignals = signals.filter(Boolean);
+  if (!activeSignals.length) return undefined;
+  if (activeSignals.length === 1) return activeSignals[0];
+
+  const controller = new AbortController();
+  const abort = (signal) => {
+    if (!controller.signal.aborted) {
+      controller.abort(signal?.reason);
+    }
+  };
+
+  for (const signal of activeSignals) {
+    if (signal.aborted) {
+      abort(signal);
+      break;
+    }
+    signal.addEventListener("abort", () => abort(signal), { once: true });
+  }
+
+  return controller.signal;
+}
+
+function requestAbortSignal(request) {
+  if (request?.signal) {
+    return request.signal;
+  }
+  if (typeof request?.once !== "function") {
+    return undefined;
+  }
+
+  const controller = new AbortController();
+  const abort = () => {
+    if (!controller.signal.aborted) {
+      controller.abort();
+    }
+  };
+
+  request.once("aborted", abort);
+  request.once("close", abort);
+  return controller.signal;
+}
+
 function tenantId(request) {
   const value = request.headers["x-tenant-id"];
   return typeof value === "string" && value.trim() ? value.trim() : "anonymous";
@@ -117,7 +160,7 @@ export async function chat(body, env = process.env, fetchImpl = fetch, request =
         },
       },
     }),
-    signal: AbortSignal.timeout(60000),
+    signal: combineAbortSignals(AbortSignal.timeout(60000), requestAbortSignal(request)),
   });
   if (!result.ok) throw new Error("AI gateway rejected the request");
 
@@ -151,7 +194,7 @@ export async function chatStream(body, env = process.env, fetchImpl = fetch, req
         },
       },
     }),
-    signal: AbortSignal.timeout(60000),
+    signal: combineAbortSignals(AbortSignal.timeout(60000), requestAbortSignal(request)),
   });
   if (!result.ok || !result.body) throw new Error("AI gateway rejected the stream request");
   return { stream: result.body, conversation_id: conversationId };
@@ -167,10 +210,16 @@ export function createZChatRequestHandler({ env = process.env, fetchImpl = fetch
         return send(response, 200, JSON.stringify(await models(env, fetchImpl)));
       }
       if (request.method === "POST" && request.url === "/api/chat") {
-        return send(response, 200, JSON.stringify(await chat(await json(request), env, fetchImpl, request)));
+        return send(response, 200, JSON.stringify(await chat(await json(request), env, fetchImpl, {
+          headers: request.headers,
+          signal: requestAbortSignal(request),
+        })));
       }
       if (request.method === "POST" && request.url === "/api/chat/stream") {
-        const { stream, conversation_id } = await chatStream(await json(request), env, fetchImpl, request);
+        const { stream, conversation_id } = await chatStream(await json(request), env, fetchImpl, {
+          headers: request.headers,
+          signal: requestAbortSignal(request),
+        });
         response.writeHead(200, {
           "Cache-Control": "no-cache, no-transform",
           Connection: "keep-alive",

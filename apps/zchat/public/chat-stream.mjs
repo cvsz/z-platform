@@ -1,5 +1,9 @@
 const decoder = new TextDecoder();
 
+function isAbortError(error) {
+  return Boolean(error && typeof error === "object" && "name" in error && error.name === "AbortError");
+}
+
 function decodeEventData(data) {
   const trimmed = data.trim();
   if (!trimmed || trimmed === "[DONE]") return "";
@@ -22,7 +26,7 @@ export function extractDeltaText(chunk) {
     .join("");
 }
 
-export async function readEventStream(response, onDelta) {
+export async function readEventStream(response, onDelta, signal) {
   if (!response.body) {
     throw new Error("Streaming response unavailable");
   }
@@ -30,33 +34,70 @@ export async function readEventStream(response, onDelta) {
   const reader = response.body.getReader();
   let buffer = "";
   let emitted = "";
+  let aborted = false;
 
-  while (true) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+  const cancelReader = () => {
+    void reader.cancel(signal?.reason).catch(() => {});
+  };
 
-    let boundaryIndex = buffer.indexOf("\n\n");
-    while (boundaryIndex !== -1) {
-      const event = buffer.slice(0, boundaryIndex);
-      buffer = buffer.slice(boundaryIndex + 2);
-      const delta = extractDeltaText(event);
+  if (signal) {
+    if (signal.aborted) {
+      await reader.cancel(signal.reason).catch(() => {});
+      return emitted;
+    }
+    signal.addEventListener("abort", cancelReader, { once: true });
+  }
+
+  try {
+    while (true) {
+      let chunk;
+      try {
+        chunk = await reader.read();
+      } catch (error) {
+        if (signal?.aborted || isAbortError(error)) {
+          aborted = true;
+          break;
+        }
+        throw error;
+      }
+
+      const { value, done } = chunk;
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+      let boundaryIndex = buffer.indexOf("\n\n");
+      while (boundaryIndex !== -1) {
+        const event = buffer.slice(0, boundaryIndex);
+        buffer = buffer.slice(boundaryIndex + 2);
+        const delta = extractDeltaText(event);
+        if (delta) {
+          emitted += delta;
+          onDelta(delta, emitted);
+        }
+        boundaryIndex = buffer.indexOf("\n\n");
+      }
+
+      if (done || signal?.aborted) {
+        aborted = aborted || Boolean(signal?.aborted);
+        break;
+      }
+    }
+
+    if (!aborted && buffer.trim()) {
+      const delta = extractDeltaText(buffer);
       if (delta) {
         emitted += delta;
         onDelta(delta, emitted);
       }
-      boundaryIndex = buffer.indexOf("\n\n");
     }
-
-    if (done) break;
-  }
-
-  if (buffer.trim()) {
-    const delta = extractDeltaText(buffer);
-    if (delta) {
-      emitted += delta;
-      onDelta(delta, emitted);
+    return emitted;
+  } finally {
+    if (signal) {
+      signal.removeEventListener("abort", cancelReader);
+    }
+    try {
+      reader.releaseLock();
+    } catch {
+      // Reader may already be released by cancellation.
     }
   }
-
-  return emitted;
 }

@@ -39,6 +39,7 @@ const composer = document.querySelector("#composer");
 const systemPrompt = document.querySelector("#system-prompt");
 const model = document.querySelector("#model");
 const prompt = document.querySelector("#prompt");
+const stop = document.querySelector("#stop");
 const send = document.querySelector("#send");
 const retry = document.querySelector("#retry");
 const clear = document.querySelector("#clear");
@@ -55,7 +56,12 @@ let state = loadChatState(storage);
 let promptTemplates = loadPromptTemplates(storage);
 let themeMode = loadThemeMode(storage);
 let busy = false;
+let activeGeneration = null;
 const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+function isAbortError(error) {
+  return Boolean(error && typeof error === "object" && "name" in error && error.name === "AbortError");
+}
 
 function resolveTheme(mode) {
   if (mode === "dark" || mode === "light") return mode;
@@ -90,6 +96,7 @@ function setStatus(message, tone = "idle") {
 
 function setBusy(nextBusy) {
   busy = nextBusy;
+  stop.disabled = !nextBusy;
   send.disabled = nextBusy;
   retry.disabled = nextBusy || !lastUserMessage(state.messages);
   clear.disabled = nextBusy;
@@ -364,51 +371,82 @@ async function loadModels() {
   }
 }
 
-async function completeWithFallback(promptText, assistantId, requestBase) {
-  const streamResponse = await fetch("/api/chat/stream", requestBase);
-  if (streamResponse.ok && streamResponse.body) {
-    const conversationId = streamResponse.headers.get("x-conversation-id");
-    if (conversationId) {
-      syncConversationId(conversationId);
-    }
+async function completeWithFallback(assistantId, requestBase) {
+  let streamedText = "";
+  try {
+    const streamResponse = await fetch("/api/chat/stream", requestBase);
+    if (streamResponse.ok && streamResponse.body) {
+      const conversationId = streamResponse.headers.get("x-conversation-id");
+      if (conversationId) {
+        syncConversationId(conversationId);
+      }
 
-    const finalText = await readEventStream(streamResponse, (_, fullText) => {
+      const finalText = await readEventStream(streamResponse, (_, fullText) => {
+        streamedText = fullText;
+        state = replaceMessage(state, assistantId, {
+          content: fullText,
+          pending: true,
+          error: false,
+        });
+        persistChatState(storage, state);
+        render();
+      }, requestBase.signal);
+
+      streamedText = finalText;
       state = replaceMessage(state, assistantId, {
-        content: fullText,
-        pending: true,
+        content: finalText,
+        pending: false,
         error: false,
       });
       persistChatState(storage, state);
       render();
-    });
+
+      if (requestBase.signal?.aborted) {
+        setStatus("Generation stopped", "ready");
+        return { stopped: true, content: finalText };
+      }
+
+      return { stopped: false, content: finalText };
+    }
+
+    const fallbackResponse = await fetch("/api/chat", requestBase);
+    const fallbackData = await fallbackResponse.json();
+    if (!fallbackResponse.ok) {
+      throw new Error(fallbackData.error || "Request failed");
+    }
+
+    if (fallbackData.conversation_id) {
+      syncConversationId(fallbackData.conversation_id);
+    }
 
     state = replaceMessage(state, assistantId, {
-      content: finalText,
+      content: fallbackData.content || "",
       pending: false,
       error: false,
     });
     persistChatState(storage, state);
     render();
-    return;
-  }
 
-  const fallbackResponse = await fetch("/api/chat", requestBase);
-  const fallbackData = await fallbackResponse.json();
-  if (!fallbackResponse.ok) {
-    throw new Error(fallbackData.error || "Request failed");
-  }
+    if (requestBase.signal?.aborted) {
+      setStatus("Generation stopped", "ready");
+      return { stopped: true, content: fallbackData.content || "" };
+    }
 
-  if (fallbackData.conversation_id) {
-    syncConversationId(fallbackData.conversation_id);
+    return { stopped: false, content: fallbackData.content || "" };
+  } catch (error) {
+    if (isAbortError(error) || requestBase.signal?.aborted) {
+      state = replaceMessage(state, assistantId, {
+        content: streamedText,
+        pending: false,
+        error: false,
+      });
+      persistChatState(storage, state);
+      render();
+      setStatus("Generation stopped", "ready");
+      return { stopped: true, content: streamedText };
+    }
+    throw error;
   }
-
-  state = replaceMessage(state, assistantId, {
-    content: fallbackData.content || "",
-    pending: false,
-    error: false,
-  });
-  persistChatState(storage, state);
-  render();
 }
 
 async function sendMessage(promptText, { retrying = false } = {}) {
@@ -422,6 +460,7 @@ async function sendMessage(promptText, { retrying = false } = {}) {
 
   const userMessage = createMessage("user", trimmed);
   const assistantMessage = createMessage("assistant", "", { pending: true });
+  const generation = new AbortController();
 
   state = appendMessage(state, userMessage);
   state = appendMessage(state, assistantMessage);
@@ -431,9 +470,10 @@ async function sendMessage(promptText, { retrying = false } = {}) {
   setBusy(true);
   setStatus(retrying ? "Retrying" : "Streaming", "busy");
   let requestSucceeded = false;
+  activeGeneration = generation;
 
   try {
-    await completeWithFallback(trimmed, assistantMessage.id, {
+    const result = await completeWithFallback(assistantMessage.id, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -446,8 +486,9 @@ async function sendMessage(promptText, { retrying = false } = {}) {
         system_prompt: state.systemPrompt || "",
         conversation_id: state.activeConversationId,
       }),
+      signal: generation.signal,
     });
-    requestSucceeded = true;
+    requestSucceeded = !result.stopped;
   } catch (error) {
     state = replaceMessage(state, assistantMessage.id, {
       content: error instanceof Error ? error.message : "Request failed",
@@ -458,6 +499,7 @@ async function sendMessage(promptText, { retrying = false } = {}) {
     setStatus("Error", "error");
     render();
   } finally {
+    activeGeneration = null;
     setBusy(false);
     if (requestSucceeded) {
       setStatus(state.messages.length ? "Conversation ready" : "Ready", "ready");
@@ -468,6 +510,12 @@ async function sendMessage(promptText, { retrying = false } = {}) {
 composer.addEventListener("submit", (event) => {
   event.preventDefault();
   void sendMessage(prompt.value);
+});
+
+stop.addEventListener("click", () => {
+  if (!busy || !activeGeneration) return;
+  activeGeneration.abort();
+  setStatus("Stopping generation", "busy");
 });
 
 systemPrompt.addEventListener("input", () => {

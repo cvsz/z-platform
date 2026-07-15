@@ -463,6 +463,16 @@ button:disabled {
   justify-content: flex-end;
 }
 
+.composer__actions-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.composer__actions-group button {
+  min-width: 88px;
+}
+
 .toolbar__buttons button {
   min-width: 88px;
 }
@@ -698,6 +708,11 @@ button:disabled {
     display: grid;
   }
 
+  .composer__actions-group {
+    width: 100%;
+    display: grid;
+  }
+
   .topbar__actions {
     justify-content: stretch;
   }
@@ -706,6 +721,7 @@ button:disabled {
   .topbar__actions a,
   .topbar__actions button,
   .toolbar__buttons button,
+  .composer__actions-group button,
   .composer__actions button {
     width: 100%;
   }

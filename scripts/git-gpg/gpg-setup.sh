@@ -2,6 +2,14 @@
 set -euo pipefail
 EMAIL="${1:?Usage: $0 <email>}"
 NAME="${2:-$(git config user.name || echo "AI Coder")}"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+GIT_CONFIG_GLOBAL="${GIT_CONFIG_GLOBAL:-${GPG_LOOPBACK_GIT_CONFIG:-$REPO_ROOT/.cache/z-platform-gitconfig}}"
+
+mkdir -p "$(dirname "$GIT_CONFIG_GLOBAL")"
+touch "$GIT_CONFIG_GLOBAL"
+chmod 600 "$GIT_CONFIG_GLOBAL"
+export GIT_CONFIG_GLOBAL
+
 echo "🪪 Setting up GPG for Git"
 echo "   Email: $EMAIL"
 echo "   Name:  $NAME"

@@ -1,4 +1,5 @@
-.PHONY: all install build test lint typecheck clean
+.PHONY: all install build test lint typecheck clean \
+	gpg-commit gpg-push gpg-pull gpg-finalize
 
 # Default to running the full validation pipeline
 all: install lint typecheck build test
@@ -43,3 +44,23 @@ clean:
 	find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +
 	@echo "==> Cleaning Go CLI (zctl)..."
 	$(MAKE) -C tools/zctl clean
+
+# ==========================================
+# Git GPG Workflows
+# ==========================================
+
+gpg-commit:
+	@test -n "$(COMMIT_MSG)" || (echo "ERROR: COMMIT_MSG is required. Usage: make gpg-commit COMMIT_MSG='your message'" && exit 1)
+	git commit -S -m "$(COMMIT_MSG)"
+
+gpg-push:
+	git push
+
+gpg-pull:
+	git pull
+
+gpg-finalize:
+	@test -n "$(COMMIT_MSG)" || (echo "ERROR: COMMIT_MSG is required. Usage: make gpg-finalize COMMIT_MSG='your message'" && exit 1)
+	git add .
+	$(MAKE) gpg-commit COMMIT_MSG="$(COMMIT_MSG)"
+	$(MAKE) gpg-push

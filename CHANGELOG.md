@@ -15,6 +15,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - ZChat per-conversation system prompt editing with browser persistence and gateway forwarding.
 - AI Gateway disconnect-aware upstream cancellation with a real-socket regression test for client disconnects.
 - AI Gateway container startup contract tests covering the start command, health route, fail-closed authentication, and authorization-log redaction.
+- Root `Makefile` GPG helpers for signed commit, push, pull, and finalize workflows using the same `COMMIT_MSG` interface as the older `zeaz-platform` repo.
 - Current-head evidence record for `923c3a190fbf626faae076bf5faa43a4d03a9703`, preserving its failed deployed-smoke classification and immutable SBOM metadata.
 - Current-head evidence synchronization for `2db36e428fa95457e0559dabc224b7d8ff10d289`, including its passing SHA-bound deployed-smoke and SBOM artifacts while keeping unresolved security alerts blocked.
 - Immutable release-evidence validation that binds recorded, approved, and observed revisions to the exact release-candidate commit.
@@ -28,6 +29,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - **Agent Control Panel:** Full-stack UI for managing multi-provider API keys and automatic rotation logic.
 - **AI Gateway Redis Pool:** Multi-provider rotation pool, failure injection limits, and fallback strategies.
 - **AI Gateway Streaming & Uploads:** Native server-sent events (SSE) streaming support and binary payload pass-through.
+- **ZChat Generation Stop:** Stop control now aborts active browser and upstream chat generation while preserving partial assistant output.
 - **Cloudflare Edge Worker:** Initial proxy script and `wrangler.toml` for authentication and routing at the edge.
 - **Browser Credential Isolation:** Automated verification scripts ensure `sk-` keys and `Z_PLATFORM_SERVICE_TOKEN` are completely blocked from frontend bundles.
 - **Human Client QA & Identity Provider:** Automated static checks for screen-reader/accessibility support, responsive layouts, and Cloudflare Access external identity integration in ZChat.

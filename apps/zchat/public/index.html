@@ -102,7 +102,10 @@
           <textarea id="prompt" rows="5" placeholder="Write a message"></textarea>
           <div class="composer__actions">
             <p class="hint">Enter sends. Shift+Enter inserts a new line.</p>
-            <button id="send" type="submit">Send</button>
+            <div class="composer__actions-group">
+              <button id="stop" type="button" aria-label="Stop generating" disabled>Stop</button>
+              <button id="send" type="submit">Send</button>
+            </div>
           </div>
         </form>
       </section>

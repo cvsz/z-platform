@@ -29,3 +29,22 @@ test("readEventStream concatenates incremental chunks", async () => {
     { delta: "lo", emitted: "Hello" },
   ]);
 });
+
+test("readEventStream returns partial text when aborted", async () => {
+  const controller = new AbortController();
+  const stream = new ReadableStream({
+    start(source) {
+      source.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"Hel"}}]}\n\n'));
+    },
+  });
+
+  const response = new Response(stream, { headers: { "Content-Type": "text/event-stream" } });
+  const seen = [];
+  const fullText = await readEventStream(response, (delta, emitted) => {
+    seen.push({ delta, emitted });
+    controller.abort();
+  }, controller.signal);
+
+  assert.equal(fullText, "Hel");
+  assert.deepEqual(seen, [{ delta: "Hel", emitted: "Hel" }]);
+});

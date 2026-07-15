@@ -165,6 +165,28 @@ test("chat stream forwards streaming request and returns gateway stream", { conc
   assert.ok(result.stream);
 });
 
+test("chat stream links request cancellation to upstream fetch", { concurrency: false }, async () => {
+  const controller = new AbortController();
+  let observedSignal;
+  await chatStream(
+    { prompt: "hello", conversation_id: "conversation-1" },
+    env,
+    async (url, options) => {
+      observedSignal = options.signal;
+      return Response.json({ choices: [{ message: { content: "ok" } }] }, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      });
+    },
+    { headers: { "x-usage-correlation-id": "usage-1" }, signal: controller.signal },
+  );
+
+  assert.ok(observedSignal);
+  assert.equal(observedSignal.aborted, false);
+  controller.abort();
+  assert.equal(observedSignal.aborted, true);
+});
+
 test("chat stream includes the pinned system prompt before the user prompt", { concurrency: false }, async () => {
   const stream = new ReadableStream({
     start(controller) {
