@@ -47,11 +47,11 @@ variable "zone_name" {
 variable "app_routes" {
   description = "Public hostnames routed through the existing Cloudflare Tunnel."
   type = map(object({
-    hostname            = string
-    service             = string
-    access_enabled      = optional(bool, false)
-    access_aud          = optional(string)
-    allowed_emails      = optional(list(string), [])
+    hostname              = string
+    service               = string
+    access_enabled        = optional(bool, false)
+    access_aud            = optional(string)
+    allowed_emails        = optional(list(string), [])
     allowed_email_domains = optional(list(string), [])
   }))
 

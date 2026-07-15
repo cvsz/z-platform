@@ -8,6 +8,8 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- Cloudflare Terraform examples and installer defaults now use service-named public hostnames such as `phase6.zeaz.dev`, `zchat.zeaz.dev`, and `zai.zeaz.dev`.
+- Shared readiness probe helpers now set `Content-Type: application/json` whenever a JSON body is present, so POST-based external checks are sent with the expected content type.
 - External readiness manifest validation now rejects placeholder HTTPS probe URLs such as `staging.example.invalid` and localhost-style endpoints.
 - External readiness validation now rejects explicitly invalid probe `expectedStatus` values instead of ignoring falsy inputs.
 - CodeQL Advanced workflow hardening that provisions Node, pnpm, Go, and Python toolchains before analysis on the self-hosted `z-runner` lane, with repo-local ordering tests for the setup steps.

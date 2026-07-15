@@ -6,7 +6,7 @@ zone_name             = "zeaz.dev"
 
 app_routes = {
   phase6 = {
-    hostname             = "api6.zeaz.dev"
+    hostname             = "phase6.zeaz.dev"
     service              = "http://phase6-api:8080"
     access_enabled       = true
     allowed_emails       = ["operator@zeaz.dev"]
@@ -14,7 +14,7 @@ app_routes = {
   }
 
   zchat = {
-    hostname       = "chat.zeaz.dev"
+    hostname       = "zchat.zeaz.dev"
     service        = "http://zchat:3021"
     access_enabled = false
   }
@@ -83,7 +83,7 @@ app_routes = {
   }
 
   zaicoder_web = {
-    hostname       = "zaicoder.zeaz.dev"
+    hostname       = "zai.zeaz.dev"
     service        = "http://zaicoder-web:3005"
     access_enabled = true
     allowed_email_domains = ["zeaz.dev"]

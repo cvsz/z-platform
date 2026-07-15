@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
+import { withJsonBody } from "./probe-body.mjs";
 
 export const REQUIRED_CHECKS = [
   "observability.dashboard",
@@ -85,10 +86,11 @@ async function runProbe(check, token) {
   try {
     const headers = { Accept: "application/json, text/plain, */*" };
     if (token) headers.Authorization = `Bearer ${token}`;
+    const request = withJsonBody(headers, check.body);
     const response = await fetch(check.url, {
       method: check.method ?? "GET",
-      headers,
-      body: check.body === undefined ? undefined : JSON.stringify(check.body),
+      headers: request.headers,
+      body: request.body,
       signal: controller.signal,
       redirect: "error",
     });
