@@ -13,20 +13,20 @@ Production and external traffic remain **DISABLED**. Issue #1 remains open until
 
 ## Current-head evidence
 
-Current `main` SHA: `923c3a190fbf626faae076bf5faa43a4d03a9703` (PR #45 merge, 2026-07-15).
+Current `main` SHA: `2db36e428fa95457e0559dabc224b7d8ff10d289` (2026-07-15).
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
-| Node and Python tests and dependency audits | VERIFIED | `CI` run `29420810124`, success, 2026-07-15, GitHub Actions | Repository-local CI evidence only. |
-| Secret and browser credential scans | VERIFIED | `validate` run `29420810446`, `secret-patterns` job success, 2026-07-15 | The overall workflow failed in deployed smoke. |
-| Compose configuration and image builds | VERIFIED | `validate` run `29420810446`, `compose` job success, 2026-07-15 | Build success is not deployed health evidence. |
-| SPDX SBOM | VERIFIED | `validate` run `29420810446`; `z-platform-sbom` ID `8345118355`, digest `sha256:a690b1bb472eab7418738ae077b7b4b130196311fffd9e7ecb42ec0b40faa1ed`; `z-platform-sbom.spdx.json` ID `8345117963`, digest `sha256:a4b895ac079c0ca38c6e53557fe1b0b85bd032851ff9aff7bad547aac917ccca` | Artifacts are bound only to `923c3a1`. |
-| Dependency and provenance policy | VERIFIED | `operations` run `29420810135`, `dependency-and-provenance` success, 2026-07-15 | Valid only for `923c3a1`. |
-| Release-evidence SHA binding | VERIFIED | `validate-release-evidence` run `29420810333`, success, 2026-07-15 | Does not make a failed release candidate eligible. |
-| Seven-service deployed smoke | BLOCKED | `validate` run `29420810446`, `deployed-smoke` failed; no smoke artifact was produced | `923c3a1` is not eligible as a release candidate. |
-| AI Gateway startup remediation | IMPLEMENTED | Gateway start script, lockfile-based dedicated image, startup contract tests, and local Compose health validation on this branch | Local smoke did not produce a result; passing PR-head CI and a deployed-smoke artifact are required before VERIFIED. |
+| Node and Python tests and dependency audits | VERIFIED | `CI` run `29425990792`, success, 2026-07-15, GitHub Actions | Repository-local CI evidence only. |
+| Secret and browser credential scans | VERIFIED | `validate` run `29425992713`, `secret-patterns` job `87388407955`, success, 2026-07-15 | Pattern checks do not supersede CodeQL or Dependabot findings. |
+| Compose configuration and image builds | VERIFIED | `validate` run `29425992713`, `compose` job `87388408351`, success, 2026-07-15 | Build success is not external staging evidence. |
+| SPDX SBOM | VERIFIED | `validate` run `29425992713`; `z-platform-sbom` ID `8347268150`, digest `sha256:aa9cca3bfb86be6f368019d1ce7b4d5930b5d4596d03d716c48e6ddb03d02c29`; `z-platform-sbom.spdx.json` ID `8347267792`, digest `sha256:e98b7e6284dc6458db6ae4b0db89acd57208eaa04c19c7cd5d9a21d578354bbf` | Artifacts are bound only to `2db36e4`. |
+| Dependency and provenance policy | VERIFIED | `operations` run `29425992683`, success; `sbom-spdx-json` ID `8347266561`, digest `sha256:2ccbea7d556d8c5d1de538db418697db453f16d35ebacc8fbb32de7c1f5a11a6`, 2026-07-15 | Valid only for `2db36e4`. |
+| Seven-service deployed smoke | VERIFIED | `validate` run `29425992713`, job `87388407954`, success; `staging-smoke-evidence` ID `8347285839`, digest `sha256:6d51c96fdd373274d428217f8e8860b32ebecda442414474c35c92ca5b612ef6` | Isolated Compose evidence only; not external staging. |
+| Main security-alert state | BLOCKED | CodeQL alerts 1-5 and Dependabot alert 1 are open against `main`, inspected 2026-07-15 | Passing workflows do not make unresolved findings eligible for release. |
+| Security-alert remediation | IMPLEMENTED | Path containment, rate limiting, default-deny CORS, log redaction, and PostCSS override plus deterministic local tests on this branch | PR-head CodeQL, dependency audit, validation, and immutable artifacts are still required before VERIFIED. |
 
-Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to `923c3a1` or this branch.
+Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to this branch or a later release candidate.
 
 ## Prior immutable evidence
 
@@ -66,10 +66,10 @@ Prior evidence remains valid only for its recorded immutable SHAs. It must not b
 
 ## Rollback
 
-The rollback target for this slice is `923c3a190fbf626faae076bf5faa43a4d03a9703`. Rolling back removes only the Gateway startup remediation; it does not enable production or external traffic.
+The rollback target for this slice is `2db36e428fa95457e0559dabc224b7d8ff10d289`. Rolling back removes only the security-alert remediations; it does not enable production or external traffic.
 
 ```bash
-git checkout 923c3a190fbf626faae076bf5faa43a4d03a9703
+git checkout 2db36e428fa95457e0559dabc224b7d8ff10d289
 docker compose down -v
 docker compose up -d --build --wait
 docker compose ps
