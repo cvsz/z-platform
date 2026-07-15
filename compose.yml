@@ -97,6 +97,7 @@ services:
       AGENT_IDENTITY_URL: http://agent-provider:8800
       AGENT_SANDBOX_URL: http://agent-provider:8800
       AGENT_EXTERNAL_TRAFFIC_ENABLED: "false"
+      AGENT_TEST_FAILURE_INJECTION: ${AGENT_TEST_FAILURE_INJECTION:-false}
     ports:
       - "127.0.0.1:${AGENT_ORCHESTRATOR_PORT:-8500}:8500"
     healthcheck:
