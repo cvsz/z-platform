@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import test from "node:test";
+
+const ciWorkflowPath = fileURLToPath(new URL("../../.github/workflows/ci.yml", import.meta.url));
+const validateWorkflowPath = fileURLToPath(new URL("../../.github/workflows/validate.yml", import.meta.url));
+
+const [ciWorkflow, validateWorkflow] = await Promise.all([
+  readFile(ciWorkflowPath, "utf8"),
+  readFile(validateWorkflowPath, "utf8"),
+]);
+
+for (const [name, workflow] of [
+  ["ci", ciWorkflow],
+  ["validate", validateWorkflow],
+]) {
+  test(`${name} workflow installs pnpm before running package-manager commands`, () => {
+    assert.match(workflow, /uses:\s*pnpm\/action-setup@v4/);
+    assert.match(workflow, /version:\s*11\.4\.0/);
+    assert.match(workflow, /run:\s*pnpm install --ignore-scripts/);
+  });
+}

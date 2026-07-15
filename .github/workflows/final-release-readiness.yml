@@ -23,7 +23,7 @@ permissions:
 jobs:
   verify-staging:
     name: Verify all Phase 6 real staging gates
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted
     environment: staging
     env:
       RELEASE_SHA: ${{ inputs.release_sha }}
@@ -91,7 +91,7 @@ jobs:
   approve-production:
     name: Explicit final production approval
     needs: verify-staging
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted
     environment: production
     env:
       RELEASE_SHA: ${{ inputs.release_sha }}
@@ -121,7 +121,7 @@ jobs:
   finalize:
     name: Finalize release and close readiness issue
     needs: [verify-staging, approve-production]
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_SHA: ${{ inputs.release_sha }}

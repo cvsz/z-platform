@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   secret-patterns:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Reject obvious credentials
@@ -41,12 +41,16 @@ jobs:
           fi
 
   node:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.4.0
       - name: Install dependencies
         run: pnpm install --ignore-scripts
       - name: Test runnable Node workspaces
@@ -75,7 +79,7 @@ jobs:
           done < <(find apps packages services tools -name package.json -not -path '*/node_modules/*' | sort)
 
   python:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -93,7 +97,7 @@ jobs:
           pip-audit -r requirements-dev.txt
 
   compose:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Validate Compose configuration
@@ -106,7 +110,7 @@ jobs:
         run: docker compose build
 
   deployed-smoke:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       Z_PLATFORM_SERVICE_TOKEN: ci-readiness-token
       AGENT_TEST_FAILURE_INJECTION: "true"
@@ -157,7 +161,7 @@ jobs:
         run: docker compose down -v
 
   sbom:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Generate SPDX SBOM

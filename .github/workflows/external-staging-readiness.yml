@@ -22,7 +22,7 @@ permissions:
 jobs:
   staging-readiness:
     name: Verify external staging evidence
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment: staging
     steps:
       - name: Validate release SHA format
@@ -97,7 +97,7 @@ jobs:
     name: Explicit production release approval
     if: ${{ inputs.request_production_approval }}
     needs: staging-readiness
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment: production
     steps:
       - name: Record protected approval
