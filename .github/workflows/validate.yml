@@ -47,10 +47,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Enable pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.4.0 --activate
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.4.0
       - name: Install dependencies
         run: pnpm install --ignore-scripts
       - name: Test runnable Node workspaces
