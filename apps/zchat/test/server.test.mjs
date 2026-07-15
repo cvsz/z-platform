@@ -1,26 +1,55 @@
 import assert from "node:assert/strict";
+import { Readable } from "node:stream";
 import test from "node:test";
 
-import { chat, chatStream, createZChatServer, models } from "../server.mjs";
-
-async function request(server, path, options = {}) {
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address();
-  try {
-    return await fetch(`http://127.0.0.1:${port}${path}`, options);
-  } finally {
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
-  }
-}
+import { chat, chatStream, createZChatRequestHandler, models, zchatHealthSnapshot } from "../server.mjs";
 
 const env = { Z_PLATFORM_AI_GATEWAY_URL: "http://gateway", Z_PLATFORM_SERVICE_TOKEN: "service-token" };
 
-test("health reports gateway configuration and session policy without auth", async () => {
-  const server = createZChatServer({ env: { ...env, ZCHAT_SESSION_TTL_SECONDS: "3600" } });
+function createMockResponse() {
+  const chunks = [];
+  const headers = {};
+  return {
+    statusCode: 0,
+    headers,
+    writeHead(status, nextHeaders = {}) {
+      this.statusCode = status;
+      Object.assign(headers, nextHeaders);
+    },
+    write(chunk) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    },
+    end(chunk) {
+      if (chunk) this.write(chunk);
+      this.finished = true;
+    },
+    destroy(error) {
+      this.error = error;
+    },
+    body() {
+      return Buffer.concat(chunks).toString("utf8");
+    },
+  };
+}
 
-  const response = await request(server, "/health");
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), {
+async function invoke(handler, { method, url, headers = {}, body = "" }) {
+  const request = Readable.from(body ? [body] : []);
+  request.method = method;
+  request.url = url;
+  request.headers = headers;
+  const response = createMockResponse();
+  await handler(request, response);
+  const text = response.body();
+  return {
+    status: response.statusCode,
+    headers: new Headers(response.headers),
+    text: async () => text,
+    json: async () => JSON.parse(text),
+  };
+}
+
+test("health reports gateway configuration and session policy without auth", { concurrency: false }, async () => {
+  assert.deepEqual(zchatHealthSnapshot({ ...env, ZCHAT_SESSION_TTL_SECONDS: "3600" }), {
     status: "ok",
     service: "zchat",
     gateway_configured: true,
@@ -28,7 +57,7 @@ test("health reports gateway configuration and session policy without auth", asy
   });
 });
 
-test("loads model catalog from the AI gateway without exposing provider config", async () => {
+test("loads model catalog from the AI gateway without exposing provider config", { concurrency: false }, async () => {
   const calls = [];
   const catalog = await models(env, async (url, options) => {
     calls.push({ url, options });
@@ -40,7 +69,7 @@ test("loads model catalog from the AI gateway without exposing provider config",
   assert.equal(calls[0].options.headers.Authorization, "Bearer service-token");
 });
 
-test("chat rejects missing prompt before calling the gateway", async () => {
+test("chat rejects missing prompt before calling the gateway", { concurrency: false }, async () => {
   let called = false;
   await assert.rejects(
     chat({ prompt: "   " }, env, async () => {
@@ -52,10 +81,10 @@ test("chat rejects missing prompt before calling the gateway", async () => {
   assert.equal(called, false);
 });
 
-test("chat forwards prompt through gateway with tenant, conversation, and usage correlation", async () => {
+test("chat forwards prompt through gateway with tenant, conversation, and usage correlation", { concurrency: false }, async () => {
   const calls = [];
   const result = await chat(
-    { prompt: "  hello  ", model: "hf:test", conversation_id: "conversation-1" },
+    { prompt: "  hello  ", model: "hf:test", conversation_id: "conversation-1", system_prompt: "Be concise." },
     env,
     async (url, options) => {
       calls.push({ url, options });
@@ -73,7 +102,10 @@ test("chat forwards prompt through gateway with tenant, conversation, and usage 
   assert.equal(calls[0].options.headers["X-Request-Id"], "request-1");
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     model: "hf:test",
-    messages: [{ role: "user", content: "hello" }],
+    messages: [
+      { role: "system", content: "Be concise." },
+      { role: "user", content: "hello" },
+    ],
     stream: false,
     metadata: {
       z_platform: {
@@ -85,7 +117,19 @@ test("chat forwards prompt through gateway with tenant, conversation, and usage 
   });
 });
 
-test("chat does not duplicate v1 when gateway url already includes it", async () => {
+test("chat rejects non-string system prompts before calling the gateway", { concurrency: false }, async () => {
+  let called = false;
+  await assert.rejects(
+    chat({ prompt: "hello", system_prompt: 42 }, env, async () => {
+      called = true;
+      throw new Error("should not call gateway");
+    }),
+    /System prompt must be a string/,
+  );
+  assert.equal(called, false);
+});
+
+test("chat does not duplicate v1 when gateway url already includes it", { concurrency: false }, async () => {
   const calls = [];
   await chat(
     { prompt: "hello", conversation_id: "conversation-1" },
@@ -99,7 +143,7 @@ test("chat does not duplicate v1 when gateway url already includes it", async ()
   assert.equal(calls[0], "http://gateway/v1/chat/completions");
 });
 
-test("chat stream forwards streaming request and returns gateway stream", async () => {
+test("chat stream forwards streaming request and returns gateway stream", { concurrency: false }, async () => {
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(new TextEncoder().encode("data: hello\\n\\n"));
@@ -121,7 +165,52 @@ test("chat stream forwards streaming request and returns gateway stream", async 
   assert.ok(result.stream);
 });
 
-test("session expiry blocks chat before gateway call", async () => {
+test("chat stream links request cancellation to upstream fetch", { concurrency: false }, async () => {
+  const controller = new AbortController();
+  let observedSignal;
+  await chatStream(
+    { prompt: "hello", conversation_id: "conversation-1" },
+    env,
+    async (url, options) => {
+      observedSignal = options.signal;
+      return Response.json({ choices: [{ message: { content: "ok" } }] }, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      });
+    },
+    { headers: { "x-usage-correlation-id": "usage-1" }, signal: controller.signal },
+  );
+
+  assert.ok(observedSignal);
+  assert.equal(observedSignal.aborted, false);
+  controller.abort();
+  assert.equal(observedSignal.aborted, true);
+});
+
+test("chat stream includes the pinned system prompt before the user prompt", { concurrency: false }, async () => {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("data: hello\\n\\n"));
+      controller.close();
+    },
+  });
+  const calls = [];
+  await chatStream(
+    { prompt: "hello", conversation_id: "conversation-1", system_prompt: "Be concise." },
+    env,
+    async (url, options) => {
+      calls.push({ url, body: JSON.parse(options.body) });
+      return new Response(stream, { status: 200, headers: { "Content-Type": "text/event-stream" } });
+    },
+  );
+
+  assert.deepEqual(calls[0].body.messages, [
+    { role: "system", content: "Be concise." },
+    { role: "user", content: "hello" },
+  ]);
+});
+
+test("session expiry blocks chat before gateway call", { concurrency: false }, async () => {
   let called = false;
   await assert.rejects(
     chat(
@@ -138,26 +227,28 @@ test("session expiry blocks chat before gateway call", async () => {
   assert.equal(called, false);
 });
 
-test("api chat returns gateway content and conversation id", async () => {
-  const server = createZChatServer({
+test("http routes return gateway content and clear browser storage", { concurrency: false }, async () => {
+  const handler = createZChatRequestHandler({
     env,
     fetchImpl: async () => Response.json({ choices: [{ message: { content: "ok" } }] }),
   });
 
-  const response = await request(server, "/api/chat", {
+  const chatResponse = await invoke(handler, {
     method: "POST",
+    url: "/api/chat",
     headers: { "Content-Type": "application/json", "X-Usage-Correlation-Id": "usage-1" },
     body: JSON.stringify({ prompt: "hi", conversation_id: "conversation-1" }),
   });
 
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { content: "ok", conversation_id: "conversation-1" });
-});
+  assert.equal(chatResponse.status, 200);
+  assert.deepEqual(await chatResponse.json(), { content: "ok", conversation_id: "conversation-1" });
 
-test("logout clears browser storage boundary", async () => {
-  const response = await request(createZChatServer({ env }), "/api/logout", { method: "POST" });
+  const logoutResponse = await invoke(createZChatRequestHandler({ env }), {
+    method: "POST",
+    url: "/api/logout",
+  });
 
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get("clear-site-data"), '"storage"');
-  assert.deepEqual(await response.json(), { status: "logged_out" });
+  assert.equal(logoutResponse.status, 200);
+  assert.equal(logoutResponse.headers.get("clear-site-data"), '"storage"');
+  assert.deepEqual(await logoutResponse.json(), { status: "logged_out" });
 });
