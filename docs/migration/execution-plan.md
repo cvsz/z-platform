@@ -122,10 +122,10 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Configured real Cloudflare edge routing logic and basic identity proxy worker.
 - Verified AI streaming chat and upload/file proxy behavior through AI Gateway.
 - Inspected the deployed browser bundle and network traffic for credential isolation; verified no provider keys leak to clients.
+- Completed human ZChat accessibility, target-device responsive CSS, and external session-provider QA with Cloudflare Access JWT.
 
 ### Remaining
 
-- Complete human ZChat accessibility, target-device, and external session-provider QA.
 - Record billing/legal decisions, staging reviewer, production approver, incident owner, escalation route, and post-launch watch window.
 - Record a passing workflow and immutable artifacts for the exact commit selected as the next release candidate.
 

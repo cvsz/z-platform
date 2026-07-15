@@ -1,6 +1,7 @@
 const model = document.querySelector("#model");
 const prompt = document.querySelector("#prompt");
 const send = document.querySelector("#send");
+const login = document.querySelector("#login");
 const logout = document.querySelector("#logout");
 const result = document.querySelector("#result");
 const status = document.querySelector("#status");
@@ -65,6 +66,22 @@ logout.onclick = async () => {
   localStorage.setItem("zchat.sessionStartedAt", sessionStartedAt);
   result.textContent = "";
   status.textContent = "Logged out";
+  login.style.display = 'inline-block';
+  logout.style.display = 'none';
 };
+
+login.onclick = (e) => {
+  e.preventDefault();
+  // Simulate Cloudflare Access redirect
+  status.textContent = "Redirecting to Cloudflare Access...";
+  setTimeout(() => {
+    login.style.display = 'none';
+    logout.style.display = 'inline-block';
+    status.textContent = "Ready";
+  }, 500);
+};
+
+// Initial state
+login.style.display = 'none';
 
 loadModels();
