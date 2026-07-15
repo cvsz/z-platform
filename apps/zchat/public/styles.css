@@ -1,98 +1,345 @@
+:root {
+  color-scheme: light;
+  --page-bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef2f7;
+  --border: #d2d8e2;
+  --text: #1f2430;
+  --muted: #5c6678;
+  --accent: #155eef;
+  --accent-strong: #0d4ed8;
+  --danger: #b42318;
+  --shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f7f8fa;
-  color: #15171a;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)),
+    var(--page-bg);
+  color: var(--text);
 }
 
-main {
-  width: min(860px, calc(100vw - 32px));
+button,
+select,
+textarea,
+a[role="button"] {
+  font: inherit;
+}
+
+.shell {
+  width: min(1120px, calc(100vw - 24px));
   margin: 0 auto;
-  padding: 32px 0;
+  padding: 20px 0 24px;
 }
 
-header {
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.topbar__title h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  line-height: 1.15;
+}
+
+.topbar__title p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.topbar__actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-label {
+.conversation {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.workspace {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.toolbar label,
+.composer label {
   display: block;
-  margin-top: 16px;
-  font-weight: 600;
+  margin-bottom: 6px;
+  font-weight: 650;
+  color: var(--muted);
 }
 
 select,
 textarea,
 button,
-pre {
-  box-sizing: border-box;
-  width: 100%;
-  margin-top: 8px;
-  border: 1px solid #c8ced8;
-  border-radius: 8px;
-  font: inherit;
+a[role="button"] {
+  border-radius: 10px;
+  border: 1px solid var(--border);
 }
 
 select,
 textarea {
+  width: 100%;
   padding: 10px 12px;
   background: #fff;
+  color: var(--text);
 }
 
-button {
-  min-height: 44px;
-  padding: 10px 14px;
-  background: #155eef;
-  color: #fff;
+select {
+  min-width: 0;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 112px;
+  line-height: 1.5;
+}
+
+button,
+a[role="button"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
   border: 0;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
   cursor: pointer;
 }
 
+button:hover,
+a[role="button"]:hover {
+  background: var(--accent-strong);
+}
+
 button:disabled {
-  opacity: 0.6;
-  cursor: wait;
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-header button {
-  width: auto;
-  margin-top: 0;
-  background: #454b57;
+.toolbar__buttons,
+.composer__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
 }
 
-pre {
-  min-height: 180px;
+.toolbar__buttons button {
+  min-width: 88px;
+}
+
+#logout {
+  background: #475467;
+}
+
+#logout:hover {
+  background: #344054;
+}
+
+.status {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.status[data-tone="busy"] {
+  color: var(--accent-strong);
+}
+
+.status[data-tone="error"] {
+  color: var(--danger);
+}
+
+.transcript {
+  position: relative;
+  min-height: 360px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(245, 247, 250, 0.45), rgba(245, 247, 250, 0.2));
+  overflow: hidden;
+}
+
+.messages {
+  list-style: none;
+  margin: 0;
   padding: 16px;
+  display: grid;
+  gap: 12px;
+  max-height: 48vh;
   overflow: auto;
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+  pointer-events: none;
+}
+
+.message {
+  display: grid;
+  gap: 6px;
+  max-width: min(80ch, 84%);
+}
+
+.message--user {
+  justify-self: end;
+  text-align: left;
+}
+
+.message--assistant {
+  justify-self: start;
+}
+
+.message__meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.message__role {
+  font-weight: 650;
+}
+
+.message__body {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
+.message--user .message__body {
+  background: #eaf1ff;
+  border-color: #c6d7ff;
+}
+
+.message--assistant .message__body {
   background: #fff;
 }
 
-@media (max-width: 600px) {
-  main {
-    width: min(100% - 24px, 860px);
-    padding: 16px 0 24px;
+.message.is-pending .message__body {
+  border-style: dashed;
+}
+
+.message.is-error .message__body {
+  border-color: #f1b2ad;
+  color: var(--danger);
+}
+
+.composer {
+  display: grid;
+  gap: 8px;
+}
+
+.composer__actions {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  .shell {
+    width: min(100vw - 16px, 1120px);
+    padding: 12px 0 16px;
   }
 
-  header {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
+  .topbar,
+  .toolbar,
+  .composer__actions {
+    grid-template-columns: 1fr;
+    display: grid;
   }
 
-  header button {
+  .topbar__actions {
+    justify-content: stretch;
+  }
+
+  .conversation,
+  .topbar__actions a,
+  .topbar__actions button,
+  .toolbar__buttons button,
+  .composer__actions button {
     width: 100%;
   }
 
-  textarea {
-    min-height: 140px;
+  .message {
+    max-width: 100%;
   }
 
-  pre {
-    min-height: 140px;
+  .messages {
+    max-height: 52vh;
     padding: 12px;
   }
 }

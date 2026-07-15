@@ -1,23 +1,55 @@
 <!doctype html>
 <html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ZChat</title>
-<link rel="stylesheet" href="/styles.css">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ZChat</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
 <body>
-  <main>
-    <header>
-      <h1>ZChat</h1>
-      <a href="/api/auth/cloudflare" id="login" role="button" aria-label="Log in with Cloudflare Access">Log in</a>
-      <button id="logout" type="button" aria-label="Log out">Log out</button>
+  <main class="shell">
+    <header class="topbar">
+      <div class="topbar__title">
+        <h1>ZChat</h1>
+        <p>Gateway-only chat surface for zchat.zeaz.dev</p>
+      </div>
+      <div class="topbar__actions">
+        <span class="conversation" id="conversation" aria-label="Conversation id">new</span>
+        <a href="/api/auth/cloudflare" id="login" role="button" aria-label="Log in with Cloudflare Access">Log in</a>
+        <button id="logout" type="button" aria-label="Log out">Log out</button>
+      </div>
     </header>
-    <p id="status" role="status" aria-live="polite">Loading models</p>
-    <label for="model">Model</label>
-    <select id="model" aria-label="Model"></select>
-    <label for="prompt">Message</label>
-    <textarea id="prompt" rows="8" placeholder="Message"></textarea>
-    <button id="send" type="button">Send</button>
-    <pre id="result" aria-live="polite"></pre>
+
+    <section class="workspace" aria-label="Chat workspace">
+      <div class="toolbar" aria-label="Chat controls">
+        <label for="model">Model</label>
+        <select id="model" aria-label="Model"></select>
+        <div class="toolbar__buttons">
+          <button id="retry" type="button" aria-label="Retry last message">Retry</button>
+          <button id="clear" type="button" aria-label="Clear conversation">Clear</button>
+        </div>
+      </div>
+
+      <p id="status" class="status" role="status" aria-live="polite" data-tone="ready">Loading models</p>
+
+      <section class="transcript" aria-label="Conversation transcript">
+        <ol id="transcript" class="messages" role="log" aria-live="polite" aria-relevant="additions text"></ol>
+        <div id="empty-state" class="empty-state">
+          Start a conversation. Replies stream into the timeline and stay on the server gateway path.
+        </div>
+      </section>
+
+      <form id="composer" class="composer">
+        <label for="prompt">Message</label>
+        <textarea id="prompt" rows="5" placeholder="Write a message"></textarea>
+        <div class="composer__actions">
+          <p class="hint">Enter sends. Shift+Enter inserts a new line.</p>
+          <button id="send" type="submit">Send</button>
+        </div>
+      </form>
+
+      <pre id="result" class="sr-only" aria-hidden="true"></pre>
+    </section>
   </main>
   <script type="module" src="/app.js"></script>
 </body>

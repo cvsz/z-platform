@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — ZChat conversation transcript and streaming composer upgrade
+
+- Base revision: `50054c26accc0b9903179e4fae0dac6acf174dd0`
+- Scope: one repository-local ZChat UI slice.
+- Implementation: replaced the single-message form with a transcript-based conversation shell, browser-persisted conversation state, retry/clear controls, and streaming assistant rendering with a gateway fallback path.
+- Compatibility: gateway-only model catalog loading, tenant/session correlation, logout clearing, and server-side provider isolation remain unchanged.
+- Security: browser code still receives no provider credentials or upstream base URLs.
+- Tests: `node --test apps/zchat/test`, `node --test apps/zchat/test/server.test.mjs`, and repo pre-push validation passed on the branch head.
+- Limitations: isolated repository validation only; no external staging or operator approval is claimed.
+
 ## 2026-07-15 — AI Gateway disconnect-aware upstream cancellation
 
 - Base revision: `36fc7f594c933137a1d8da2855bac752fb2f03b3`
