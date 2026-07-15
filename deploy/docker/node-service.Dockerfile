@@ -17,6 +17,7 @@ ENV HOST=0.0.0.0
 WORKDIR /app
 
 COPY ${SERVICE_PATH}/package.json ./package.json
+RUN npm install --omit=dev
 COPY ${SERVICE_PATH}/ ./
 
 RUN addgroup -S zplatform && adduser -S -G zplatform zplatform \

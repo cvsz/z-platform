@@ -7,7 +7,8 @@ set -Eeuo pipefail
 # unsupported variables, and malformed lines. It only normalizes matching
 # *_*_KEY assignments after removing balanced outer quote pairs.
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 
 if (( $# > 1 )); then
   printf 'Usage: %s [credential-file]\n' "${0##*/}" >&2
