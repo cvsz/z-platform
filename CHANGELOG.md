@@ -22,6 +22,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - **Cloudflare Edge Worker:** Initial proxy script and `wrangler.toml` for authentication and routing at the edge.
 - **Browser Credential Isolation:** Automated verification scripts ensure `sk-` keys and `Z_PLATFORM_SERVICE_TOKEN` are completely blocked from frontend bundles.
 - **Human Client QA & Identity Provider:** Automated static checks for screen-reader/accessibility support, responsive layouts, and Cloudflare Access external identity integration in ZChat.
+- **Observability Stack:** Added automated verification script `verify-observability-stack.mjs` to validate Prometheus metrics collection, Grafana health, and Jaeger distributed trace propagation.
 
 ### Security
 

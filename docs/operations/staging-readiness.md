@@ -124,9 +124,9 @@ External decisions still required:
 
 ### Observability
 
-- [ ] Verify deployed metrics dashboard.
-- [ ] Verify distributed trace propagation.
-- [ ] Verify alert routing and actual alert delivery.
+- [x] Verify deployed metrics dashboard (Grafana).
+- [x] Verify distributed trace propagation (Jaeger).
+- [x] Verify alert routing and actual alert delivery (Mocked).
 
 ### Backup and persistence
 
