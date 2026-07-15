@@ -23,7 +23,7 @@ This document distinguishes four evidence levels:
 - Final repository-side runtime verification: `d8207aa1a7880899c1fcea4de5e6903fc140805a`
 - Observability stack verification: `b10d3368dd8735943d4b294a05462348c5defb4f` (PR #43)
 - Warnings cleanup and services restoration: `624183524fd3edc9666ddce7c64acafa1130fa7e` (PR #44)
-- Evidence drift sync and SHA-binding gate: PENDING_MERGE — current branch `feat/evidence-drift-sync-sha-gate`
+- Evidence drift sync and SHA-binding gate: PENDING_MERGE — PR #45 `feat/evidence-drift-sync-sha-gate`
 
 ## CI and supply-chain artifacts
 
