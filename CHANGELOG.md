@@ -30,6 +30,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Security
 
+- Resolve CodeQL findings for workspace path containment, AI Gateway rate limiting, default-deny CORS, and Cloudflare installer authorization-header logging; override transitive PostCSS to patched version `8.5.19`.
 - Kept production and external traffic disabled while making Gateway runtime dependency installation explicit and scoped to that image.
 - Release evidence copied from another commit is rejected before approval or deployment recording.
 - Documented gateway-only provider access and browser secret isolation.

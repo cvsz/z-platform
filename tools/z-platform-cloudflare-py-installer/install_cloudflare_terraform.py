@@ -12,8 +12,21 @@ ADDR='cloudflare_dns_record.app_routes["phase6"]'
 class Error(RuntimeError): pass
 
 def log(s): print(f'\n==> {s}', flush=True)
+def redact_command(cmd):
+    redacted=[]
+    redact_next=False
+    for arg in cmd:
+        if redact_next:
+            redacted.append('[REDACTED]'); redact_next=False
+        elif arg.lower() in ('-h','--header'):
+            redacted.append(arg); redact_next=True
+        elif arg.lower().startswith('authorization:'):
+            redacted.append('Authorization: [REDACTED]')
+        else: redacted.append(arg)
+    return redacted
+
 def run(cmd,cwd=None,env=None,check=True,capture=False):
-    print('+',' '.join(cmd),flush=True)
+    print('+',' '.join(redact_command(cmd)),flush=True)
     return subprocess.run(cmd,cwd=cwd,env=env,check=check,text=True,capture_output=capture)
 
 def parse_env(path:Path):

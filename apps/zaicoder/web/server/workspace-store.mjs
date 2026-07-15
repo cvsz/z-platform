@@ -1,6 +1,6 @@
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
 
 const DEFAULT_RETENTION_DAYS = 30;
 const MAX_RETENTION_DAYS = 365;
@@ -43,12 +43,17 @@ function assertOwner(record, owner) {
 
 export class FileWorkspaceAdapter {
   constructor({ root = process.env.ZAICODER_WORKSPACE_STORE || ".zaicoder-workspaces" } = {}) {
-    this.root = root;
+    this.root = resolve(root);
   }
 
   pathFor(id) {
     validateWorkspaceId(id);
-    return join(this.root, `${id}.json`);
+    const candidate = resolve(this.root, `${id}.json`);
+    const relativePath = relative(this.root, candidate);
+    if (!relativePath || relativePath.startsWith("..") || isAbsolute(relativePath)) {
+      throw new WorkspaceStoreError("workspace path escapes configured root");
+    }
+    return candidate;
   }
 
   async listIds() {
