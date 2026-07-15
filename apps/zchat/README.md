@@ -4,7 +4,7 @@ ZChat is the platform chat surface migrated from `cvsz/zeaz-platform/apps/zchat`
 
 This version keeps the browser UI thin and routes model calls through the platform AI Gateway. Browser code must never contain upstream provider keys, direct provider base URLs, or tenant-wide service credentials.
 
-The current shell is a conversation client rather than a single-submit form: it renders a transcript, persists the active conversation in browser storage, streams assistant output when the gateway supports it, and still keeps all model calls on the server side.
+The current shell is a conversation client rather than a single-submit form: it renders a transcript, persists the active conversation in browser storage, streams assistant output when the gateway supports it, and still keeps all model calls on the server side. Assistant replies support a safe markdown subset for headings, lists, quotes, code fences, inline code, and http(s) links.
 
 ## Runtime
 
@@ -27,7 +27,7 @@ All model calls include tenant, conversation, request, and usage-correlation hea
 
 ## Validation
 
-Run `npm test` in this directory to check health, gateway-only chat forwarding, model catalog loading, streaming forwarding, tenant scoping, conversation IDs, usage correlation, session expiry, logout, browser storage persistence, stream parsing, and gateway URL normalization.
+Run `npm test` in this directory to check health, gateway-only chat forwarding, model catalog loading, streaming forwarding, tenant scoping, conversation IDs, usage correlation, session expiry, logout, browser storage persistence, stream parsing, safe markdown rendering, and gateway URL normalization.
 
 ## Migration limits
 

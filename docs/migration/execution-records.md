@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — ZChat safe markdown rendering upgrade
+
+- Base revision: `b43140e26d3ec0dc2a38ae5e5805989d2f393e3d`
+- Scope: one repository-local ZChat UI slice.
+- Implementation: added a safe markdown renderer for assistant replies, with code fences, headings, lists, quotes, inline formatting, and link allowlisting for http(s) URLs.
+- Compatibility: transcript rendering, browser storage state, streaming replies, and gateway-only model forwarding remain unchanged.
+- Security: raw HTML and dangerous URL schemes remain text-only; no provider credentials or external auth state were added to the browser.
+- Tests: focused markdown tokenization and rendering tests, plus the existing zchat suite, passed on the branch head.
+- Limitations: repository-local validation only; no external staging or operator approval is claimed.
+
 ## 2026-07-16 — ZChat conversation transcript and streaming composer upgrade
 
 - Base revision: `50054c26accc0b9903179e4fae0dac6acf174dd0`

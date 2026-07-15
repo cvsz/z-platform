@@ -5,6 +5,7 @@ import {
   persistChatState,
   replaceMessage,
 } from "./chat-state.mjs";
+import { renderMarkdownFragment } from "./markdown.mjs";
 import { readEventStream } from "./chat-stream.mjs";
 
 const transcript = document.querySelector("#transcript");
@@ -58,9 +59,14 @@ function renderMessage(message) {
   stamp.textContent = new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   meta.append(role, stamp);
 
-  const body = document.createElement("pre");
+  const body = document.createElement(message.role === "assistant" ? "div" : "pre");
   body.className = "message__body";
-  body.textContent = message.content || (message.pending ? "Streaming..." : "");
+  if (message.role === "assistant" && message.content) {
+    body.classList.add("markdown");
+    body.replaceChildren(renderMarkdownFragment(document, message.content));
+  } else {
+    body.textContent = message.content || (message.pending ? "Streaming..." : "");
+  }
 
   item.append(meta, body);
   return item;
