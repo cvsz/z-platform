@@ -24,7 +24,7 @@ Current `main` SHA: `2db36e428fa95457e0559dabc224b7d8ff10d289` (2026-07-15).
 | Dependency and provenance policy | VERIFIED | `operations` run `29425992683`, success; `sbom-spdx-json` ID `8347266561`, digest `sha256:2ccbea7d556d8c5d1de538db418697db453f16d35ebacc8fbb32de7c1f5a11a6`, 2026-07-15 | Valid only for `2db36e4`. |
 | Seven-service deployed smoke | VERIFIED | `validate` run `29425992713`, job `87388407954`, success; `staging-smoke-evidence` ID `8347285839`, digest `sha256:6d51c96fdd373274d428217f8e8860b32ebecda442414474c35c92ca5b612ef6` | Isolated Compose evidence only; not external staging. |
 | Main security-alert state | BLOCKED | CodeQL alerts 1-5 and Dependabot alert 1 are open against `main`, inspected 2026-07-15 | Passing workflows do not make unresolved findings eligible for release. |
-| Security-alert remediation | IMPLEMENTED | Path containment, rate limiting, default-deny CORS, log redaction, and PostCSS override plus deterministic local tests on this branch | PR-head CodeQL, dependency audit, validation, and immutable artifacts are still required before VERIFIED. |
+| Security-alert remediation | IMPLEMENTED | Path containment, rate limiting, default-deny CORS, command-argument omission, and PostCSS override plus deterministic local tests on this branch | PR-head CodeQL, dependency audit, validation, and immutable artifacts are still required before VERIFIED. |
 
 Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to this branch or a later release candidate.
 

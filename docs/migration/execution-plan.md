@@ -130,7 +130,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Record a passing workflow and immutable artifacts for the exact commit selected as the next release candidate.
 - **VERIFIED** - Current `main` SHA `2db36e428fa95457e0559dabc224b7d8ff10d289` has passing CI, secret and browser scans, Compose build, deployed smoke, SBOM, provenance, and CodeQL workflows. `validate` run `29425992713` produced smoke artifact `8347285839` with digest `sha256:6d51c96fdd373274d428217f8e8860b32ebecda442414474c35c92ca5b612ef6`.
 - **BLOCKED** - Security release eligibility for that SHA is blocked by CodeQL alerts 1-5 and Dependabot alert 1 (`GHSA-qx2v-qp2m-jg93`). A successful workflow does not override open findings.
-- **IMPLEMENTED** - Repository-local remediations for the five CodeQL findings and the PostCSS advisory exist on this branch. PR-head CodeQL, dependency audit, validation, and immutable artifact evidence are still required before the branch can be selected as a release candidate.
+- **IMPLEMENTED** - Repository-local remediations for the five original CodeQL findings, the PR-head logging follow-up, and the PostCSS advisory exist on this branch. PR-head CodeQL, dependency audit, validation, and immutable artifact evidence are still required before the branch can be selected as a release candidate.
 
 **Done when:** every service has health checks, least-privilege identity, observability, rollback notes, a passing CI gate for the selected release, completed external staging evidence, and explicit production approval.
 

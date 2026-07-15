@@ -32,7 +32,7 @@
 
 ## Current remediation classification
 
-- **IMPLEMENTED** - CodeQL alerts 1-5 are addressed by path containment, rate limiting, default-deny CORS, and authorization-header redaction with deterministic tests.
+- **IMPLEMENTED** - CodeQL alerts 1-5 are addressed by path containment, rate limiting, default-deny CORS, and command-argument omission with deterministic tests.
 - **IMPLEMENTED** - Dependabot alert 1 is addressed by resolving PostCSS to patched version `8.5.19` with a workspace override.
 - **BLOCKED** - Verification requires PR-head CodeQL, dependency audit, validation, and immutable artifact evidence for the exact remediation SHA.
 

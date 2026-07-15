@@ -37,7 +37,7 @@ Status definitions use the issue #1 semantics: **VERIFIED**, **IMPLEMENTED**, **
 | Production release approval | Production environment requires approval | Explicit release SHA approval absent | Production | PENDING_OPERATOR |
 | Current `main` evidence (`2db36e428fa95457e0559dabc224b7d8ff10d289`) | Seven-service topology and release gates | Runs `29425990792`, `29425992713`, `29425992683`, and `29425992884` pass; smoke artifact `8347285839`; SBOM IDs `8347268150`, `8347267792`, `8347266561` | GitHub Actions / isolated Compose | VERIFIED |
 | Current `main` security eligibility | CodeQL and Dependabot scanning | CodeQL alerts 1-5 and Dependabot alert 1 remain open | GitHub security scanning | BLOCKED |
-| Security-alert remediation | Path containment, rate limiting, default-deny CORS, authorization-header redaction, patched PostCSS resolution | Deterministic local success, denial, and security tests pass; PR-head workflows pending | Repository / isolated Compose | IMPLEMENTED |
+| Security-alert remediation | Path containment, rate limiting, default-deny CORS, command-argument omission, patched PostCSS resolution | Deterministic local success, denial, and security tests pass; PR-head workflows pending | Repository / isolated Compose | IMPLEMENTED |
 
 ## Release selection rule
 

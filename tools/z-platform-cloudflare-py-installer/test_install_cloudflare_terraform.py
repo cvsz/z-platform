@@ -12,7 +12,7 @@ SPEC.loader.exec_module(MODULE)
 
 
 class CommandLoggingTests(unittest.TestCase):
-    def test_authorization_header_is_redacted(self):
+    def test_command_arguments_are_omitted_from_logs(self):
         command = ["curl", "-H", "Authorization: Bearer sensitive-token", "https://api.example.test"]
         output = io.StringIO()
 
@@ -20,7 +20,8 @@ class CommandLoggingTests(unittest.TestCase):
             MODULE.run(command)
 
         self.assertNotIn("sensitive-token", output.getvalue())
-        self.assertIn("[REDACTED]", output.getvalue())
+        self.assertNotIn("Authorization", output.getvalue())
+        self.assertEqual("+ executing command (arguments omitted)\n", output.getvalue())
         run.assert_called_once_with(command, cwd=None, env=None, check=True, text=True, capture_output=False)
 
 

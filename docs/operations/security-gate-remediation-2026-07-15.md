@@ -17,7 +17,7 @@ This slice addresses CodeQL alerts 1-5 and Dependabot alert 1 without changing a
 | Workspace path expressions | IMPLEMENTED | Canonical root containment rejects traversal and absolute paths; success and denial tests pass. | PR-head CodeQL result. |
 | AI Gateway rate limiting | IMPLEMENTED | Authenticated API boundary has a validated, fail-closed limiter; deterministic 429 and invalid-configuration tests pass. | PR-head CodeQL and deployed-smoke results. |
 | AI Gateway CORS | IMPLEMENTED | Browser access defaults to no origins; wildcard and malformed origins are rejected; allowlist tests pass. | PR-head CodeQL and deployed-smoke results. |
-| Cloudflare installer log exposure | IMPLEMENTED | Command display redacts authorization values while subprocess execution retains the injected value; regression test verifies log absence. | PR-head CodeQL result. |
+| Cloudflare installer log exposure | IMPLEMENTED | Command logs omit every argument while subprocess execution retains the injected values; regression tests verify the token and header name are absent. | PR-head CodeQL result. |
 | PostCSS advisory | IMPLEMENTED | Workspace override resolves PostCSS `8.5.19`; `pnpm audit --audit-level moderate` reports no known vulnerabilities. | PR-head dependency policy result and Dependabot rescan. |
 
 ## Local validation
