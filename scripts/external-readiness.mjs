@@ -25,9 +25,13 @@ const SAFE_STATUS = new Set(["verified", "failed"]);
 const PLACEHOLDER_PATTERNS = [
   /^pending:/i,
   /^replace_with/i,
-  /example\.com/i,
+  /example\.(com|org|net|invalid)/i,
+  /localhost/i,
+  /127\.0\.0\.1/i,
+  /0\.0\.0\.0/i,
   /<[^>]+>/,
   /staging-observability-host/i,
+  /staging\.example\.invalid/i,
 ];
 
 function isPlaceholderEvidence(value) {

@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- External readiness manifest validation now rejects placeholder HTTPS probe URLs such as `staging.example.invalid` and localhost-style endpoints.
 - External readiness validation now rejects explicitly invalid probe `expectedStatus` values instead of ignoring falsy inputs.
 - CodeQL Advanced workflow hardening that provisions Node, pnpm, Go, and Python toolchains before analysis on the self-hosted `z-runner` lane, with repo-local ordering tests for the setup steps.
 - CodeQL Advanced workflow update that runs on the self-hosted `z-runner` lane and loads the broader `security-and-quality` query suite, with repo-local workflow-shape tests; alert-closure evidence still requires a PR-head runner execution.

@@ -42,7 +42,7 @@ test("rejects insecure probe URLs", () => {
 
 test("rejects invalid expected probe statuses", () => {
   const value = manifest();
-  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.example.invalid/health", expectedStatus: 0 };
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zplatform.dev/health", expectedStatus: 0 };
   assert.throws(() => validateManifest(value, releaseSha), /invalid expectedStatus/);
 });
 
@@ -50,6 +50,12 @@ test("rejects invalid or placeholder probe URLs", () => {
   const value = manifest();
   value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "pending:dashboard" };
   assert.throws(() => validateManifest(value, releaseSha), /invalid URL|must use HTTPS|placeholder URL/);
+});
+
+test("rejects example placeholder probe URLs", () => {
+  const value = manifest();
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.example.invalid/health" };
+  assert.throws(() => validateManifest(value, releaseSha), /placeholder URL/);
 });
 
 test("rejects pending attestation evidence", () => {
