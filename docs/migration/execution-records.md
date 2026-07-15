@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — ZChat browser-local prompt template library
+
+- Base revision: `ca0caff`
+- Scope: one repository-local ZChat UI slice.
+- Implementation: added a browser-local prompt template library with built-in presets, custom template saving, per-template reuse, and a "start from template" path that creates a fresh chat and sends the selected prompt.
+- Compatibility: transcript rendering, conversation history selection, pinned system prompts, retry, logout, and gateway-only forwarding remain unchanged.
+- Security: browser code still receives no provider credentials or upstream base URLs; custom templates stay local to browser storage.
+- Tests: conversation-state coverage now includes template default loading, template persistence, and template removal on the branch head.
+- Limitations: repository-local validation only; no external staging or operator approval is claimed.
+
 ## 2026-07-16 — ZChat pinned system prompt support
 
 - Base revision: `c4edcf86a748e4420b4b64fb0e3d6619df712d16`

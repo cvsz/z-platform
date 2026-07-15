@@ -4,11 +4,15 @@ import {
   clearActiveConversation,
   clearChatState,
   conversationSummaries,
+  addPromptTemplate,
   lastUserMessage,
   loadChatState,
+  loadPromptTemplates,
   persistChatState,
+  persistPromptTemplates,
   renameActiveConversation,
   replaceMessage,
+  removePromptTemplate,
   selectConversation,
   startNewConversation,
   setActiveSystemPrompt,
@@ -18,6 +22,10 @@ import { readEventStream } from "./chat-stream.mjs";
 
 const transcript = document.querySelector("#transcript");
 const historyList = document.querySelector("#history");
+const templatesList = document.querySelector("#templates");
+const templateForm = document.querySelector("#template-form");
+const templateTitle = document.querySelector("#template-title");
+const templatePrompt = document.querySelector("#template-prompt");
 const composer = document.querySelector("#composer");
 const systemPrompt = document.querySelector("#system-prompt");
 const model = document.querySelector("#model");
@@ -35,6 +43,7 @@ const emptyState = document.querySelector("#empty-state");
 const storage = window.localStorage;
 
 let state = loadChatState(storage);
+let promptTemplates = loadPromptTemplates(storage);
 let busy = false;
 
 function setStatus(message, tone = "idle") {
@@ -50,6 +59,9 @@ function setBusy(nextBusy) {
   newChat.disabled = nextBusy;
   prompt.disabled = nextBusy;
   systemPrompt.disabled = nextBusy;
+  templateForm.querySelectorAll("input, textarea, button").forEach((element) => {
+    element.disabled = nextBusy;
+  });
   model.disabled = nextBusy;
   historyList.querySelectorAll("button").forEach((button) => {
     button.disabled = nextBusy;
@@ -148,6 +160,72 @@ function renderHistory() {
   historyList.replaceChildren(...summaries.map(renderHistoryItem));
 }
 
+function renderTemplateItem(template) {
+  const item = document.createElement("li");
+  item.className = "template__item";
+
+  const body = document.createElement("div");
+  body.className = "template__body";
+
+  const title = document.createElement("div");
+  title.className = "template__title";
+  title.textContent = template.title;
+
+  const preview = document.createElement("div");
+  preview.className = "template__preview";
+  preview.textContent = template.preview || "No prompt text";
+
+  body.append(title, preview);
+
+  const actions = document.createElement("div");
+  actions.className = "template__actions";
+
+  const useButton = document.createElement("button");
+  useButton.type = "button";
+  useButton.textContent = "Use";
+  useButton.addEventListener("click", () => {
+    templatePrompt.value = template.prompt;
+    templatePrompt.focus();
+    setStatus(`Loaded ${template.title} into the template editor`, "ready");
+  });
+
+  const startButton = document.createElement("button");
+  startButton.type = "button";
+  startButton.textContent = "Start";
+  startButton.addEventListener("click", () => {
+    if (busy) return;
+    state = startNewConversation(state);
+    persistChatState(storage, state);
+    prompt.value = "";
+    render();
+    void sendMessage(template.prompt);
+  });
+
+  actions.append(useButton, startButton);
+
+  if (!template.builtIn) {
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.className = "is-danger";
+    deleteButton.addEventListener("click", () => {
+      if (busy) return;
+      promptTemplates = removePromptTemplate(promptTemplates, template.id);
+      persistPromptTemplates(storage, promptTemplates);
+      render();
+      setStatus(`Removed ${template.title}`, "ready");
+    });
+    actions.append(deleteButton);
+  }
+
+  item.append(body, actions);
+  return item;
+}
+
+function renderTemplates() {
+  templatesList.replaceChildren(...promptTemplates.map(renderTemplateItem));
+}
+
 function render() {
   const activeSummary = activeConversationSummary(state);
   transcript.replaceChildren(...state.messages.map(renderMessage));
@@ -163,6 +241,7 @@ function render() {
     transcript.scrollTop = transcript.scrollHeight;
   }
   renderHistory();
+  renderTemplates();
 }
 
 function createMessage(role, content, overrides = {}) {
@@ -329,6 +408,28 @@ systemPrompt.addEventListener("input", () => {
   persistChatState(storage, state);
 });
 
+templateForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (busy) return;
+
+  const title = templateTitle.value.trim();
+  const promptText = templatePrompt.value.trim();
+  if (!promptText) {
+    setStatus("Enter a prompt before saving a template", "error");
+    return;
+  }
+
+  const savedTitle = title || "Untitled prompt";
+  promptTemplates = addPromptTemplate(promptTemplates, {
+    title: savedTitle,
+    prompt: promptText,
+  });
+  persistPromptTemplates(storage, promptTemplates);
+  templateForm.reset();
+  render();
+  setStatus(`Saved ${savedTitle}`, "ready");
+});
+
 prompt.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
@@ -395,5 +496,6 @@ state = {
   messages: Array.isArray(state.messages) ? state.messages : [],
 };
 persistChatState(storage, state);
+promptTemplates = loadPromptTemplates(storage);
 render();
 void loadModels();

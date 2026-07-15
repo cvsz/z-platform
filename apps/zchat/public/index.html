@@ -33,6 +33,26 @@
       </aside>
 
       <section class="workspace__main" aria-label="Active conversation">
+        <section class="template-panel" aria-label="Prompt templates">
+          <div class="template-panel__header">
+            <div>
+              <h2>Prompt templates</h2>
+              <p>Save reusable prompts and start a new chat from one with a click.</p>
+            </div>
+          </div>
+          <form id="template-form" class="template-form">
+            <label for="template-title">Template name</label>
+            <input id="template-title" type="text" placeholder="Code review">
+            <label for="template-prompt">Template prompt</label>
+            <textarea id="template-prompt" rows="3" placeholder="Enter a reusable prompt"></textarea>
+            <div class="template-form__actions">
+              <p class="hint">Built-in prompts stay available; your custom templates are browser-local.</p>
+              <button id="save-template" type="submit">Save template</button>
+            </div>
+          </form>
+          <ol id="templates" class="templates" aria-label="Saved prompt templates"></ol>
+        </section>
+
         <section class="prompt-panel" aria-label="Conversation instructions">
           <label for="system-prompt">System prompt</label>
           <textarea id="system-prompt" rows="4" placeholder="Set the instructions for this conversation"></textarea>

@@ -3,15 +3,20 @@ import test from "node:test";
 
 import {
   STORAGE_KEYS,
+  addPromptTemplate,
   activeConversationSummary,
   appendMessage,
   clearActiveConversation,
   clearChatState,
   conversationSummaries,
   createChatState,
+  createPromptTemplate,
   lastUserMessage,
   loadChatState,
+  loadPromptTemplates,
   persistChatState,
+  persistPromptTemplates,
+  removePromptTemplate,
   renameActiveConversation,
   selectConversation,
   startNewConversation,
@@ -35,6 +40,43 @@ function createStorage(entries = {}) {
     },
   };
 }
+
+test("loadPromptTemplates seeds browser-local defaults when storage is empty", () => {
+  const storage = createStorage();
+  const templates = loadPromptTemplates(storage, 1700000000000, () => "template-default");
+
+  assert.equal(templates.length, 3);
+  assert.equal(templates[0].builtIn, true);
+  assert.equal(templates[0].id, "summarize");
+});
+
+test("prompt template helpers support save, remove, and persistence", () => {
+  const storage = createStorage();
+  const seeded = [
+    createPromptTemplate(1700000000000, () => "template-1", {
+      title: "Code review",
+      prompt: "Review this file for security issues.",
+    }),
+  ];
+
+  persistPromptTemplates(storage, seeded);
+  const loaded = loadPromptTemplates(storage, 1700000000000, () => "ignored");
+  assert.equal(loaded.length, 1);
+  assert.equal(loaded[0].title, "Code review");
+  assert.equal(loaded[0].preview, "Review this file for security issues.");
+
+  const extended = addPromptTemplate(loaded, {
+    id: "template-2",
+    title: "Summarize",
+    prompt: "Summarize the proposal in bullets.",
+  }, 1700000000100, () => "ignored");
+  assert.equal(extended.length, 2);
+  assert.equal(extended[0].id, "template-2");
+
+  const removed = removePromptTemplate(extended, "template-1");
+  assert.equal(removed.length, 1);
+  assert.equal(removed[0].id, "template-2");
+});
 
 test("createChatState seeds one conversation with matching active id", () => {
   const state = createChatState(1700000000000, () => "conversation-1");

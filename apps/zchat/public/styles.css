@@ -202,6 +202,106 @@ a[role="button"] {
   gap: 14px;
 }
 
+.template-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.template-panel__header h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.template-panel__header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.template-form {
+  display: grid;
+  gap: 8px;
+}
+
+.template-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+.template-form textarea {
+  min-height: 92px;
+}
+
+.template-form__actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.template-form__actions button {
+  min-width: 130px;
+}
+
+.templates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.template__item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.template__body {
+  display: grid;
+  gap: 4px;
+}
+
+.template__title {
+  font-weight: 650;
+}
+
+.template__preview {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.template__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.template__actions button {
+  min-width: 82px;
+}
+
+.template__actions .is-danger {
+  background: var(--danger);
+}
+
+.template__actions .is-danger:hover {
+  background: #912018;
+}
+
 .prompt-panel {
   display: grid;
   gap: 8px;

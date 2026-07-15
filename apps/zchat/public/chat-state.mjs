@@ -4,9 +4,31 @@ const STORAGE_KEYS = {
   conversations: "zchat.conversations",
   model: "zchat.model",
   messages: "zchat.messages",
+  promptTemplates: "zchat.promptTemplates",
   systemPrompt: "zchat.systemPrompt",
   sessionStartedAt: "zchat.sessionStartedAt",
 };
+
+const DEFAULT_PROMPT_TEMPLATES = [
+  {
+    id: "summarize",
+    title: "Summarize",
+    prompt: "Summarize the most important points in bullet form.",
+    builtIn: true,
+  },
+  {
+    id: "review",
+    title: "Code review",
+    prompt: "Review this for correctness, security, and edge cases.",
+    builtIn: true,
+  },
+  {
+    id: "rewrite",
+    title: "Rewrite",
+    prompt: "Rewrite this for clarity and brevity without losing meaning.",
+    builtIn: true,
+  },
+];
 
 function safeJsonParse(value, fallback) {
   if (typeof value !== "string" || !value.trim()) return fallback;
@@ -30,6 +52,12 @@ function summarizeMessage(message) {
   const content = normalizeText(message?.content);
   if (!content) return "";
   return content.length > 64 ? `${content.slice(0, 64).trimEnd()}…` : content;
+}
+
+function truncateTemplatePrompt(prompt) {
+  const content = normalizeText(prompt);
+  if (!content) return "";
+  return content.length > 96 ? `${content.slice(0, 96).trimEnd()}…` : content;
 }
 
 export function summarizeConversation(conversation) {
@@ -74,6 +102,36 @@ export function createConversation(now = Date.now(), randomId = crypto.randomUUI
     createdAt: toTimestamp(overrides.createdAt, now),
     updatedAt: toTimestamp(overrides.updatedAt, now),
   };
+}
+
+export function createPromptTemplate(now = Date.now(), randomId = crypto.randomUUID, overrides = {}) {
+  const id = typeof overrides.id === "string" && overrides.id ? overrides.id : randomId();
+  const title = normalizeText(overrides.title) || "Untitled prompt";
+  const prompt = typeof overrides.prompt === "string" ? overrides.prompt.trim() : "";
+  return {
+    id,
+    title,
+    prompt,
+    preview: truncateTemplatePrompt(prompt),
+    builtIn: Boolean(overrides.builtIn),
+    createdAt: toTimestamp(overrides.createdAt, now),
+    updatedAt: toTimestamp(overrides.updatedAt, now),
+  };
+}
+
+function normalizePromptTemplate(template, now = Date.now(), randomId = crypto.randomUUID) {
+  return createPromptTemplate(now, randomId, {
+    id: template?.id,
+    title: template?.title,
+    prompt: template?.prompt,
+    builtIn: template?.builtIn,
+    createdAt: template?.createdAt,
+    updatedAt: template?.updatedAt,
+  });
+}
+
+function defaultPromptTemplates(now = Date.now(), randomId = crypto.randomUUID) {
+  return DEFAULT_PROMPT_TEMPLATES.map((template) => createPromptTemplate(now, randomId, template));
 }
 
 function normalizeConversation(conversation, now = Date.now(), randomId = crypto.randomUUID) {
@@ -176,6 +234,39 @@ function migrateLegacyState(storage, now = Date.now(), randomId = crypto.randomU
     systemPrompt: conversation.systemPrompt,
     conversations: [conversation],
   }, now, randomId);
+}
+
+export function loadPromptTemplates(storage, now = Date.now(), randomId = crypto.randomUUID) {
+  const parsed = safeJsonParse(storage.getItem(STORAGE_KEYS.promptTemplates), null);
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    return defaultPromptTemplates(now, randomId);
+  }
+  return parsed.map((template) => normalizePromptTemplate(template, now, randomId));
+}
+
+export function persistPromptTemplates(storage, templates) {
+  const normalized = Array.isArray(templates) ? templates.map((template) => normalizePromptTemplate(template)) : [];
+  storage.setItem(STORAGE_KEYS.promptTemplates, JSON.stringify(normalized));
+}
+
+export function addPromptTemplate(templates, template, now = Date.now(), randomId = crypto.randomUUID) {
+  const normalized = normalizePromptTemplate(template, now, randomId);
+  return [normalized, ...(Array.isArray(templates) ? templates : []).filter((item) => item.id !== normalized.id)];
+}
+
+export function removePromptTemplate(templates, templateId) {
+  return (Array.isArray(templates) ? templates : []).filter((template) => template.id !== templateId);
+}
+
+export function updatePromptTemplate(templates, templateId, updates = {}, now = Date.now(), randomId = crypto.randomUUID) {
+  return (Array.isArray(templates) ? templates : []).map((template) => {
+    if (template.id !== templateId) return normalizePromptTemplate(template, now, randomId);
+    return normalizePromptTemplate({
+      ...template,
+      ...updates,
+      updatedAt: now,
+    }, now, randomId);
+  });
 }
 
 function withActiveConversation(state, updater, now = Date.now(), randomId = crypto.randomUUID) {
