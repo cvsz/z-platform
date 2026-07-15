@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "releaseSha": "f647ca61911c97160be2ffa17aa3471d6976cddf",
+  "_note": "releaseSha is intentionally absent. It must be set to the exact merge commit SHA only after a passing CI run for that commit is recorded. Prior evidence (f647ca61...) is valid only for its own commit.",
   "checks": [
     {
       "id": "observability.dashboard",

@@ -40,6 +40,7 @@ Status definitions:
 | Staging reviewer and review time | Review controls exist | Named completed review absent | External staging | Pending — external |
 | Incident owner, escalation, watch window | Incident runbook exists | Named operational record absent | Production | Pending — external |
 | Production release approval | Production environment requires approval | Explicit release SHA approval absent | Production | Pending — production approval |
+| CI evidence drift for current `main` head | `validate-release-evidence.yml` restored; manifest `releaseSha` cleared | New CI run required for `624183524fd3edc9666ddce7c64acafa1130fa7e` | GitHub Actions | IMPLEMENTED — requires passing `validate.yml` run on current `main` |
 
 ## Release selection rule
 

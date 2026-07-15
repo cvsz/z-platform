@@ -128,6 +128,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 
 - Record billing/legal decisions, staging reviewer, production approver, incident owner, escalation route, and post-launch watch window.
 - Record a passing workflow and immutable artifacts for the exact commit selected as the next release candidate.
+- Run a new `validate.yml` CI run on current `main` head (`624183524fd3edc9666ddce7c64acafa1130fa7e`) before selecting it as a release candidate.
 
 **Done when:** every service has health checks, least-privilege identity, observability, rollback notes, a passing CI gate for the selected release, completed external staging evidence, and explicit production approval.
 

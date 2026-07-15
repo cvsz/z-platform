@@ -21,10 +21,13 @@ This document distinguishes four evidence levels:
 - Host smoke endpoint fix: `04f7b287f33156fa54199894d194d29ca2407c68`
 - Seven-service topology and failure injection: `cda0308a11199eec0345052ebe3cc3dd0ab58489`
 - Final repository-side runtime verification: `d8207aa1a7880899c1fcea4de5e6903fc140805a`
+- Observability stack verification: `b10d3368dd8735943d4b294a05462348c5defb4f` (PR #43)
+- Warnings cleanup and services restoration: `624183524fd3edc9666ddce7c64acafa1130fa7e` (PR #44)
+- Evidence drift sync and SHA-binding gate: PENDING_MERGE — PR #45 `feat/evidence-drift-sync-sha-gate`
 
 ## CI and supply-chain artifacts
 
-Eligible `main` provenance run:
+Eligible `main` provenance run (valid for commit `1010de5c05c7c251d355ca5482718496e5aa1fb5`):
 
 - Run: `29291429851`
 - Head SHA: `1010de5c05c7c251d355ca5482718496e5aa1fb5`
@@ -35,13 +38,13 @@ Eligible `main` provenance run:
 - [x] SPDX JSON SBOM generation and upload pass.
 - [x] Build provenance attestation passes on `main`.
 
-Recorded artifacts:
+Recorded artifacts (bound to `1010de5c`):
 
 - `staging-smoke-evidence`, ID `8295190680`, digest `sha256:9b6b6e0ac2b3fa6e4ade420ae71bd97b16dabf6a6181aa6bbf9a04b32a49cc6b`
 - `z-platform-sbom`, ID `8295182927`, digest `sha256:af9e3f01435a2bb0a0508114f610da4f5378db9db55bdc8add5c0fdd78c2aac8`
 - `z-platform-sbom.spdx.json`, ID `8295182600`, digest `sha256:3ad4fa2361b488ac53e6d79b575b4b0a4116023dc9cb76164cecb87e1a6bdd88`
 
-Final repository-side verification run:
+Final repository-side verification run (valid for commit `d8207aa1a7880899c1fcea4de5e6903fc140805a`):
 
 - Run: `29292145378`
 - PR head SHA: `d4e7158a7ce4d98b090e66929efb45b3270ef05e`
@@ -52,13 +55,13 @@ Final repository-side verification run:
 - [x] ZChat static accessibility/mobile/session contracts pass.
 - [x] Browser-delivered asset secret-identifier scan passes.
 
-Recorded artifacts:
+Recorded artifacts (bound to `d8207aa1`):
 
 - `staging-smoke-evidence`, ID `8295434594`, digest `sha256:33fdfbcc6b5d674b337c223d5dadd5cacbccc62eb7d16ad83ec499d8bde78e04`
 - `z-platform-sbom`, ID `8295428938`, digest `sha256:ecd86ca950233bb75a3749f3f365f978ea45d83a1137a7bcfeb7f6f1dc3c1d3c`
 - `z-platform-sbom.spdx.json`, ID `8295428677`, digest `sha256:f96218f9854d71ab4ae3bf15d40c28dde23b23de476cba6b42da71a51b743aaf`
 
-The current `main` head after later tooling and documentation merges requires a new workflow result before it is selected as a production release candidate. Prior eligible Phase 6 evidence remains valid for the recorded commits and artifacts.
+> **Evidence drift notice:** The current `main` head (`624183524fd3edc9666ddce7c64acafa1130fa7e`, merged 2026-07-15) has not yet produced a new eligible CI run. Prior Phase 6 evidence remains valid only for the commits and artifacts it identifies. A new passing `validate.yml` run on `main` is required before selecting any later commit as a release candidate. The `validate-release-evidence.yml` SHA-binding gate has been restored to enforce this requirement.
 
 ## GitHub Environments
 
@@ -168,6 +171,8 @@ Operator authorization on 2026-07-14 approves execution of all remaining reposit
 - Before volume-permission fix: `51b32e658e0d991be74b022b1fbbf75e7bb4ba26`
 - Before deep deployed verification: `7c5bc9d42d2e11699644edb736c67b28d1d5e23b`
 - Before seven-service final verification: `04f7b287f33156fa54199894d194d29ca2407c68`
+- Before observability slice (PR #43): `d8207aa1a7880899c1fcea4de5e6903fc140805a`
+- Before warnings cleanup (PR #44): `b10d3368dd8735943d4b294a05462348c5defb4f`
 
 ```bash
 git checkout <approved-rollback-sha>
