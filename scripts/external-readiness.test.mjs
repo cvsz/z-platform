@@ -40,10 +40,22 @@ test("rejects insecure probe URLs", () => {
   assert.throws(() => validateManifest(value, releaseSha), /must use HTTPS/);
 });
 
+test("rejects invalid expected probe statuses", () => {
+  const value = manifest();
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zplatform.dev/health", expectedStatus: 0 };
+  assert.throws(() => validateManifest(value, releaseSha), /invalid expectedStatus/);
+});
+
 test("rejects invalid or placeholder probe URLs", () => {
   const value = manifest();
   value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "pending:dashboard" };
   assert.throws(() => validateManifest(value, releaseSha), /invalid URL|must use HTTPS|placeholder URL/);
+});
+
+test("rejects example placeholder probe URLs", () => {
+  const value = manifest();
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.example.invalid/health" };
+  assert.throws(() => validateManifest(value, releaseSha), /placeholder URL/);
 });
 
 test("rejects pending attestation evidence", () => {
@@ -74,4 +86,29 @@ test("produces verified evidence with complete operator record", async () => {
   });
   assert.equal(evidence.result, "VERIFIED");
   assert.equal(evidence.checks.length, REQUIRED_CHECKS.length);
+});
+
+test("sends JSON probe bodies with an explicit content type", async () => {
+  const value = manifest();
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zplatform.dev/health", body: { hello: "world" } };
+  const originalFetch = global.fetch;
+  let observed;
+  global.fetch = async (_url, init) => {
+    observed = init;
+    return new Response("ok", { status: 200 });
+  };
+  try {
+    const evidence = await collectEvidence(value, {
+      releaseSha,
+      stagingReviewer: "reviewer",
+      incidentOwner: "owner",
+      escalationRoute: "pager-policy",
+      watchWindow: "24h",
+    });
+    assert.equal(evidence.result, "VERIFIED");
+    assert.equal(observed.headers["Content-Type"], "application/json");
+    assert.equal(observed.body, JSON.stringify({ hello: "world" }));
+  } finally {
+    global.fetch = originalFetch;
+  }
 });

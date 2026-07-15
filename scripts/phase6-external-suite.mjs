@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { withJsonBody } from "./probe-body.mjs";
 
 const REQUIRED = [
   "observability.dashboard", "observability.traces", "observability.alert_delivery",
@@ -34,7 +35,7 @@ async function runCommand(command, timeoutMs = 120000) {
   });
 }
 
-async function httpProbe(check, token) {
+export async function httpProbe(check, token) {
   const url = new URL(check.url);
   assert(url.protocol === "https:", `${check.id} must use HTTPS`);
   const controller = new AbortController();
@@ -42,9 +43,10 @@ async function httpProbe(check, token) {
   try {
     const headers = { Accept: check.accept ?? "application/json, text/plain, */*", ...(check.headers ?? {}) };
     if (token && check.useBearerToken !== false) headers.Authorization = `Bearer ${token}`;
+    const request = withJsonBody(headers, check.body);
     const response = await fetch(url, {
-      method: check.method ?? "GET", headers,
-      body: check.body === undefined ? undefined : JSON.stringify(check.body),
+      method: check.method ?? "GET", headers: request.headers,
+      body: request.body,
       redirect: "error", signal: controller.signal,
     });
     const text = await response.text();
@@ -126,4 +128,6 @@ async function main() {
   if (result !== "VERIFIED") process.exitCode = 1;
 }
 
-main().catch((error) => { console.error(`phase6 external suite failed: ${error.message}`); process.exitCode = 1; });
+if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+  main().catch((error) => { console.error(`phase6 external suite failed: ${error.message}`); process.exitCode = 1; });
+}

@@ -107,7 +107,7 @@ def main():
     p.add_argument('--repo',type=Path,default=Path.home()/'z-platform')
     p.add_argument('--env-file',type=Path)
     p.add_argument('--branch',default='feat/cloudflare-terraform-stack')
-    p.add_argument('--hostname',default='api6.zeaz.dev')
+    p.add_argument('--hostname',default='phase6.zeaz.dev')
     p.add_argument('--origin',default='http://phase6-api:8080')
     p.add_argument('--port',type=int,default=8080)
     p.add_argument('--skip-checkout',action='store_true')

@@ -60,11 +60,33 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Add any setup steps before running the `github/codeql-action/init` action.
-    # This includes steps like installing compilers or runtimes (`actions/setup-node`
-    # or others). This is typically only required for manual builds.
-    # - name: Setup runtime (example)
-    #   uses: actions/setup-example@v1
+    - name: Setup Node.js for JavaScript analysis
+      if: matrix.language == 'javascript-typescript'
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Setup pnpm for JavaScript analysis
+      if: matrix.language == 'javascript-typescript'
+      uses: pnpm/action-setup@v4
+      with:
+        version: 11.4.0
+
+    - name: Install JavaScript dependencies for analysis
+      if: matrix.language == 'javascript-typescript'
+      run: pnpm install --ignore-scripts --frozen-lockfile
+
+    - name: Setup Go for Go analysis
+      if: matrix.language == 'go'
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: tools/zctl/go.mod
+
+    - name: Setup Python for Python analysis
+      if: matrix.language == 'python'
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

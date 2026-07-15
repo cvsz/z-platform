@@ -9,6 +9,16 @@
 - Security: no credentials, service tokens, or production identifiers were added; the change only moves analysis to the designated CI runner and broadens query coverage.
 - Tests: `scripts/test/codeql-workflow.test.mjs` now checks the runner label, config-file binding, and query-suite selection.
 - Limitations: repository-local validation only; PR-head CodeQL execution, artifact binding, and alert-closure evidence on the self-hosted runner remain pending.
+
+## 2026-07-16 — CodeQL Advanced workflow toolchain hardening
+
+- Base revision: `743860cac1098e2a9ac258d542876a4d2acda7cc`
+- Scope: one repository-local CodeQL workflow slice.
+- Implementation: added explicit Node, pnpm, Go, and Python setup steps before CodeQL initialization so the self-hosted `z-runner` lane can analyze the repository without assuming preinstalled language toolchains.
+- Compatibility: the workflow still targets the same languages and query suite; only analysis setup changed, and runtime application code, provider access, and production gates remain untouched.
+- Security: the change only installs public toolchains and workspace dependencies needed for analysis; no credentials, service tokens, or production identifiers were added.
+- Tests: `scripts/test/codeql-workflow.test.mjs` now checks the setup-node, pnpm, setup-go, and setup-python steps and their ordering before CodeQL init, plus the existing YAML parse check.
+- Limitations: repository-local validation only; PR-head CodeQL execution, artifact binding, and alert-closure evidence on the self-hosted runner remain pending.
 ## 2026-07-16 — ZChat browser-local dark mode preference
 
 - Base revision: `b34da941ef2c8d8e226cbf41e69675bcc4a050cb`

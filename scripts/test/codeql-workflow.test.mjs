@@ -17,6 +17,22 @@ test("CodeQL workflow loads the repository config file", () => {
   assert.match(workflow, /config-file:\s*\.\/\.github\/codeql\/codeql-config\.yml/);
 });
 
+test("CodeQL workflow provisions language toolchains before init", () => {
+  const initIndex = workflow.indexOf("github/codeql-action/init@v4");
+  assert.ok(initIndex > 0);
+  assert.ok(workflow.indexOf("actions/setup-node@v4") < initIndex);
+  assert.ok(workflow.indexOf("pnpm/action-setup@v4") < initIndex);
+  assert.ok(workflow.indexOf("actions/setup-go@v5") < initIndex);
+  assert.ok(workflow.indexOf("actions/setup-python@v5") < initIndex);
+  assert.match(workflow, /actions\/setup-node@v4/);
+  assert.match(workflow, /pnpm\/action-setup@v4/);
+  assert.match(workflow, /pnpm install --ignore-scripts --frozen-lockfile/);
+  assert.match(workflow, /actions\/setup-go@v5/);
+  assert.match(workflow, /go-version-file:\s*tools\/zctl\/go\.mod/);
+  assert.match(workflow, /actions\/setup-python@v5/);
+  assert.match(workflow, /python-version:\s*"3\.11"/);
+});
+
 test("CodeQL config enables the security-and-quality suite", () => {
   assert.match(config, /uses:\s*security-and-quality/);
 });

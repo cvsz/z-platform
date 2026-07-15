@@ -123,7 +123,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Implemented AI streaming, upload/file proxy, multi-provider, and failover verification harnesses; approved-account execution remains **PENDING_EXTERNAL**.
 - Implemented browser bundle and HAR credential scanners; actual deployed artifacts remain **PENDING_EXTERNAL**.
 - Implemented automated ZChat accessibility, responsive, session, and external-readiness contracts; human target-environment QA remains **PENDING_EXTERNAL**.
-- Implemented a CodeQL Advanced workflow that runs on the self-hosted `z-runner` lane with the broader `security-and-quality` query suite, plus repository-local drift tests for the workflow shape.
+- Implemented a CodeQL Advanced workflow that runs on the self-hosted `z-runner` lane with the broader `security-and-quality` query suite and explicit language toolchain setup, plus repository-local drift tests for the workflow shape and setup ordering.
 
 ### Remaining
 

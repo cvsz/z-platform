@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
+import { withJsonBody } from "./probe-body.mjs";
 
 export const REQUIRED_CHECKS = [
   "observability.dashboard",
@@ -25,9 +26,13 @@ const SAFE_STATUS = new Set(["verified", "failed"]);
 const PLACEHOLDER_PATTERNS = [
   /^pending:/i,
   /^replace_with/i,
-  /example\.com/i,
+  /example\.(com|org|net|invalid)/i,
+  /localhost/i,
+  /127\.0\.0\.1/i,
+  /0\.0\.0\.0/i,
   /<[^>]+>/,
   /staging-observability-host/i,
+  /staging\.example\.invalid/i,
 ];
 
 function isPlaceholderEvidence(value) {
@@ -55,7 +60,7 @@ export function validateManifest(manifest, releaseSha) {
       }
       if (url.protocol !== "https:") throw new Error(`probe ${check.id} must use HTTPS`);
       if (isPlaceholderEvidence(check.url)) throw new Error(`probe ${check.id} uses placeholder URL`);
-      if (check.expectedStatus && (!Number.isInteger(check.expectedStatus) || check.expectedStatus < 200 || check.expectedStatus > 599)) {
+      if ("expectedStatus" in check && (!Number.isInteger(check.expectedStatus) || check.expectedStatus < 200 || check.expectedStatus > 599)) {
         throw new Error(`invalid expectedStatus for ${check.id}`);
       }
     } else {
@@ -81,10 +86,11 @@ async function runProbe(check, token) {
   try {
     const headers = { Accept: "application/json, text/plain, */*" };
     if (token) headers.Authorization = `Bearer ${token}`;
+    const request = withJsonBody(headers, check.body);
     const response = await fetch(check.url, {
       method: check.method ?? "GET",
-      headers,
-      body: check.body === undefined ? undefined : JSON.stringify(check.body),
+      headers: request.headers,
+      body: request.body,
       signal: controller.signal,
       redirect: "error",
     });

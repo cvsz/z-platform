@@ -61,6 +61,6 @@ Merge the `cloudflared_ingress` output into the remotely managed tunnel configur
 
 ## Cloudflare-proxied Phase 6
 
-With the tunnel route in place, Caddy/ACME is not required for `api6.zeaz.dev`. Cloudflare terminates public TLS and sends traffic through the tunnel to `http://phase6-api:8080`. This avoids exposing ports 80/443 on the private host.
+With the tunnel route in place, Caddy/ACME is not required for `phase6.zeaz.dev`. Cloudflare terminates public TLS and sends traffic through the tunnel to `http://phase6-api:8080`. This avoids exposing ports 80/443 on the private host.
 
 Access policy resources are intentionally not created in this first port because the legacy repository contains competing provider-generation ownership models. `access_enabled` and allow-list metadata are validated now and are the contract for a follow-up Access module after the current account resources are imported and reconciled.

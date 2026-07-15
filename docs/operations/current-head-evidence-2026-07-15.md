@@ -37,3 +37,18 @@
 - **BLOCKED** - Verification requires PR-head CodeQL, dependency audit, validation, and immutable artifact evidence for the exact remediation SHA.
 
 No external infrastructure, operator identity, production approval, or production traffic is claimed by this record.
+
+## Branch-head evidence
+
+- Branch head: `beea8189fd40baf299b30838ff7d21a1c81f5abe`
+- Environment: repository-local isolated worktree and GitHub Actions workflow shape validation
+- Recorded at: `2026-07-16T00:00:00Z`
+- External and production traffic: **DISABLED**
+
+| Check | Status | Command or workflow | Result | Artifact | Limitation |
+|---|---|---|---|---|---|
+| CodeQL workflow hardening | VERIFIED | `node --test scripts/test/codeql-workflow.test.mjs` | success | None | Repository-local workflow-shape validation only. |
+| CodeQL workflow YAML | VERIFIED | `python3` YAML parse of `.github/workflows/codeql.yml` | success | None | Workflow structure only; no CodeQL scan was run on this branch head. |
+| Documentation sync | VERIFIED | `git diff --check` and repo pre-push validation | success | None | Sync evidence only; no external staging or operator approval is claimed. |
+
+The branch-head record is intentionally separate from the older `main` baseline because its evidence is repository-local only and does not replace immutable deployed evidence for a release candidate SHA.
