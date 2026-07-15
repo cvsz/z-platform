@@ -1,5 +1,6 @@
 {
   "schemaVersion": "1.0.0",
+  "_note": "releaseSha must be set to the exact merge commit SHA after a passing CI run is recorded for that commit. Do not set releaseSha until the CI run for that SHA is complete.",
   "identityProvider": {
     "status": "approved",
     "providerClass": "Cloudflare Access with external OIDC identity provider",
