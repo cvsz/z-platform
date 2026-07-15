@@ -55,7 +55,7 @@ export function validateManifest(manifest, releaseSha) {
       }
       if (url.protocol !== "https:") throw new Error(`probe ${check.id} must use HTTPS`);
       if (isPlaceholderEvidence(check.url)) throw new Error(`probe ${check.id} uses placeholder URL`);
-      if (check.expectedStatus && (!Number.isInteger(check.expectedStatus) || check.expectedStatus < 200 || check.expectedStatus > 599)) {
+      if ("expectedStatus" in check && (!Number.isInteger(check.expectedStatus) || check.expectedStatus < 200 || check.expectedStatus > 599)) {
         throw new Error(`invalid expectedStatus for ${check.id}`);
       }
     } else {
