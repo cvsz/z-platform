@@ -13,9 +13,9 @@ function resolveCommonGitDir() {
   }
 
   const gitdir = readFileSync(gitPath, "utf8").trim().replace(/^gitdir:\s*/, "");
-  const commondirPath = resolve(dirname(gitdir), "commondir");
+  const commondirPath = resolve(gitdir, "commondir");
   if (existsSync(commondirPath)) {
-    return resolve(dirname(gitdir), readFileSync(commondirPath, "utf8").trim());
+    return resolve(gitdir, readFileSync(commondirPath, "utf8").trim());
   }
   return gitdir;
 }
