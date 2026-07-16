@@ -4,15 +4,16 @@
 
 It is fail-closed and binds all completion evidence to one immutable release SHA:
 
-1. checks out the requested SHA;
-2. materializes protected staging configuration and deployed browser evidence;
-3. enforces real-only input policy;
-4. executes all fourteen Phase 6 checks;
-5. requires `VERIFIED`, exactly fourteen checks, and a matching release SHA;
-6. uploads and attests staging evidence;
-7. enters the protected `production` environment for explicit approval;
-8. uploads and attests production approval evidence;
-9. comments on and closes the configured readiness issue only after both jobs succeed.
+1. verifies the requested SHA exists in `cvsz/z-platform`;
+2. checks out the requested SHA;
+3. materializes protected staging configuration and deployed browser evidence;
+4. enforces real-only input policy;
+5. executes all fourteen Phase 6 checks;
+6. requires `VERIFIED`, exactly fourteen checks, and a matching release SHA;
+7. uploads and attests staging evidence;
+8. enters the protected `production` environment for explicit approval;
+9. uploads and attests production approval evidence;
+10. comments on and closes the configured readiness issue only after both jobs succeed.
 
 The workflow cannot manufacture endpoints, credentials, backup operations, browser artifacts, or human QA. Missing or non-real inputs stop execution before finalization.
 

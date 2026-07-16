@@ -43,3 +43,16 @@ Date: 2026-07-16
 | Format and workflow validation | pass | `python3` YAML parse of `.github/workflows/codeql.yml`, `node --test scripts/test/codeql-workflow.test.mjs`, and repo pre-push checks passed in this worktree. |
 
 This slice is repository-local. PR-head CodeQL execution, alert-closure evidence, and immutable artifact binding still depend on GitHub Actions for the exact commit SHA.
+
+## CI pnpm Node 24 alignment
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local workflow compatibility slice only. |
+| Toolchain alignment | pass | `ci`, `validate`, and `CodeQL Advanced` now provision Node 24 before `pnpm install`, matching the pinned `pnpm@11.4.0` requirement. |
+| Deterministic coverage | pass | `scripts/test/workflow-pnpm-setup.test.mjs` and `scripts/test/codeql-workflow.test.mjs` now assert the Node 24 setup step alongside the existing pnpm workflow checks. |
+| Format and workflow validation | pass | `node --test scripts/test/workflow-pnpm-setup.test.mjs scripts/test/codeql-workflow.test.mjs` passed, and `CI=true pnpm install --ignore-scripts --store-dir /tmp/pnpm-store` completed in a clean worktree. |
+
+This slice remains repository-local. It removes the Node 20 / pnpm 11 mismatch that caused `ERR_UNKNOWN_BUILTIN_MODULE: node:sqlite` during dependency installation, but it does not claim external staging, operator approval, or production readiness.
