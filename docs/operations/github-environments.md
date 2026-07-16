@@ -20,7 +20,8 @@ Do not store provider credentials, service tokens, payment secrets, wallet keys,
 4. Create `ci`, `staging`, and `production`.
 5. Configure protection rules before adding secrets.
 
-Repository-local automation is available in `scripts/configure-github-environments.sh`. It creates or updates `ci`, `staging`, and `production`, but it requires explicit reviewer selectors such as `user:LOGIN` or `team:SLUG` and does not invent reviewer identities.
+Repository-local automation is available in `scripts/configure-github-environments.sh`. It creates or updates `ci`, `staging`, and `production`, loads `.env`, `.env.phase6`, and `.env.phase6.server` in order, and still requires explicit reviewer selectors such as `user:LOGIN` or `team:SLUG` when a reviewer is supplied on the command line. Bare `STAGING_REVIEWER` and `PRODUCTION_APPROVER` values from the env overlays are treated as GitHub user logins.
+It also updates deployment branch policies for `staging` and `production`, so the helper can enforce `main`-only or protected-branch behavior without manual API calls.
 
 ## `ci` environment
 
@@ -32,6 +33,7 @@ Required settings:
 - No payment, wallet, KYC, MPC, or signing credentials.
 - No deployment permission.
 - CI workflows may use repository read permission and generated test data only.
+- Environment bootstrap scripts may create the environment, but `ci` must remain free of secrets and reviewer protection.
 
 ## `staging` environment
 
@@ -45,6 +47,7 @@ Required settings:
 - Environment variables: non-secret staging configuration only.
 - Observability: logs, metrics, traces, and alerts visible before sign-off.
 - Backups: restore test completed before production promotion.
+- Use `scripts/configure-github-environments.sh` to apply the environment and branch policy with operator-approved reviewer selectors.
 
 Suggested staging secrets:
 
@@ -72,6 +75,7 @@ Required settings:
 - Environment secrets: production credentials only in GitHub Environment secrets or approved secret manager.
 - Deployment notes: record commit SHA, workflow result, rollback SHA, data migration status, and incident owner.
 - Traffic gate: keep external traffic disabled until health checks, logs, metrics, traces, and alerts are visible.
+- Use `scripts/configure-github-environments.sh` to apply the environment and branch policy with the authorized production reviewer selector.
 
 Production must not be the first environment to exercise a provider, queue, database, identity policy, sandbox profile, billing integration, Cloudflare rule, GitHub App token format, or restore path.
 
