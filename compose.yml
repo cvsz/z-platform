@@ -189,7 +189,7 @@ services:
     <<: *node-service
     build:
       context: .
-      dockerfile: deploy/docker/node-service.Dockerfile
+      dockerfile: deploy/docker/next-service.Dockerfile
       args:
         SERVICE_PATH: apps/agent-control-panel
     environment:
