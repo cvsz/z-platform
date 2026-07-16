@@ -12,12 +12,13 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - GitHub Actions workflow pins upgraded to Node 24-compatible releases across checkout, setup-node, setup-python, setup-go, and artifact upload steps, with repository tests updated to match the new workflow contracts.
 - Deployment readiness workflows now verify that the requested release SHA exists in `cvsz/z-platform` before checkout, so stale or invalid SHAs fail closed instead of surfacing as broken deployment records.
 - CI, validate, and CodeQL workflows now provision Node 24 before installing `pnpm@11.4.0`, which keeps the repository toolchain compatible with the pinned package manager and prevents `node:sqlite` install failures on Node 20 runners.
+- CodeQL Advanced workflow now targets the available self-hosted Linux/X64 runner labels instead of a missing custom label, so the job can start on the current runner pool while keeping security-analysis execution on self-hosted infrastructure.
 - Cloudflare Terraform examples and installer defaults now use service-named public hostnames such as `phase6.zeaz.dev`, `zchat.zeaz.dev`, and `zai.zeaz.dev`.
 - Shared readiness probe helpers now set `Content-Type: application/json` whenever a JSON body is present, so POST-based external checks are sent with the expected content type.
 - External readiness manifest validation now rejects placeholder HTTPS probe URLs such as `staging.example.invalid` and localhost-style endpoints.
 - External readiness validation now rejects explicitly invalid probe `expectedStatus` values instead of ignoring falsy inputs.
-- CodeQL Advanced workflow hardening that provisions Node, pnpm, Go, and Python toolchains before analysis on the self-hosted `z-runner` lane, with repo-local ordering tests for the setup steps.
-- CodeQL Advanced workflow update that runs on the self-hosted `z-runner` lane and loads the broader `security-and-quality` query suite, with repo-local workflow-shape tests; alert-closure evidence still requires a PR-head runner execution.
+- CodeQL Advanced workflow hardening that provisions Node, pnpm, Go, and Python toolchains before analysis on the available self-hosted Linux/X64 lane, with repo-local ordering tests for the setup steps.
+- CodeQL Advanced workflow update that runs on the available self-hosted Linux/X64 lane and loads the broader `security-and-quality` query suite, with repo-local workflow-shape tests; alert-closure evidence still requires a PR-head runner execution.
 - CI and validate Node workspace jobs now install dependencies before testing so the AI Gateway disconnect contract can resolve its app imports in GitHub Actions.
 - ZChat browser-local dark mode preference with system fallback.
 - ZChat manual conversation title editing that updates the active chat and history sidebar.

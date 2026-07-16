@@ -14,17 +14,17 @@
 
 - Base revision: `1f44d9588fe4a42370f3477eea22a70e1e4cbd22`
 - Scope: one repository-local CodeQL workflow slice.
-- Implementation: updated `CodeQL Advanced` to run on the self-hosted `z-runner` lane and to load a repository CodeQL config that adds the `security-and-quality` query suite.
+- Implementation: updated `CodeQL Advanced` to run on the available self-hosted Linux/X64 lane and to load a repository CodeQL config that adds the `security-and-quality` query suite.
 - Compatibility: the security workflow still analyzes the same repository languages and does not alter runtime application code, provider access, or production gates.
 - Security: no credentials, service tokens, or production identifiers were added; the change only moves analysis to the designated CI runner and broadens query coverage.
-- Tests: `scripts/test/codeql-workflow.test.mjs` now checks the runner label, config-file binding, and query-suite selection.
+- Tests: `scripts/test/codeql-workflow.test.mjs` now checks the runner labels, config-file binding, and query-suite selection.
 - Limitations: repository-local validation only; PR-head CodeQL execution, artifact binding, and alert-closure evidence on the self-hosted runner remain pending.
 
 ## 2026-07-16 — CodeQL Advanced workflow toolchain hardening
 
 - Base revision: `743860cac1098e2a9ac258d542876a4d2acda7cc`
 - Scope: one repository-local CodeQL workflow slice.
-- Implementation: added explicit Node, pnpm, Go, and Python setup steps before CodeQL initialization so the self-hosted `z-runner` lane can analyze the repository without assuming preinstalled language toolchains.
+- Implementation: added explicit Node, pnpm, Go, and Python setup steps before CodeQL initialization so the self-hosted Linux/X64 lane can analyze the repository without assuming preinstalled language toolchains.
 - Compatibility: the workflow still targets the same languages and query suite; only analysis setup changed, and runtime application code, provider access, and production gates remain untouched.
 - Security: the change only installs public toolchains and workspace dependencies needed for analysis; no credentials, service tokens, or production identifiers were added.
 - Tests: `scripts/test/codeql-workflow.test.mjs` now checks the setup-node, pnpm, setup-go, and setup-python steps and their ordering before CodeQL init, plus the existing YAML parse check.
