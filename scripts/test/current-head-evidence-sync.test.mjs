@@ -1,10 +1,28 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const originMainLooseRef = new URL("../../.git/refs/remotes/origin/main", import.meta.url);
-const originMainPackedRefs = new URL("../../.git/packed-refs", import.meta.url);
+const gitPath = fileURLToPath(new URL("../../.git", import.meta.url));
+
+function resolveCommonGitDir() {
+  if (existsSync(gitPath) && lstatSync(gitPath).isDirectory()) {
+    return gitPath;
+  }
+
+  const gitdir = readFileSync(gitPath, "utf8").trim().replace(/^gitdir:\s*/, "");
+  const commondirPath = resolve(dirname(gitdir), "commondir");
+  if (existsSync(commondirPath)) {
+    return resolve(dirname(gitdir), readFileSync(commondirPath, "utf8").trim());
+  }
+  return gitdir;
+}
+
+const commonGitDir = resolveCommonGitDir();
+const originMainLooseRef = resolve(commonGitDir, "refs/remotes/origin/main");
+const originMainPackedRefs = resolve(commonGitDir, "packed-refs");
 const originMainSha = existsSync(originMainLooseRef)
   ? readFileSync(originMainLooseRef, "utf8").trim()
   : readFileSync(originMainPackedRefs, "utf8")
