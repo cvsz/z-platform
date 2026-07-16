@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- Phase 6 API now exposes a read-only Supabase Data API bridge at `/supabase/read`, with server-side anon-key handling, base-URL and table validation, and route-level success/failure tests.
 - GitHub environment bootstrap helper now imports populated keys from `.env`, `.env.phase6`, and `.env.phase6.server` into GitHub environment variables and secrets while keeping reviewer selectors explicit.
 - GitHub Actions workflow pins upgraded to Node 24-compatible releases across checkout, setup-node, setup-python, setup-go, and artifact upload steps, with repository tests updated to match the new workflow contracts.
 - Deployment readiness workflows now verify that the requested release SHA exists in `cvsz/z-platform` before checkout, so stale or invalid SHAs fail closed instead of surfacing as broken deployment records.

@@ -1,5 +1,19 @@
 # Migration Validation Report
 
+## Supabase read-only Phase 6 API bridge
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local Supabase bridge slice only. |
+| Auth boundary | pass | `/supabase/read` requires the existing Phase 6 bearer token and returns 401 without it. |
+| Read-only data path | pass | The Phase 6 API reads a Supabase Data API table with `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_TABLE`; the anon key is not exposed to the browser. |
+| Failure handling | pass | Missing config, invalid base URL, invalid table name, upstream 403, non-array payload, and out-of-range limit cases are covered deterministically. |
+| Format and tests | pass | `python3 -m pytest services/phase6-api/tests/test_supabase_read.py services/phase6-api/tests/test_github_webhook.py`, `docker compose config --quiet`, and `git diff --check` passed in this worktree. |
+
+This slice remains repository-local until an approved Supabase project and table are exercised as external evidence for the exact release candidate SHA.
+
 ## AI Gateway disconnect-aware upstream cancellation
 
 Date: 2026-07-15

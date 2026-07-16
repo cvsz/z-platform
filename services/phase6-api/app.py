@@ -1,12 +1,14 @@
 import asyncio
+import hashlib
 import hmac
 import json
-import hashlib
 import os
+import re
 import time
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import redis.asyncio as redis
@@ -23,6 +25,9 @@ KEYS: dict[str, str] = json.loads(os.environ["AI_PROVIDER_KEYS_JSON"])
 MODEL = os.getenv("AI_MODEL", "Qwen/Qwen2.5-Coder-32B-Instruct")
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30"))
 GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_TABLE = os.getenv("SUPABASE_TABLE")
 
 r = redis.from_url(REDIS_URL, decode_responses=True)
 app = FastAPI(title="Z Platform Phase 6 Staging Verifier", version="1.0.0")
@@ -126,6 +131,46 @@ async def session_health(_: None = Depends(auth)):
     value = await r.get(f"session:{marker}")
     return {"status": "verified", "session": marker, "persisted": value == "active"}
 
+def supabase_read_config() -> tuple[str, str, str]:
+    base_url = (SUPABASE_URL or "").strip()
+    anon_key = (SUPABASE_ANON_KEY or "").strip()
+    table = (SUPABASE_TABLE or "").strip()
+    if not base_url or not anon_key or not table:
+        raise HTTPException(status_code=503, detail="supabase read access not configured")
+    parsed = urlparse(base_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.path not in {"", "/"}:
+        raise HTTPException(status_code=400, detail="supabase base url is invalid")
+    if not re.fullmatch(r"[A-Za-z0-9_]+", table):
+        raise HTTPException(status_code=400, detail="supabase table name is invalid")
+    return base_url.rstrip("/"), anon_key, table
+
+async def supabase_read_rows(limit: int) -> dict[str, Any]:
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
+    base_url, anon_key, table = supabase_read_config()
+    url = base_url.rstrip("/") + f"/rest/v1/{table}?select=*&limit={limit}"
+    headers = {
+        "apikey": anon_key,
+        "Authorization": f"Bearer {anon_key}",
+        "Accept": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        response = await client.get(url, headers=headers)
+    if response.status_code in {401, 403}:
+        raise HTTPException(status_code=502, detail="supabase rejected the read request")
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=502, detail="supabase read request failed") from exc
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail="supabase returned invalid json") from exc
+    if not isinstance(payload, list):
+        raise HTTPException(status_code=502, detail="supabase returned an unexpected payload")
+    REQUESTS.labels("supabase_read", "success").inc()
+    return {"status": "verified", "source": "supabase", "table": table, "limit": limit, "rows": payload}
+
 def verify_github_signature(body: bytes, signature: str | None) -> None:
     if not GITHUB_WEBHOOK_SECRET:
         raise HTTPException(status_code=503, detail="github webhook secret not configured")
@@ -156,6 +201,10 @@ async def github_webhook(request: Request):
     await r.setex(f"github:webhook:{delivery}", 86400, json.dumps(record))
     REQUESTS.labels("github_webhook", "success").inc()
     return record
+
+@app.get("/supabase/read")
+async def supabase_read(limit: int = Query(default=25, ge=1, le=100), _: None = Depends(auth)):
+    return await supabase_read_rows(limit)
 
 @app.get("/metrics")
 async def metrics():

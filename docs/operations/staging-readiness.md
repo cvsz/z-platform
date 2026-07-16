@@ -27,6 +27,7 @@ Current `main` SHA: `36fc7f594c933137a1d8da2855bac752fb2f03b3` (2026-07-15).
 | Seven-service deployed smoke | VERIFIED | `validate` run `29431079935`, job `87405925323`, success; `staging-smoke-evidence` ID `8349399112`, digest `sha256:68526290de0f0325123e58e0adfe68246ecf57d617fbd207eff1e568a6bd6495` | Isolated Compose evidence only; not external staging. |
 | Main security-alert state | IMPLEMENTED | CodeQL workflow on `36fc7f5` passed in run `29431080079`; Dependabot alert state was not re-fetched with authenticated API access | Passing workflows do not by themselves prove alert closure. |
 | AI Gateway disconnect-aware upstream cancellation | IMPLEMENTED | Branch-local gateway factory, disconnect abort handling, and deterministic client-disconnect regression test on this branch | PR-head workflow, immutable artifact binding, and any external staging evidence are still pending. |
+| Supabase read-only Data API bridge | IMPLEMENTED | Phase 6 API authenticated `/supabase/read` route with env-based URL, anon-key, and table selection; route-level success and failure-path tests on this branch | Real Supabase project/table evidence and external staging execution are still **PENDING_EXTERNAL**. |
 
 ## CodeQL Advanced self-hosted runner slice
 
