@@ -73,6 +73,16 @@ This register captures the production values that cannot be inferred from source
 - `.github/workflows/external-staging-readiness.yml` records the staging evidence and protected production approval artifacts for one immutable SHA.
 - `.github/workflows/final-release-readiness.yml` closes Issue #1 only after staging evidence and protected production approval succeed for the same SHA.
 
+## Issue #1 operator-item mapping
+
+| Issue item | Record owner | Canonical repository target |
+|---|---|---|
+| External identity provider and production claim mapping | Identity / Cloudflare | `docs/operations/phase-6-decisions.md`, `docs/operations/cloudflare-access.md`, `docs/operations/operator-inputs-status.md` |
+| Production secret-manager selection | Infrastructure / secrets | `docs/operations/phase-6-decisions.md`, `docs/operations/github-environments.md`, `docs/operations/operator-inputs-status.md` |
+| Managed production data services, region, retention authority, observability platform, and external backup target | Platform / operations | `docs/operations/phase-6-decisions.md`, `docs/release/operational-ownership.md`, `docs/release/production-release-record.md` |
+| Billing currency, jurisdiction, tax treatment, merchant responsibilities, and payment processor | Finance / legal | `docs/operations/phase-6-decisions.md`, `docs/release/production-release-record.md`, `docs/operations/operator-inputs-status.md` |
+| Staging reviewer, production approver, incident owner, escalation route, and watch window | Release / incident ownership | `docs/release/operational-ownership.md`, `docs/release/production-release-record.md`, `.github/workflows/external-staging-readiness.yml`, `.github/workflows/final-release-readiness.yml` |
+
 ## Required evidence attachments
 
 - Eligible `main` provenance-attestation URL and verification result

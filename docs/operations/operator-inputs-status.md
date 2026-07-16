@@ -17,3 +17,13 @@ The following items remain open because they require real production account val
 - Staging reviewer, production approver, incident owner, escalation route, and watch window
 
 Use `phase-6-operator-inputs.md` for the decision register, `docs/release/operational-ownership.md` and `docs/release/production-release-record.md` for the release-owned sign-off forms, and `phase-6-verification-commands.md` for evidence collection.
+
+## Issue #1 operator mapping
+
+| Issue item | Record or workflow that must hold the operator value |
+|---|---|
+| External identity provider and production claim mapping | `docs/operations/phase-6-operator-inputs.md`, `docs/operations/phase-6-decisions.md`, `docs/operations/cloudflare-access.md` |
+| Production secret-manager selection | `docs/operations/phase-6-operator-inputs.md`, `docs/operations/phase-6-decisions.md`, `docs/operations/github-environments.md` |
+| Managed production data services, region, retention authority, observability platform, and external backup target | `docs/operations/phase-6-operator-inputs.md`, `docs/operations/phase-6-decisions.md`, `docs/release/operational-ownership.md` |
+| Billing currency, jurisdiction, tax treatment, merchant responsibilities, and payment processor | `docs/operations/phase-6-operator-inputs.md`, `docs/operations/phase-6-decisions.md`, `docs/release/production-release-record.md` |
+| Staging reviewer, production approver, incident owner, escalation route, and watch window | `docs/operations/phase-6-operator-inputs.md`, `docs/release/operational-ownership.md`, `.github/workflows/external-staging-readiness.yml`, `.github/workflows/final-release-readiness.yml` |
