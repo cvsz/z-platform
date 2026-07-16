@@ -125,7 +125,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Implemented a read-only Supabase Data API bridge in `services/phase6-api` with authenticated access, env-based URL/anon-key/table selection, and deterministic success/failure coverage; real Supabase project evidence remains **PENDING_EXTERNAL**.
 - Implemented browser bundle and HAR credential scanners; actual deployed artifacts remain **PENDING_EXTERNAL**.
 - Implemented automated ZChat accessibility, responsive, session, and external-readiness contracts; human target-environment QA remains **PENDING_EXTERNAL**.
-- Implemented a CodeQL Advanced workflow that runs on the available self-hosted Linux/X64 lane with the `github+self-hosted` fallback label, the broader `security-and-quality` query suite, and explicit language toolchain setup, plus repository-local drift tests for the workflow shape and setup ordering.
+- Implemented a CodeQL Advanced workflow that runs on the available self-hosted Linux/X64 lane with the broader `security-and-quality` query suite and explicit language toolchain setup, plus repository-local drift tests for the workflow shape and setup ordering.
 - Added a machine-readable Phase 6 operator-input register at `scripts/phase-6-operator-inputs.json` so the remaining operator-owned items are tracked as a validated pending contract instead of loose prose.
 
 ### Remaining
@@ -134,7 +134,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Record the remaining operator-owned values in `scripts/phase-6-operator-inputs.json` and keep that register fail-closed until an authorized operator supplies the real values.
 - Record a passing workflow and immutable artifacts for the exact commit selected as the next release candidate.
 - Record verified Supabase project/table evidence for the exact release candidate after the read-only bridge is exercised against an approved external project.
-- Run CodeQL Advanced on the available self-hosted runner with the `github+self-hosted` fallback label for the exact selected SHA and capture the alert-closure evidence before promoting any new release candidate.
+- Run CodeQL Advanced on the available self-hosted runner for the exact selected SHA and capture the alert-closure evidence before promoting any new release candidate.
 - **VERIFIED** - Current `main` SHA `36fc7f594c933137a1d8da2855bac752fb2f03b3` has passing CI, secret and browser scans, Compose build, deployed smoke, SBOM, provenance, and CodeQL workflows. `validate` run `29431079935` produced smoke artifact `8349399112` with digest `sha256:68526290de0f0325123e58e0adfe68246ecf57d617fbd207eff1e568a6bd6495`.
 - **IMPLEMENTED** - AI Gateway disconnect-aware upstream cancellation exists on this branch. PR-head validation and immutable artifact evidence are still required before the branch can be selected as a release candidate.
 

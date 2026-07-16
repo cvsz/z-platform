@@ -22,10 +22,9 @@ on:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
-    # Run CodeQL on the available self-hosted runner pool with the
-    # github+self-hosted fallback label so analysis stays on the hardened CI
-    # lane used for security workflows.
-    runs-on: [self-hosted, Linux, X64, github+self-hosted]
+    # Run CodeQL on the available self-hosted runner pool so analysis stays on
+    # the hardened CI lane used for security workflows.
+    runs-on: [self-hosted, Linux, X64]
     permissions:
       # required for all workflows
       security-events: write

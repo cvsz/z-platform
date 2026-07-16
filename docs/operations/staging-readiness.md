@@ -45,7 +45,7 @@ Remote `origin/main` SHA: `0f181f19b2a53473af96fa5790c1191d4ddc4ae9` (merge PR #
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
-| Workflow and runner update | IMPLEMENTED | `CodeQL Advanced` now runs on the available self-hosted Linux/X64 lane with the `github+self-hosted` fallback label, loads `.github/codeql/codeql-config.yml`, provisions Node/pnpm/Go/Python toolchains before CodeQL init, and adds the `security-and-quality` query suite; `scripts/test/codeql-workflow.test.mjs` checks the workflow shape and setup ordering | PR-head CodeQL execution on the exact SHA and alert-closure evidence on the fallback-labeled self-hosted runner remain **PENDING_EXTERNAL**. |
+| Workflow and runner update | IMPLEMENTED | `CodeQL Advanced` now runs on the available self-hosted Linux/X64 lane, loads `.github/codeql/codeql-config.yml`, provisions Node/pnpm/Go/Python toolchains before CodeQL init, and adds the `security-and-quality` query suite; `scripts/test/codeql-workflow.test.mjs` checks the workflow shape and setup ordering | PR-head CodeQL execution on the exact SHA and alert-closure evidence on the self-hosted runner remain **PENDING_EXTERNAL**. |
 
 Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to this branch or a later release candidate.
 
