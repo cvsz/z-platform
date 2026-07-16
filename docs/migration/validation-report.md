@@ -14,6 +14,19 @@ Date: 2026-07-16
 
 This slice is repository-local and isolated Compose only. It does not replace GitHub Actions evidence or any operator-owned staging/production approval requirement, and it is not revalidated for the later fallback-label commit in this worktree.
 
+## Current branch head repo-local validation (`d4b50605058786a800bcd9e8bfaa8d5def481424`)
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local branch-head validation slice only. |
+| CodeQL workflow contract | pass | `node --test scripts/test/codeql-workflow.test.mjs` passed after the branch head was updated to `d4b50605058786a800bcd9e8bfaa8d5def481424`. |
+| Secret/state hygiene | pass | `git add infrastructure/terraform/cloudflare/.gitignore infrastructure/terraform/cloudflare/terraform.tfstate infrastructure/terraform/cloudflare/terraform.tfstate.backup infrastructure/terraform/cloudflare/terraform.tfvars` followed by the pre-push hook removed tracked Cloudflare state files from the branch. |
+| Repository-local validation | pass | `git diff --check` and `pnpm test` passed before the cleanup commit was pushed. |
+
+This note binds the latest branch head to repository-local validation only. It does not claim any new GitHub Actions or external staging evidence.
+
 ## Release governance operator-signoff coverage
 
 Date: 2026-07-16
