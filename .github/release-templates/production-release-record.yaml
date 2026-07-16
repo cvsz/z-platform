@@ -30,6 +30,11 @@ spec:
     approvedEvidenceDigest: <sha256:digest>
     approvedAt: <ISO-8601>
     approvalRef: <auditable-reference>
+  operatorRecord:
+    stagingReviewer: <name-or-handle>
+    incidentOwner: <owner>
+    escalationRoute: <path-and-target>
+    watchWindow: <ISO-8601-range-or-hours>
   execution:
     operator: <identity>
     startedAt: <ISO-8601>

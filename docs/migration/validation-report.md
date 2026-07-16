@@ -40,6 +40,19 @@ Date: 2026-07-16
 
 This slice is repository-local. It improves operator-readiness coverage and prevents the environment helper contract from silently drifting, but it does not claim external staging evidence or production approval.
 
+## Production release record operator context
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local release-record contract slice only. |
+| Template and schema coverage | pass | `production-release-record.yaml` and `schemas/release/production-release-record.schema.json` now require the operator-owned staging review context (`stagingReviewer`, `incidentOwner`, `escalationRoute`, `watchWindow`) alongside the approval and execution fields. |
+| Deterministic coverage | pass | `scripts/test/operator-governance.test.mjs` now asserts the template and schema contract, and `node scripts/validate-release-templates.mjs` continues to validate the release-template set. |
+| Format and workflow validation | pass | `git diff --check` and the focused Node test suite passed in this worktree. |
+
+This slice is repository-local. It makes the production release record carry the same operator context that the external readiness harness already collects, but it does not fabricate the actual operator values.
+
 ## AI Gateway disconnect-aware upstream cancellation
 
 Date: 2026-07-15

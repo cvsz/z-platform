@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- Production release record template and schema now carry an explicit operator context (`stagingReviewer`, `incidentOwner`, `escalationRoute`, `watchWindow`) that matches the external readiness harness, with repo-local tests covering the contract.
 - GitHub environment helper and readiness docs now surface the operator-owned review fields (`STAGING_REVIEWER`, `INCIDENT_OWNER`, `ESCALATION_ROUTE`, `WATCH_WINDOW`, and production reviewer selectors) from the dotenv overlays, with repo-local drift tests tied to the current `origin/main` SHA.
 - Release governance now includes an explicit issue-item mapping for the remaining `PENDING_OPERATOR` values so the final-release workflow can point each operator decision at the correct record or workflow without fabricating approvals.
 - Release governance now has repo-level coverage for the operator-signoff path: the phase-6 operator input register, operational ownership record, and production release record are linked by focused validation tests and workflow-shape checks.

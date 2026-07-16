@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — Production release record operator context
+
+- Base revision: current branch head after the release-record contract patch.
+- Scope: one repository-local release governance slice.
+- Implementation: added an explicit `operatorRecord` section to the production release template and schema so the same staging-review, incident-owner, escalation-route, and watch-window context collected by the external readiness harness is also represented in the release record.
+- Compatibility: the existing approval, execution, and post-deploy fields are unchanged; the new operator context is additive and keeps the record fail-closed.
+- Security: no real operator names, approvals, or production identifiers were added; the fields remain placeholders until an authorized operator fills them in.
+- Tests: `scripts/test/operator-governance.test.mjs`, `scripts/test/deployment-readiness-workflows.test.mjs`, `node --test scripts/test/configure-github-environments-script.test.mjs scripts/test/current-head-evidence-sync.test.mjs`, `node scripts/validate-release-templates.mjs`, and `git diff --check` passed in this worktree.
+- Limitations: repository-local validation only; the actual operator values and explicit production approval remain pending.
+
 ## 2026-07-16 — GitHub environment helper operator-field sync
 
 - Base revision: current branch head after the environment-helper drift guard patch.

@@ -43,6 +43,17 @@ Auditable approval reference: `<reference>`
 
 A merge, successful CI run, or staging review is not a production GO decision.
 
+## Operator record
+
+The production release record also carries the operator-owned staging review context that must match the external readiness evidence for the same immutable release SHA:
+
+| Field | Purpose |
+|---|---|
+| Staging reviewer | Named accountable reviewer for the external staging evidence |
+| Incident owner | Primary operational owner during the release window |
+| Escalation route | Tested path for paging and escalation during the change |
+| Watch window | The post-release time window under active monitoring |
+
 ## Execution record
 
 | Field | Value |
