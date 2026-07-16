@@ -50,7 +50,7 @@ async function main() {
     const text = await readFile(join(templateDir, file), "utf8");
     const schema = JSON.parse(await readFile(join(schemaDir, schemaFile), "utf8"));
 
-    if (scalar(text, "apiVersion") !== "release.z-platform.io/v1alpha1") {
+    if (scalar(text, "apiVersion") !== "release.zeaz.dev/v1alpha1") {
       fail(`${file}: invalid or missing apiVersion`);
     }
     if (scalar(text, "kind") !== expectedKind) {

@@ -1,4 +1,4 @@
-apiVersion: release.z-platform.io/v1alpha1
+apiVersion: release.zeaz.dev/v1alpha1
 kind: OperationalOwnership
 metadata:
   name: <release-id>
