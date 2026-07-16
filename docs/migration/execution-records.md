@@ -4,10 +4,10 @@
 
 - Base revision: current branch head after the staging decision-record validator patch.
 - Scope: one repository-local identity and claim-mapping contract slice.
-- Implementation: added `scripts/validate-staging-decision-record.mjs` plus workflow coverage so `scripts/staging-decision-record.json` is validated as the canonical machine-readable snapshot for the approved OIDC provider class and tenant-claim mapping reference.
+- Implementation: added `scripts/validate-staging-decision-record.mjs`, `schemas/operations/staging-decision-record.schema.json`, and workflow coverage so `scripts/staging-decision-record.json` is validated as the canonical machine-readable snapshot for the approved OIDC provider class and tenant-claim mapping reference.
 - Compatibility: the existing external staging harness and release-governance records are unchanged; the new validator is additive and fail-closed.
 - Security: no provider credentials, account IDs, or secret values were added; the validator rejects placeholder identity-mapping values instead of inventing real ones.
-- Tests: `scripts/test/staging-decision-record.test.mjs`, `scripts/test/deployment-readiness-workflows.test.mjs`, `scripts/test/operator-governance.test.mjs`, `node --test scripts/test/configure-github-environments-script.test.mjs scripts/test/current-head-evidence-sync.test.mjs scripts/test/staging-decision-record.test.mjs`, `node scripts/validate-release-templates.mjs`, and `git diff --check` passed in this worktree.
+- Tests: `scripts/test/staging-decision-record.test.mjs`, `scripts/test/deployment-readiness-workflows.test.mjs`, `scripts/test/operator-governance.test.mjs`, `node --test scripts/test/configure-github-environments-script.test.mjs scripts/test/current-head-evidence-sync.test.mjs scripts/test/staging-decision-record.test.mjs`, `node scripts/validate-release-templates.mjs`, `node scripts/validate-staging-decision-record.mjs scripts/staging-decision-record.json`, and `git diff --check` passed in this worktree.
 - Limitations: repository-local validation only; the actual external identity provider and production claim mapping remain pending operator input.
 
 ## 2026-07-16 — Production release record operator context
