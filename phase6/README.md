@@ -43,6 +43,18 @@ chmod 750 scripts/configure-github.sh
 REPO=cvsz/z-platform ./scripts/configure-github.sh
 ```
 
+To create or update the GitHub Environments used by the phase 6 workflows:
+
+```bash
+chmod 750 scripts/configure-github-environments.sh
+REPO=cvsz/z-platform \
+  ./scripts/configure-github-environments.sh \
+  --staging-reviewer user:LOGIN \
+  --production-reviewer user:LOGIN
+```
+
+Replace the reviewer selectors with the actual user or team slugs authorized to approve `staging` and `production`.
+
 The server-generated values are real deployed HTTPS endpoints. They do not replace the remaining requirements:
 
 - real external backup create/restore/verify commands;
