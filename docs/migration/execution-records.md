@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — Release governance operator-signoff coverage
+
+- Base revision: current branch head after the operator-signoff coverage patch.
+- Scope: one repository-local release-governance slice.
+- Implementation: added focused validation coverage for the operator sign-off path, connecting the phase-6 operator input register with the operational ownership and production release records used by the final release workflow.
+- Compatibility: no runtime application paths changed; the release governance records remain fail-closed placeholders until an operator fills them in.
+- Security: no operator identities, reviewer names, incident owners, or approval values were fabricated or committed.
+- Tests: `scripts/test/operator-governance.test.mjs`, `scripts/test/deployment-readiness-workflows.test.mjs`, and `node scripts/validate-release-templates.mjs` passed in this worktree.
+- Limitations: repository-local validation only; this slice improves the auditability of the operator-owned stack but does not substitute for real operator sign-off.
+
 ## 2026-07-16 — Supabase read-only Phase 6 API bridge
 
 - Base revision: current branch head after the Supabase bridge patch.

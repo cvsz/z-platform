@@ -1,5 +1,18 @@
 # Migration Validation Report
 
+## Release governance operator-signoff coverage
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local operator-signoff slice only. |
+| Governance records | pass | `docs/operations/phase-6-operator-inputs.md`, `docs/release/operational-ownership.md`, and `docs/release/production-release-record.md` now explicitly bind the operator-owned approval path to the final release workflow. |
+| Deterministic coverage | pass | `scripts/test/operator-governance.test.mjs` and `scripts/test/deployment-readiness-workflows.test.mjs` pass. |
+| Template validation | pass | `node scripts/validate-release-templates.mjs` passed in this worktree. |
+
+This slice is repository-local. It makes the remaining `PENDING_OPERATOR` items explicit and auditable, but it does not fabricate any reviewer, incident, or approval values.
+
 ## Supabase read-only Phase 6 API bridge
 
 Date: 2026-07-16

@@ -66,6 +66,13 @@ This register captures the production values that cannot be inferred from source
 - Post-launch watch window: pending
 - Rollback decision authority: pending
 
+## Release sign-off records
+
+- `docs/release/operational-ownership.md` captures the named roles, change window, and `PENDING_OPERATOR` / `APPROVED_OPERATOR` state for the release owner set.
+- `docs/release/production-release-record.md` captures the exact release SHA, staging evidence reference, immutable image digests, approval record, and post-deploy outcome.
+- `.github/workflows/external-staging-readiness.yml` records the staging evidence and protected production approval artifacts for one immutable SHA.
+- `.github/workflows/final-release-readiness.yml` closes Issue #1 only after staging evidence and protected production approval succeed for the same SHA.
+
 ## Required evidence attachments
 
 - Eligible `main` provenance-attestation URL and verification result

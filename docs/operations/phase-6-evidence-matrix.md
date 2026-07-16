@@ -40,6 +40,7 @@ Status definitions use the issue #1 semantics: **VERIFIED**, **IMPLEMENTED**, **
 | Current `main` security eligibility | CodeQL and Dependabot scanning | CodeQL Advanced run `29468958931` passed; Dependabot alert state was not re-fetched with authenticated API access | GitHub security scanning | IMPLEMENTED |
 | AI Gateway disconnect-aware upstream cancellation | Branch-local gateway abort handling and disconnect regression test | Deterministic repository-local test coverage on this branch; PR-head workflow artifacts pending | Repository | IMPLEMENTED |
 | CodeQL Advanced self-hosted runner lane | Self-hosted runner, broader query suite configuration, and explicit language toolchain setup | Workflow-shape regression test covers `runs-on: [self-hosted, Linux, X64]`, `security-and-quality` config loading, and setup ordering for Node/pnpm/Go/Python analysis | Repository / self-hosted runner | IMPLEMENTED |
+| Operator sign-off record coverage | Phase-6 operator input register, operational ownership record, and production release record are linked by workflow-shape and template validation | `scripts/test/operator-governance.test.mjs`, `scripts/test/deployment-readiness-workflows.test.mjs`, `node scripts/validate-release-templates.mjs` | Repository / workflows | IMPLEMENTED |
 
 ## Release selection rule
 
