@@ -25,6 +25,7 @@ test("CodeQL workflow provisions language toolchains before init", () => {
   assert.ok(workflow.indexOf("actions/setup-go@v5") < initIndex);
   assert.ok(workflow.indexOf("actions/setup-python@v5") < initIndex);
   assert.match(workflow, /actions\/setup-node@v4/);
+  assert.match(workflow, /node-version:\s*24/);
   assert.match(workflow, /pnpm\/action-setup@v4/);
   assert.match(workflow, /pnpm install --ignore-scripts --frozen-lockfile/);
   assert.match(workflow, /actions\/setup-go@v5/);

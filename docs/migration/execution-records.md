@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — CI pnpm Node 24 alignment
+
+- Base revision: current branch head after the Node toolchain fix.
+- Scope: one repository-local workflow compatibility slice.
+- Implementation: updated the `ci`, `validate`, and `CodeQL Advanced` workflows to provision Node 24 before `pnpm install`, matching the repository's pinned `pnpm@11.4.0` requirement and eliminating the Node 20 / `node:sqlite` install failure.
+- Compatibility: application code, provider isolation, production gates, and deployment workflows are unchanged.
+- Security: no credentials, service tokens, or production identifiers were added; the change only adjusts the public Node runtime used by CI and CodeQL.
+- Tests: `scripts/test/workflow-pnpm-setup.test.mjs` and `scripts/test/codeql-workflow.test.mjs` now assert the Node 24 setup step before pnpm installation.
+- Limitations: repository-local validation only; GitHub Actions remains the source of truth for the exact head SHA's CI result.
+
 ## 2026-07-16 — CodeQL Advanced self-hosted runner lane
 
 - Base revision: `1f44d9588fe4a42370f3477eea22a70e1e4cbd22`
