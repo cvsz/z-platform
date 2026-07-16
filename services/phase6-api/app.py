@@ -1,5 +1,7 @@
 import asyncio
+import hmac
 import json
+import hashlib
 import os
 import time
 import uuid
@@ -8,7 +10,7 @@ from typing import Any
 
 import httpx
 import redis.asyncio as redis
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from prometheus_client import Counter, Histogram, generate_latest
 from starlette.responses import Response
@@ -20,6 +22,7 @@ PROVIDERS: dict[str, str] = json.loads(os.environ["AI_PROVIDER_ENDPOINTS"])
 KEYS: dict[str, str] = json.loads(os.environ["AI_PROVIDER_KEYS_JSON"])
 MODEL = os.getenv("AI_MODEL", "Qwen/Qwen2.5-Coder-32B-Instruct")
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30"))
+GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
 
 r = redis.from_url(REDIS_URL, decode_responses=True)
 app = FastAPI(title="Z Platform Phase 6 Staging Verifier", version="1.0.0")
@@ -122,6 +125,37 @@ async def session_health(_: None = Depends(auth)):
     await r.setex(f"session:{marker}", 60, "active")
     value = await r.get(f"session:{marker}")
     return {"status": "verified", "session": marker, "persisted": value == "active"}
+
+def verify_github_signature(body: bytes, signature: str | None) -> None:
+    if not GITHUB_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="github webhook secret not configured")
+    if not signature:
+        raise HTTPException(status_code=401, detail="missing signature")
+    expected = "sha256=" + hmac.new(GITHUB_WEBHOOK_SECRET.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=401, detail="invalid signature")
+
+@app.post("/webhooks/github")
+async def github_webhook(request: Request):
+    body = await request.body()
+    verify_github_signature(body, request.headers.get("X-Hub-Signature-256"))
+    delivery = request.headers.get("X-GitHub-Delivery") or str(uuid.uuid4())
+    event = request.headers.get("X-GitHub-Event", "unknown")
+    try:
+        payload = json.loads(body or b"{}")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="invalid github payload") from exc
+    record = {
+        "status": "verified",
+        "delivery": delivery,
+        "event": event,
+        "repository": payload.get("repository", {}).get("full_name"),
+        "action": payload.get("action"),
+        "receivedAt": time.time(),
+    }
+    await r.setex(f"github:webhook:{delivery}", 86400, json.dumps(record))
+    REQUESTS.labels("github_webhook", "success").inc()
+    return record
 
 @app.get("/metrics")
 async def metrics():

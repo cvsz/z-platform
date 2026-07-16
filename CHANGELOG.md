@@ -15,6 +15,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - CodeQL Advanced workflow now targets the available self-hosted Linux/X64 runner labels instead of a missing custom label, so the job can start on the current runner pool while keeping security-analysis execution on self-hosted infrastructure.
 - Release template and zctl apiVersion identifiers now use `zeaz.dev` instead of `z-platform.io`.
 - GitHub issue templates, sponsor metadata, and Discussions entry points were added for repository community setup.
+- Phase 6 API now exposes a verified GitHub webhook endpoint at `/webhooks/github` on the Cloudflare-backed Phase 6 hostname, with signature validation and failure-path tests.
 - Cloudflare Terraform examples and installer defaults now use service-named public hostnames such as `phase6.zeaz.dev`, `zchat.zeaz.dev`, and `zai.zeaz.dev`.
 - Shared readiness probe helpers now set `Content-Type: application/json` whenever a JSON body is present, so POST-based external checks are sent with the expected content type.
 - External readiness manifest validation now rejects placeholder HTTPS probe URLs such as `staging.example.invalid` and localhost-style endpoints.
