@@ -20,6 +20,8 @@ Do not store provider credentials, service tokens, payment secrets, wallet keys,
 4. Create `ci`, `staging`, and `production`.
 5. Configure protection rules before adding secrets.
 
+Repository-local automation is available in `scripts/configure-github-environments.sh`. It creates or updates `ci`, `staging`, and `production`, but it requires explicit reviewer selectors such as `user:LOGIN` or `team:SLUG` and does not invent reviewer identities.
+
 ## `ci` environment
 
 Use `ci` only for non-secret validation.
