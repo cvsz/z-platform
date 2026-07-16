@@ -60,6 +60,11 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - **Evidence drift sync and SHA-binding gate:** Restored `validate-release-evidence.yml` CI workflow removed in PR #44; cleared stale `releaseSha` from `staging-readiness-manifest.json`; added rollback candidates for PRs #43 and #44; recorded the then-current `main` head (`624183524fd3edc9666ddce7c64acafa1130fa7e`). The current-head record now supersedes that drift notice.
 - **Compose Service Discovery Fix:** Fixed `redis` network configurations in `compose.yml` to use `z-platform-internal` network, enabling proper DNS resolution and database connection for the `ai-gateway` service.
 
+### Fixed
+
+- `agent-control-panel` now uses a dedicated Next.js Dockerfile that installs dependencies, builds the app, and prunes dev dependencies before `npm start`, which stops the compose restart loop caused by the missing `next` binary.
+- Deployed smoke now accepts the committed ZChat semantic main region and current responsive breakpoint (`<main class="shell">` and `@media (max-width: 720px)`), with a regression test guarding the static markup used by the smoke script.
+
 ### Security
 
 - Resolve CodeQL findings for workspace path containment, AI Gateway rate limiting, default-deny CORS, and Cloudflare installer authorization-header logging; override transitive PostCSS to patched version `8.5.19`.

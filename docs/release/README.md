@@ -20,6 +20,7 @@ Templates are stored under `.github/release-templates/`:
 - `staging-review.yaml`
 - `operational-ownership.yaml`
 - `production-release-record.yaml`
+- `scripts/phase-6-operator-inputs.json`
 
 These templates are governance records, not Kubernetes Custom Resources. Their JSON Schemas are stored under `schemas/release/`. Validation runs through `pnpm release:validate` and is also exercised by the repository test suite.
 

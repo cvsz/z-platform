@@ -45,6 +45,7 @@ Status definitions use the issue #1 semantics: **VERIFIED**, **IMPLEMENTED**, **
 | AI Gateway disconnect-aware upstream cancellation | Branch-local gateway abort handling and disconnect regression test | Deterministic repository-local test coverage on this branch; PR-head workflow artifacts pending | Repository | IMPLEMENTED |
 | CodeQL Advanced self-hosted runner lane | Self-hosted runner, broader query suite configuration, and explicit language toolchain setup | Workflow-shape regression test covers `runs-on: [self-hosted, Linux, X64]`, `security-and-quality` config loading, and setup ordering for Node/pnpm/Go/Python analysis | Repository / self-hosted runner | IMPLEMENTED |
 | Operator sign-off record coverage | Phase-6 operator input register, operational ownership record, and production release record are linked by workflow-shape and template validation | `scripts/test/operator-governance.test.mjs`, `scripts/test/deployment-readiness-workflows.test.mjs`, `node scripts/validate-release-templates.mjs` | Repository / workflows | IMPLEMENTED |
+| Agent Control Panel compose/start evidence (`eb7a0f4a862939cbab764b2af185685a7c951fea`) | Dedicated Next.js Dockerfile for `apps/agent-control-panel`, compose service wiring, and smoke alignment for the current branch head | `scripts/test/compose-next-service.test.mjs`, `scripts/test/staging-smoke-zchat-markup.test.mjs`, `git rev-parse HEAD`, `docker compose -f compose.yml up -d --build --wait`, `node scripts/staging-smoke.mjs` | Isolated Compose | VERIFIED |
 
 ## Release selection rule
 

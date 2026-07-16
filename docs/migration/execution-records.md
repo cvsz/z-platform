@@ -1,5 +1,25 @@
 # Migration Execution Records
 
+## 2026-07-16 — Agent Control Panel compose startup fix
+
+- Base revision: current branch head after the Next.js service image patch.
+- Scope: one repository-local compose startup slice.
+- Implementation: switched `agent-control-panel` in `compose.yml` to a dedicated `deploy/docker/next-service.Dockerfile` that installs dependencies, builds the Next.js app, prunes dev dependencies, and keeps the runtime image non-root before `npm start`.
+- Compatibility: the other node-service containers continue to use the shared `deploy/docker/node-service.Dockerfile`; only the Next.js service receives the build step it needs.
+- Security: no credentials, secret values, or production identifiers were added; the service still runs with the existing compose safety gates.
+- Tests: `scripts/test/compose-next-service.test.mjs`, `docker compose -f compose.yml config --quiet`, `docker compose -f compose.yml up -d --build --wait`, and `docker compose -f compose.yml ps` are the intended validation steps for this slice.
+- Limitations: repository-local compose validation only; the image must be rebuilt before the new Dockerfile takes effect in a live stack.
+
+## 2026-07-16 — ZChat deployed-smoke markup alignment
+
+- Base revision: current branch head after the smoke-check alignment patch.
+- Scope: one repository-local deployed-smoke correction slice.
+- Implementation: loosened `scripts/staging-smoke.mjs` to match the committed ZChat semantic main region and responsive breakpoint actually served by `apps/zchat/public/index.html` and `apps/zchat/public/styles.css`; added `scripts/test/staging-smoke-zchat-markup.test.mjs` to keep the static smoke contract aligned with the deployed markup.
+- Compatibility: no runtime behavior changed; the deployed smoke now checks the markup and CSS that are already committed and served by the stack.
+- Security: no credentials, secrets, or production identifiers were added; the smoke script still fails closed on unexpected markup.
+- Tests: `node --test scripts/test/staging-smoke-zchat-markup.test.mjs` and `node scripts/staging-smoke.mjs` passed in this worktree after the patch.
+- Limitations: repository-local isolated Compose evidence only; this does not substitute for any external staging or operator approval requirement in Issue #1.
+
 ## 2026-07-16 — Identity-provider and tenant-claim decision record
 
 - Base revision: current branch head after the staging decision-record validator patch.
