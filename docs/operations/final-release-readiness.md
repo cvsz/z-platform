@@ -27,4 +27,6 @@ gh workflow run final-release-readiness.yml \
   -f issue_number=1
 ```
 
+Before dispatch, create or refresh the GitHub environments with `scripts/configure-github-environments.sh` and operator-approved reviewer selectors. The helper configures protection rules, branch policies, and imports populated overlay keys into the relevant GitHub environment variables and secrets.
+
 Production traffic enablement remains a separate deployment action. Closing the readiness issue records approval and evidence; it does not itself alter routing or deploy workloads.

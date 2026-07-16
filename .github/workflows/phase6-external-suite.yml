@@ -56,14 +56,15 @@ jobs:
             exit 2
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
+          package-manager-cache: false
 
       - name: Verify checked-out revision
         shell: bash
@@ -152,7 +153,7 @@ jobs:
         run: node scripts/phase6-external-suite.mjs /tmp/phase6-external-suite.json phase6-external-evidence
 
       - name: Upload evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: phase6-external-evidence-${{ inputs.release_sha }}
           path: phase6-external-evidence/phase6-external-evidence.json

@@ -27,6 +27,11 @@ test("environment script requires explicit reviewer selectors", () => {
   assert.match(script, /normalize_reviewer_selector/);
   assert.match(script, /STAGING_REVIEWER/);
   assert.match(script, /PRODUCTION_APPROVER/);
+  assert.match(script, /sync_staging_environment_values/);
+  assert.match(script, /sync_production_environment_values/);
+  assert.match(script, /gh secret set "\$key" --repo "\$REPO" --env "\$environment_name"/);
+  assert.match(script, /gh variable set "\$key" --repo "\$REPO" --env "\$environment_name"/);
+  assert.match(script, /skipped empty/);
 });
 
 test("environment script sets protected branch policy for protected and main-only modes", () => {

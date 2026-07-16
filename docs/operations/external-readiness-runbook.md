@@ -15,6 +15,7 @@ This runbook closes every automatable item remaining in Issue #1 without treatin
 ## Required staging configuration
 
 Create these GitHub Environment values outside the repository.
+Use `scripts/configure-github-environments.sh` before loading the secrets below so `staging` and `production` exist with the correct reviewer and branch policies and the populated overlay keys are synchronized into the relevant GitHub environment variables and secrets.
 
 ### Secrets
 

@@ -2,6 +2,8 @@
 
 Production and external traffic remain **DISABLED**. Issue #1 remains open until external staging evidence and explicit operator approval are recorded for the same immutable release SHA.
 
+Environment bootstrap for `ci`, `staging`, and `production` is handled by `scripts/configure-github-environments.sh`. It imports populated keys from the loaded env overlays into the relevant GitHub environment variables and secrets, does not invent reviewers, and does not bypass protected-environment rules.
+
 ## Status definitions
 
 - **VERIFIED** - backed by repository, CI, artifact, or isolated deployed evidence.
@@ -26,11 +28,11 @@ Current `main` SHA: `36fc7f594c933137a1d8da2855bac752fb2f03b3` (2026-07-15).
 | Main security-alert state | IMPLEMENTED | CodeQL workflow on `36fc7f5` passed in run `29431080079`; Dependabot alert state was not re-fetched with authenticated API access | Passing workflows do not by themselves prove alert closure. |
 | AI Gateway disconnect-aware upstream cancellation | IMPLEMENTED | Branch-local gateway factory, disconnect abort handling, and deterministic client-disconnect regression test on this branch | PR-head workflow, immutable artifact binding, and any external staging evidence are still pending. |
 
-## CodeQL Advanced z-runner slice
+## CodeQL Advanced self-hosted runner slice
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
-| Workflow and runner update | IMPLEMENTED | `CodeQL Advanced` now runs on the self-hosted `z-runner` lane, loads `.github/codeql/codeql-config.yml`, provisions Node/pnpm/Go/Python toolchains before CodeQL init, and adds the `security-and-quality` query suite; `scripts/test/codeql-workflow.test.mjs` checks the workflow shape and setup ordering | PR-head CodeQL execution on the exact SHA and alert-closure evidence on the self-hosted runner remain **PENDING_EXTERNAL**. |
+| Workflow and runner update | IMPLEMENTED | `CodeQL Advanced` now runs on the available self-hosted Linux/X64 lane, loads `.github/codeql/codeql-config.yml`, provisions Node/pnpm/Go/Python toolchains before CodeQL init, and adds the `security-and-quality` query suite; `scripts/test/codeql-workflow.test.mjs` checks the workflow shape and setup ordering | PR-head CodeQL execution on the exact SHA and alert-closure evidence on the self-hosted runner remain **PENDING_EXTERNAL**. |
 
 Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to this branch or a later release candidate.
 

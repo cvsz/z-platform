@@ -1,4 +1,4 @@
-apiVersion: control.z-platform.io/v1alpha1
+apiVersion: control.zeaz.dev/v1alpha1
 kind: ZControlConfig
 
 project:

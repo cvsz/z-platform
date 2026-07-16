@@ -20,7 +20,7 @@ This document records the implemented defaults and the values that still require
 ## Secret management
 
 - Local development: uncommitted `.env`, mode `0600`.
-- CI/staging bootstrap: GitHub Environment secrets with required reviewers.
+- CI/staging bootstrap: GitHub Environment secrets with required reviewers, configured through the repository helper script or the GitHub UI.
 - Production: external secret manager selected by the infrastructure owner. GitHub stores only workload-identity/bootstrap references, not long-lived production credentials.
 - Rotation: service/provider tokens rotate at least every 90 days and immediately after suspected disclosure.
 
@@ -64,3 +64,9 @@ This document records the implemented defaults and the values that still require
 ## Production sign-off
 
 Production traffic remains disabled until the issue checklist contains evidence for CI, SBOM, provenance, backups/restores, observability, security boundaries, reviewer identity, approving operator, rollback SHA, incident owner, and watch window.
+
+## Environment bootstrap
+
+- `scripts/configure-github-environments.sh` is the supported repository-local helper for creating or updating `ci`, `staging`, and `production`.
+- The helper requires explicit `user:LOGIN` or `team:SLUG` reviewer selectors and fails closed if they are omitted.
+- The helper updates environment protection rules and branch policies and imports populated keys from the loaded env overlays into the relevant GitHub environment variables and secrets; it does not invent values or reviewers.

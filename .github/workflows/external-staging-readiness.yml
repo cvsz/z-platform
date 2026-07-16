@@ -50,14 +50,16 @@ jobs:
             exit 2
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
+          package-manager-cache: false
+          package-manager-cache: false
 
       - name: Verify checked-out immutable revision
         env:
@@ -85,7 +87,7 @@ jobs:
         run: node scripts/external-readiness.mjs /tmp/staging-readiness-manifest.json external-staging-evidence.json
 
       - name: Upload sanitized staging evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: external-staging-evidence-${{ inputs.release_sha }}
           path: external-staging-evidence.json
@@ -138,7 +140,7 @@ jobs:
           EOF
 
       - name: Upload production approval evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: production-approval-${{ inputs.release_sha }}
           path: production-approval-evidence.json
