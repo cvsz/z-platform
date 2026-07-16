@@ -9,6 +9,8 @@ STAGING_BRANCH_NAME="${STAGING_BRANCH_NAME:-main}"
 PRODUCTION_BRANCH_POLICY="${PRODUCTION_BRANCH_POLICY:-main-only}"
 PRODUCTION_BRANCH_NAME="${PRODUCTION_BRANCH_NAME:-main}"
 
+declare -A LOADED_ENV_KEYS=()
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -40,7 +42,9 @@ Selectors:
   team:SLUG                Resolve a GitHub team slug in the repository owner org.
   LOGIN                     Treated as user:LOGIN when loaded from .env overlays.
 
-The script only configures environment protection rules. It does not set secrets.
+The script configures environment protection rules and imports populated keys
+from the loaded env overlays into GitHub environment variables and secrets.
+It never prints secret values.
 EOF
 }
 
@@ -114,6 +118,7 @@ load_env_file() {
 
     printf -v "$name" '%s' "$value"
     export "$name"
+    LOADED_ENV_KEYS["$name"]=1
   done < "$file"
 }
 
@@ -242,6 +247,65 @@ sync_branch_policy() {
   esac
 }
 
+sync_environment_value() {
+  local environment_name="$1"
+  local kind="$2"
+  local key="$3"
+  local value="${4:-}"
+
+  [[ -n "$value" ]] || {
+    echo "skipped empty ${kind}: ${environment_name}/${key}"
+    return 0
+  }
+
+  case "$kind" in
+    secret)
+      printf '%s' "$value" | gh secret set "$key" --repo "$REPO" --env "$environment_name" >/dev/null
+      ;;
+    variable)
+      printf '%s' "$value" | gh variable set "$key" --repo "$REPO" --env "$environment_name" >/dev/null
+      ;;
+    *)
+      die "unknown environment value kind: $kind"
+      ;;
+  esac
+  echo "synced ${kind}: ${environment_name}/${key}"
+}
+
+sync_environment_values() {
+  local environment_name="$1"
+  local kind="$2"
+  shift 2
+  local key
+
+  for key in "$@"; do
+    sync_environment_value "$environment_name" "$kind" "$key" "${!key:-}"
+  done
+}
+
+sync_staging_environment_values() {
+  local key
+  sync_environment_values "staging" variable \
+    STAGING_REVIEWER \
+    INCIDENT_OWNER \
+    ESCALATION_ROUTE \
+    WATCH_WINDOW
+
+  for key in "${!LOADED_ENV_KEYS[@]}"; do
+    case "$key" in
+      REPO|GITHUB_API_VERSION|PREVENT_SELF_REVIEW|STAGING_BRANCH_POLICY|STAGING_BRANCH_NAME|PRODUCTION_BRANCH_POLICY|PRODUCTION_BRANCH_NAME|STAGING_REVIEWER|INCIDENT_OWNER|ESCALATION_ROUTE|WATCH_WINDOW|PRODUCTION_REVIEWER|PRODUCTION_APPROVER)
+        continue
+        ;;
+    esac
+    sync_environment_value "staging" secret "$key" "${!key:-}"
+  done
+}
+
+sync_production_environment_values() {
+  sync_environment_values "production" variable \
+    PRODUCTION_APPROVER
+}
+
 set_environment_payload() {
   local environment_name="$1"
   local branch_policy_mode="$2"
@@ -332,9 +396,11 @@ main() {
 
   ((${#staging_reviewers[@]} > 0)) || die "at least one staging reviewer must be supplied"
   set_environment_payload "staging" "$STAGING_BRANCH_POLICY" "$STAGING_BRANCH_NAME" "${staging_reviewers[@]}"
+  sync_staging_environment_values
 
   ((${#production_reviewers[@]} > 0)) || die "at least one production reviewer must be supplied"
   set_environment_payload "production" "$PRODUCTION_BRANCH_POLICY" "$PRODUCTION_BRANCH_NAME" "${production_reviewers[@]}"
+  sync_production_environment_values
 
   cat <<EOF
 Done.

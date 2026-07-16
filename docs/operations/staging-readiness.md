@@ -2,6 +2,8 @@
 
 Production and external traffic remain **DISABLED**. Issue #1 remains open until external staging evidence and explicit operator approval are recorded for the same immutable release SHA.
 
+Environment bootstrap for `ci`, `staging`, and `production` is handled by `scripts/configure-github-environments.sh`. It imports populated keys from the loaded env overlays into the relevant GitHub environment variables and secrets, does not invent reviewers, and does not bypass protected-environment rules.
+
 ## Status definitions
 
 - **VERIFIED** - backed by repository, CI, artifact, or isolated deployed evidence.
