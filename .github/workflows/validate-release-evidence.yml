@@ -75,3 +75,6 @@ jobs:
 
       - name: Run validate-release-evidence unit tests
         run: node --test scripts/test/validate-release-evidence.test.mjs
+
+      - name: Validate staging decision record
+        run: node scripts/validate-staging-decision-record.mjs scripts/staging-decision-record.json

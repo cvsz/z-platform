@@ -77,7 +77,7 @@ This register captures the production values that cannot be inferred from source
 
 | Issue item | Record owner | Canonical repository target |
 |---|---|---|
-| External identity provider and production claim mapping | Identity / Cloudflare | `docs/operations/phase-6-decisions.md`, `docs/operations/cloudflare-access.md`, `docs/operations/operator-inputs-status.md` |
+| External identity provider and production claim mapping | Identity / Cloudflare | `docs/operations/phase-6-decisions.md`, `docs/operations/cloudflare-access.md`, `docs/operations/operator-inputs-status.md`, `scripts/staging-decision-record.json`, `scripts/validate-staging-decision-record.mjs` |
 | Production secret-manager selection | Infrastructure / secrets | `docs/operations/phase-6-decisions.md`, `docs/operations/github-environments.md`, `docs/operations/operator-inputs-status.md` |
 | Managed production data services, region, retention authority, observability platform, and external backup target | Platform / operations | `docs/operations/phase-6-decisions.md`, `docs/release/operational-ownership.md`, `docs/release/production-release-record.md` |
 | Billing currency, jurisdiction, tax treatment, merchant responsibilities, and payment processor | Finance / legal | `docs/operations/phase-6-decisions.md`, `docs/release/production-release-record.md`, `docs/operations/operator-inputs-status.md` |

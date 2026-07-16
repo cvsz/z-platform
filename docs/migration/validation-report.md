@@ -53,6 +53,20 @@ Date: 2026-07-16
 
 This slice is repository-local. It makes the production release record carry the same operator context that the external readiness harness already collects, but it does not fabricate the actual operator values.
 
+## Identity-provider and tenant-claim decision record
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local identity/claim-mapping contract slice only. |
+| Decision record validation | pass | `scripts/staging-decision-record.json` is now validated by `scripts/validate-staging-decision-record.mjs`, which enforces the approved OIDC provider class and claim-mapping reference without exposing credentials. |
+| Workflow coverage | pass | `.github/workflows/validate-release-evidence.yml` runs the new decision-record validator whenever the staging decision record changes. |
+| Deterministic tests | pass | `scripts/test/staging-decision-record.test.mjs` and `scripts/test/deployment-readiness-workflows.test.mjs` cover the contract and workflow wiring. |
+| Format and workflow validation | pass | `git diff --check` and the focused Node tests passed in this worktree. |
+
+This slice is repository-local. It upgrades the identity-provider and tenant-claim mapping from placeholder prose to a validated operator decision record, but it still does not invent the actual external identity values.
+
 ## AI Gateway disconnect-aware upstream cancellation
 
 Date: 2026-07-15

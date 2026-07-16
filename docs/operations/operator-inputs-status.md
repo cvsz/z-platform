@@ -22,7 +22,7 @@ Use `phase-6-operator-inputs.md` for the decision register, `docs/release/operat
 
 | Issue item | Record or workflow that must hold the operator value |
 |---|---|
-| External identity provider and production claim mapping | `docs/operations/phase-6-operator-inputs.md`, `docs/operations/phase-6-decisions.md`, `docs/operations/cloudflare-access.md` |
+| External identity provider and production claim mapping | `docs/operations/phase-6-operator-inputs.md`, `docs/operations/phase-6-decisions.md`, `docs/operations/cloudflare-access.md`, `scripts/staging-decision-record.json`, `scripts/validate-staging-decision-record.mjs` |
 | Production secret-manager selection | `docs/operations/phase-6-operator-inputs.md`, `docs/operations/phase-6-decisions.md`, `docs/operations/github-environments.md` |
 | Managed production data services, region, retention authority, observability platform, and external backup target | `docs/operations/phase-6-operator-inputs.md`, `docs/operations/phase-6-decisions.md`, `docs/release/operational-ownership.md` |
 | Billing currency, jurisdiction, tax treatment, merchant responsibilities, and payment processor | `docs/operations/phase-6-operator-inputs.md`, `docs/operations/phase-6-decisions.md`, `docs/release/production-release-record.md` |

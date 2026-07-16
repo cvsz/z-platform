@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- Staging decision record validation now enforces the approved identity-provider and tenant-claim mapping snapshot in `scripts/staging-decision-record.json`, with a workflow check and repo-local tests guarding the contract.
 - Production release record template and schema now carry an explicit operator context (`stagingReviewer`, `incidentOwner`, `escalationRoute`, `watchWindow`) that matches the external readiness harness, with repo-local tests covering the contract.
 - GitHub environment helper and readiness docs now surface the operator-owned review fields (`STAGING_REVIEWER`, `INCIDENT_OWNER`, `ESCALATION_ROUTE`, `WATCH_WINDOW`, and production reviewer selectors) from the dotenv overlays, with repo-local drift tests tied to the current `origin/main` SHA.
 - Release governance now includes an explicit issue-item mapping for the remaining `PENDING_OPERATOR` values so the final-release workflow can point each operator decision at the correct record or workflow without fabricating approvals.
