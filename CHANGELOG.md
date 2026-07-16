@@ -20,7 +20,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - GitHub Actions workflow pins upgraded to Node 24-compatible releases across checkout, setup-node, setup-python, setup-go, and artifact upload steps, with repository tests updated to match the new workflow contracts.
 - Deployment readiness workflows now verify that the requested release SHA exists in `cvsz/z-platform` before checkout, so stale or invalid SHAs fail closed instead of surfacing as broken deployment records.
 - CI, validate, and CodeQL workflows now provision Node 24 before installing `pnpm@11.4.0`, which keeps the repository toolchain compatible with the pinned package manager and prevents `node:sqlite` install failures on Node 20 runners.
-- CodeQL Advanced workflow now targets the available self-hosted Linux/X64 runner labels instead of a missing custom label, so the job can start on the current runner pool while keeping security-analysis execution on self-hosted infrastructure.
+- CodeQL Advanced workflow now targets the available self-hosted Linux/X64 runner labels with the `github+self-hosted` fallback label instead of a missing custom label, so the job can start on the current runner pool while keeping security-analysis execution on self-hosted infrastructure.
 - Release template and zctl apiVersion identifiers now use `zeaz.dev` instead of `z-platform.io`.
 - GitHub issue templates, sponsor metadata, and Discussions entry points were added for repository community setup.
 - Phase 6 API now exposes a verified GitHub webhook endpoint at `/webhooks/github` on the Cloudflare-backed Phase 6 hostname, with signature validation and failure-path tests.
@@ -28,8 +28,8 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 - Shared readiness probe helpers now set `Content-Type: application/json` whenever a JSON body is present, so POST-based external checks are sent with the expected content type.
 - External readiness manifest validation now rejects placeholder HTTPS probe URLs such as `staging.example.invalid` and localhost-style endpoints.
 - External readiness validation now rejects explicitly invalid probe `expectedStatus` values instead of ignoring falsy inputs.
-- CodeQL Advanced workflow hardening that provisions Node, pnpm, Go, and Python toolchains before analysis on the available self-hosted Linux/X64 lane, with repo-local ordering tests for the setup steps.
-- CodeQL Advanced workflow update that runs on the available self-hosted Linux/X64 lane and loads the broader `security-and-quality` query suite, with repo-local workflow-shape tests; alert-closure evidence still requires a PR-head runner execution.
+- CodeQL Advanced workflow hardening that provisions Node, pnpm, Go, and Python toolchains before analysis on the available self-hosted Linux/X64 lane with the `github+self-hosted` fallback label, with repo-local ordering tests for the setup steps.
+- CodeQL Advanced workflow update that runs on the available self-hosted Linux/X64 lane with the `github+self-hosted` fallback label and loads the broader `security-and-quality` query suite, with repo-local workflow-shape tests; alert-closure evidence still requires a PR-head runner execution.
 - CI and validate Node workspace jobs now install dependencies before testing so the AI Gateway disconnect contract can resolve its app imports in GitHub Actions.
 - ZChat browser-local dark mode preference with system fallback.
 - ZChat manual conversation title editing that updates the active chat and history sidebar.
@@ -62,6 +62,8 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Fixed
 
+- Removed tracked Cloudflare Terraform state, backup state, and committed `terraform.tfvars` from version control, and added a stack-local ignore file so future state files stay out of the repo.
+- Root `pnpm test` now runs workspace tests serially, which avoids the recursive workspace concurrency flake that surfaced in the default parallel runner.
 - `agent-control-panel` now uses a dedicated Next.js Dockerfile that installs dependencies, builds the app, and prunes dev dependencies before `npm start`, which stops the compose restart loop caused by the missing `next` binary.
 - Deployed smoke now accepts the committed ZChat semantic main region and current responsive breakpoint (`<main class="shell">` and `@media (max-width: 720px)`), with a regression test guarding the static markup used by the smoke script.
 

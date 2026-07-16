@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — CodeQL Advanced fallback runner label
+
+- Base revision: current branch head after the fallback-label patch.
+- Scope: one repository-local CodeQL workflow slice.
+- Implementation: updated `CodeQL Advanced` to add the `github+self-hosted` fallback label alongside the available self-hosted Linux/X64 labels so the security workflow can target the intended runner pool naming without changing the analysis languages or query suite.
+- Compatibility: the workflow still analyzes the same repository languages and uses the same repository CodeQL config; only the runner label selector changed.
+- Security: no credentials, service tokens, or production identifiers were added; the change only adjusts runner selection metadata for the security workflow.
+- Tests: `scripts/test/codeql-workflow.test.mjs` now checks the workflow label list and query-suite selection.
+- Limitations: repository-local validation only; PR-head CodeQL execution, artifact binding, and alert-closure evidence on the fallback-labeled runner remain pending.
+
 ## 2026-07-16 — Agent Control Panel compose startup fix
 
 - Base revision: current branch head after the Next.js service image patch.

@@ -1,18 +1,18 @@
 # Migration Validation Report
 
-## Current branch head compose/start evidence (`6cc57bd8c0f8dce31c50a551dd957432e9e8ea7b`)
+## Prior branch head compose/start evidence (`3bc681f7a288b6a556d3885ee07623c8fb599b34`)
 
 Date: 2026-07-16
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Scope | pass | One repository-local compose startup slice for the current branch head `6cc57bd8c0f8dce31c50a551dd957432e9e8ea7b`. |
+| Scope | pass | One repository-local compose startup slice for the prior branch head `3bc681f7a288b6a556d3885ee07623c8fb599b34`. |
 | Agent Control Panel startup | pass | `deploy/docker/next-service.Dockerfile` installs dependencies, builds the Next.js app, prunes dev dependencies, and starts the service without the missing `next` binary failure. |
 | ZChat smoke alignment | pass | `scripts/staging-smoke.mjs` now checks the committed `<main class="shell">` markup and the current `@media (max-width: 720px)` breakpoint used by deployed checks. |
 | Compose bring-up | pass | `DOCKER_CONFIG=/tmp/docker-config docker compose -f compose.yml up -d --build --wait` completed with all services healthy in isolated Compose. |
 | Deployed smoke | pass | `node scripts/staging-smoke.mjs` completed successfully after the compose rebuild. |
 
-This slice is repository-local and isolated Compose only. It does not replace GitHub Actions evidence or any operator-owned staging/production approval requirement.
+This slice is repository-local and isolated Compose only. It does not replace GitHub Actions evidence or any operator-owned staging/production approval requirement, and it is not revalidated for the later fallback-label commit in this worktree.
 
 ## Release governance operator-signoff coverage
 
@@ -133,7 +133,7 @@ Date: 2026-07-16
 | Gate | Result | Evidence |
 |---|---|---|
 | Scope | pass | One repository-local workflow-hardening slice only. |
-| Toolchain setup | pass | `CodeQL Advanced` now provisions Node, pnpm, Go, and Python before `github/codeql-action/init@v4` on the available self-hosted Linux/X64 lane. |
+| Toolchain setup | pass | `CodeQL Advanced` now provisions Node, pnpm, Go, and Python before `github/codeql-action/init@v4` on the available self-hosted Linux/X64 lane with the `github+self-hosted` fallback label. |
 | Deterministic coverage | pass | `scripts/test/codeql-workflow.test.mjs` asserts the runner labels, config binding, setup ordering, and `security-and-quality` query suite. |
 | Format and workflow validation | pass | `python3` YAML parse of `.github/workflows/codeql.yml`, `node --test scripts/test/codeql-workflow.test.mjs`, and repo pre-push checks passed in this worktree. |
 
