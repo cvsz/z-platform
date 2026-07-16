@@ -28,6 +28,17 @@ Current `main` SHA: `634135b8c9ec9f166e67c68433b8d767fa7fb265` (2026-07-16).
 | Main security-alert state | IMPLEMENTED | CodeQL Advanced run `29468958931` passed on `634135b8c9ec9f166e67c68433b8d767fa7fb265`; Dependabot alert state was not re-fetched with authenticated API access | Passing workflows do not by themselves prove alert closure. |
 | AI Gateway disconnect-aware upstream cancellation | IMPLEMENTED | Branch-local gateway factory, disconnect abort handling, and deterministic client-disconnect regression test on this branch | PR-head workflow, immutable artifact binding, and any external staging evidence are still pending. |
 | Supabase read-only Data API bridge | IMPLEMENTED | Phase 6 API authenticated `/supabase/read` route with env-based URL, anon-key, and table selection; route-level success and failure-path tests on this branch | Real Supabase project/table evidence and external staging execution are still **PENDING_EXTERNAL**. |
+| Production release record operator context | IMPLEMENTED | `production-release-record.yaml` now records `stagingReviewer`, `incidentOwner`, `escalationRoute`, and `watchWindow`; `scripts/test/operator-governance.test.mjs` asserts the template and schema contract | Repository-local contract only; the actual values remain `PENDING_OPERATOR` until an authorized operator fills them in. |
+| Identity-provider and tenant-claim decision record | IMPLEMENTED | `scripts/staging-decision-record.json` now serves as the canonical machine-readable snapshot for the approved OIDC provider class and claim-mapping reference; `schemas/operations/staging-decision-record.schema.json`, `scripts/validate-staging-decision-record.mjs`, and its tests enforce the record shape | Repository-local contract only; the actual identity-provider selection and claim mapping remain `PENDING_OPERATOR`. |
+| Phase 6 operator-input register | IMPLEMENTED | `scripts/phase-6-operator-inputs.json` now serves as the canonical machine-readable register for the remaining Issue #1 `PENDING_OPERATOR` items; `schemas/operations/phase-6-operator-inputs.schema.json`, `scripts/validate-phase-6-operator-inputs.mjs`, and their tests enforce the pending contract | Repository-local contract only; the actual secret manager, managed data services, billing, and release-ownership values remain `PENDING_OPERATOR`. |
+
+## Remote-tracking main drift
+
+Remote `origin/main` SHA: `0f181f19b2a53473af96fa5790c1191d4ddc4ae9` (merge PR #55, 2026-07-16).
+
+| Claim | Status | Evidence | Limitations |
+|---|---|---|---|
+| GitHub environment helper and operator review-field import | IMPLEMENTED | `bash -n scripts/configure-github-environments.sh`; `node --test scripts/test/configure-github-environments-script.test.mjs scripts/test/current-head-evidence-sync.test.mjs`; the helper imports `STAGING_REVIEWER`, `INCIDENT_OWNER`, `ESCALATION_ROUTE`, `WATCH_WINDOW`, `PRODUCTION_REVIEWER`, and `PRODUCTION_APPROVER` from the loaded overlays | Repository-local validation only; CI, SBOM, provenance, and immutable artifact evidence for the exact `0f181f19...` SHA still need revalidation. |
 
 ## CodeQL Advanced self-hosted runner slice
 

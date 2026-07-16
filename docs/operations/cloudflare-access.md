@@ -27,3 +27,4 @@ Production deployment is blocked until an operator maps these logical policies t
 - Service token issuer/rotation policy.
 - Identity provider and tenant-claim mapping.
 - Secret storage location.
+- The approved identity-provider and claim-mapping snapshot is tracked in `scripts/staging-decision-record.json` and validated by `scripts/validate-staging-decision-record.mjs`.

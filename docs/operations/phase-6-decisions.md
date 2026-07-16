@@ -9,6 +9,7 @@ This document records the implemented defaults and the values that still require
 - Approval policy: authenticated user identity with separation of duties; a job requester must not self-approve in production.
 - External identity provider: operator-selected OIDC provider. Required claims: `sub`, `iss`, `aud`, tenant claim, roles/groups, and MFA assurance where available.
 - Browser applications must call a backend-for-frontend and must never receive provider credentials or service tokens.
+- The operator-owned identity decision snapshot is tracked in `scripts/staging-decision-record.json`, described by `schemas/operations/staging-decision-record.schema.json`, and validated by `scripts/validate-staging-decision-record.mjs`; it carries the approved identity-provider class and tenant-claim mapping reference without exposing secret values.
 
 ## Cloudflare Access mapping
 
@@ -71,3 +72,4 @@ Production traffic remains disabled until the issue checklist contains evidence 
 - `scripts/configure-github-environments.sh` is the supported repository-local helper for creating or updating `ci`, `staging`, and `production`.
 - The helper requires explicit `user:LOGIN` or `team:SLUG` reviewer selectors and fails closed if they are omitted.
 - The helper updates environment protection rules and branch policies and imports populated keys from the loaded env overlays into the relevant GitHub environment variables and secrets; it does not invent values or reviewers.
+- The protected staging decision record, `scripts/staging-decision-record.json`, is the canonical machine-readable source for the approved identity-provider and claim-mapping decision used by the external staging workflow, and `schemas/operations/staging-decision-record.schema.json` captures the expected contract for repository-local validation.

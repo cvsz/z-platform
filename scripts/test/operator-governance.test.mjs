@@ -13,6 +13,7 @@ const [
   releaseReadme,
   ownershipDoc,
   productionRecordDoc,
+  productionRecordSchema,
   externalWorkflow,
   finalWorkflow,
 ] = await Promise.all([
@@ -21,6 +22,7 @@ const [
   read("docs/release/README.md"),
   read("docs/release/operational-ownership.md"),
   read("docs/release/production-release-record.md"),
+  read("schemas/release/production-release-record.schema.json"),
   read(".github/workflows/external-staging-readiness.yml"),
   read(".github/workflows/final-release-readiness.yml"),
 ]);
@@ -35,6 +37,7 @@ test("operator inputs status documents the remaining operator-owned stack", () =
   assert.match(operatorInputsStatus, /Agent cancellation/i);
   assert.match(operatorInputsStatus, /Deployed ZWallet and ZChat QA/i);
   assert.match(operatorInputsStatus, /Issue #1 operator mapping/);
+  assert.match(operatorInputsStatus, /phase-6-operator-inputs\.json/);
   assert.match(operatorInputsStatus, /cloudflare-access\.md/);
   assert.match(operatorInputsStatus, /final-release-readiness\.yml/);
 });
@@ -48,6 +51,7 @@ test("phase 6 operator register points at the release sign-off records", () => {
   assert.match(operatorInputsRegister, /Issue #1 operator-item mapping/);
   assert.match(operatorInputsRegister, /Identity \/ Cloudflare/);
   assert.match(operatorInputsRegister, /Finance \/ legal/);
+  assert.match(operatorInputsRegister, /phase-6-operator-inputs\.json/);
 });
 
 test("release governance README names the operator-controlled records", () => {
@@ -68,8 +72,18 @@ test("operational ownership record remains fail-closed until approved", () => {
 test("production release record captures approval and execution fields", () => {
   assert.match(productionRecordDoc, /Status: `PENDING_OPERATOR`/);
   assert.match(productionRecordDoc, /Explicit decision/);
+  assert.match(productionRecordDoc, /Operator record/);
+  assert.match(productionRecordDoc, /Staging reviewer/);
+  assert.match(productionRecordDoc, /Incident owner/);
+  assert.match(productionRecordDoc, /Escalation route/);
+  assert.match(productionRecordDoc, /Watch window/);
   assert.match(productionRecordDoc, /Execution record/);
   assert.match(productionRecordDoc, /Final outcome recorded as `DEPLOYED`, `ROLLED_BACK`, or `RELEASE_FAILED`/);
+  assert.match(productionRecordSchema, /"operatorRecord"/);
+  assert.match(productionRecordSchema, /"stagingReviewer"/);
+  assert.match(productionRecordSchema, /"incidentOwner"/);
+  assert.match(productionRecordSchema, /"escalationRoute"/);
+  assert.match(productionRecordSchema, /"watchWindow"/);
 });
 
 test("external staging and final release workflows retain protected approval gates", () => {

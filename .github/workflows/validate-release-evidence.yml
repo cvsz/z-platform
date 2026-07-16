@@ -6,11 +6,13 @@ on:
     paths:
       - 'scripts/staging-readiness-manifest.json'
       - 'scripts/staging-decision-record.json'
+      - 'scripts/phase-6-operator-inputs.json'
   pull_request:
     branches: [main]
     paths:
       - 'scripts/staging-readiness-manifest.json'
       - 'scripts/staging-decision-record.json'
+      - 'scripts/phase-6-operator-inputs.json'
 
 permissions:
   contents: read
@@ -75,3 +77,9 @@ jobs:
 
       - name: Run validate-release-evidence unit tests
         run: node --test scripts/test/validate-release-evidence.test.mjs
+
+      - name: Validate staging decision record
+        run: node scripts/validate-staging-decision-record.mjs scripts/staging-decision-record.json
+
+      - name: Validate phase 6 operator inputs
+        run: node scripts/validate-phase-6-operator-inputs.mjs scripts/phase-6-operator-inputs.json

@@ -26,7 +26,11 @@ test("environment script requires explicit reviewer selectors", () => {
   assert.match(script, /user:LOGIN\|team:SLUG/);
   assert.match(script, /normalize_reviewer_selector/);
   assert.match(script, /STAGING_REVIEWER/);
+  assert.match(script, /INCIDENT_OWNER/);
+  assert.match(script, /ESCALATION_ROUTE/);
+  assert.match(script, /WATCH_WINDOW/);
   assert.match(script, /PRODUCTION_APPROVER/);
+  assert.match(script, /PRODUCTION_REVIEWER/);
   assert.match(script, /sync_staging_environment_values/);
   assert.match(script, /sync_production_environment_values/);
   assert.match(script, /gh secret set "\$key" --repo "\$REPO" --env "\$environment_name"/);

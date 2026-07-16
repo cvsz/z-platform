@@ -27,6 +27,60 @@ Date: 2026-07-16
 
 This slice remains repository-local until an approved Supabase project and table are exercised as external evidence for the exact release candidate SHA.
 
+## GitHub environment helper operator-field sync
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local environment-helper and docs-sync slice only. |
+| Helper contract | pass | `scripts/configure-github-environments.sh` imports the staging review fields `STAGING_REVIEWER`, `INCIDENT_OWNER`, `ESCALATION_ROUTE`, `WATCH_WINDOW`, and the production reviewer selector fields from the loaded dotenv overlays. |
+| Drift guard | pass | `scripts/test/configure-github-environments-script.test.mjs` and `scripts/test/current-head-evidence-sync.test.mjs` now assert the helper contract and the `origin/main` SHA used by the readiness docs. |
+| Format and shell validation | pass | `bash -n scripts/configure-github-environments.sh` and `git diff --check` passed in this worktree. |
+
+This slice is repository-local. It improves operator-readiness coverage and prevents the environment helper contract from silently drifting, but it does not claim external staging evidence or production approval.
+
+## Production release record operator context
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local release-record contract slice only. |
+| Template and schema coverage | pass | `production-release-record.yaml` and `schemas/release/production-release-record.schema.json` now require the operator-owned staging review context (`stagingReviewer`, `incidentOwner`, `escalationRoute`, `watchWindow`) alongside the approval and execution fields. |
+| Deterministic coverage | pass | `scripts/test/operator-governance.test.mjs` now asserts the template and schema contract, and `node scripts/validate-release-templates.mjs` continues to validate the release-template set. |
+| Format and workflow validation | pass | `git diff --check` and the focused Node test suite passed in this worktree. |
+
+This slice is repository-local. It makes the production release record carry the same operator context that the external readiness harness already collects, but it does not fabricate the actual operator values.
+
+## Identity-provider and tenant-claim decision record
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local identity/claim-mapping contract slice only. |
+| Decision record validation | pass | `scripts/staging-decision-record.json` is now validated by `scripts/validate-staging-decision-record.mjs`, with `schemas/operations/staging-decision-record.schema.json` documenting the approved OIDC provider class and claim-mapping reference without exposing credentials. |
+| Workflow coverage | pass | `.github/workflows/validate-release-evidence.yml` runs the new decision-record validator whenever the staging decision record changes. |
+| Deterministic tests | pass | `scripts/test/staging-decision-record.test.mjs` and `scripts/test/deployment-readiness-workflows.test.mjs` cover the contract and workflow wiring. |
+| Format and workflow validation | pass | `git diff --check` and the focused Node tests passed in this worktree. |
+
+This slice is repository-local. It upgrades the identity-provider and tenant-claim mapping from placeholder prose to a validated operator decision record and a matching schema contract, but it still does not invent the actual external identity values.
+
+## Phase 6 operator-input register
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local operator-input contract slice only. |
+| Register coverage | pass | `scripts/phase-6-operator-inputs.json` now records the remaining Issue #1 `PENDING_OPERATOR` stack as a canonical machine-readable register, and `schemas/operations/phase-6-operator-inputs.schema.json` defines the expected shape. |
+| Deterministic tests | pass | `scripts/test/phase-6-operator-inputs.test.mjs` and `scripts/test/deployment-readiness-workflows.test.mjs` cover the contract and workflow wiring. |
+| Workflow validation | pass | `.github/workflows/validate-release-evidence.yml` now validates the operator-input register alongside the decision record. |
+| Format and workflow validation | pass | `node --test scripts/test/phase-6-operator-inputs.test.mjs scripts/test/deployment-readiness-workflows.test.mjs` and `git diff --check` passed in this worktree. |
+
+This slice is repository-local. It makes the remaining operator-owned stack auditable in machine-readable form, but it does not fabricate any secret-manager, billing, incident, or approval values.
+
 ## AI Gateway disconnect-aware upstream cancellation
 
 Date: 2026-07-15
