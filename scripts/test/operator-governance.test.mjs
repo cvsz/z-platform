@@ -37,6 +37,7 @@ test("operator inputs status documents the remaining operator-owned stack", () =
   assert.match(operatorInputsStatus, /Agent cancellation/i);
   assert.match(operatorInputsStatus, /Deployed ZWallet and ZChat QA/i);
   assert.match(operatorInputsStatus, /Issue #1 operator mapping/);
+  assert.match(operatorInputsStatus, /phase-6-operator-inputs\.json/);
   assert.match(operatorInputsStatus, /cloudflare-access\.md/);
   assert.match(operatorInputsStatus, /final-release-readiness\.yml/);
 });
@@ -50,6 +51,7 @@ test("phase 6 operator register points at the release sign-off records", () => {
   assert.match(operatorInputsRegister, /Issue #1 operator-item mapping/);
   assert.match(operatorInputsRegister, /Identity \/ Cloudflare/);
   assert.match(operatorInputsRegister, /Finance \/ legal/);
+  assert.match(operatorInputsRegister, /phase-6-operator-inputs\.json/);
 });
 
 test("release governance README names the operator-controlled records", () => {

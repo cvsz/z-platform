@@ -29,4 +29,6 @@ test("validate-release-evidence workflow validates the staging decision record c
   assert.match(workflows[0], /validate-staging-decision-record\.mjs/);
   assert.match(workflows[0], /scripts\/staging-decision-record\.json/);
   assert.match(workflows[0], /Check staging-decision-record releaseSha/);
+  assert.match(workflows[0], /validate-phase-6-operator-inputs\.mjs/);
+  assert.match(workflows[0], /scripts\/phase-6-operator-inputs\.json/);
 });

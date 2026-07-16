@@ -67,6 +67,20 @@ Date: 2026-07-16
 
 This slice is repository-local. It upgrades the identity-provider and tenant-claim mapping from placeholder prose to a validated operator decision record and a matching schema contract, but it still does not invent the actual external identity values.
 
+## Phase 6 operator-input register
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local operator-input contract slice only. |
+| Register coverage | pass | `scripts/phase-6-operator-inputs.json` now records the remaining Issue #1 `PENDING_OPERATOR` stack as a canonical machine-readable register, and `schemas/operations/phase-6-operator-inputs.schema.json` defines the expected shape. |
+| Deterministic tests | pass | `scripts/test/phase-6-operator-inputs.test.mjs` and `scripts/test/deployment-readiness-workflows.test.mjs` cover the contract and workflow wiring. |
+| Workflow validation | pass | `.github/workflows/validate-release-evidence.yml` now validates the operator-input register alongside the decision record. |
+| Format and workflow validation | pass | `node --test scripts/test/phase-6-operator-inputs.test.mjs scripts/test/deployment-readiness-workflows.test.mjs` and `git diff --check` passed in this worktree. |
+
+This slice is repository-local. It makes the remaining operator-owned stack auditable in machine-readable form, but it does not fabricate any secret-manager, billing, incident, or approval values.
+
 ## AI Gateway disconnect-aware upstream cancellation
 
 Date: 2026-07-15

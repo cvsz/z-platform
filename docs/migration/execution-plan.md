@@ -126,10 +126,12 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Implemented browser bundle and HAR credential scanners; actual deployed artifacts remain **PENDING_EXTERNAL**.
 - Implemented automated ZChat accessibility, responsive, session, and external-readiness contracts; human target-environment QA remains **PENDING_EXTERNAL**.
 - Implemented a CodeQL Advanced workflow that runs on the available self-hosted Linux/X64 lane with the broader `security-and-quality` query suite and explicit language toolchain setup, plus repository-local drift tests for the workflow shape and setup ordering.
+- Added a machine-readable Phase 6 operator-input register at `scripts/phase-6-operator-inputs.json` so the remaining operator-owned items are tracked as a validated pending contract instead of loose prose.
 
 ### Remaining
 
 - Record billing/legal decisions, staging reviewer, production approver, incident owner, escalation route, and post-launch watch window.
+- Record the remaining operator-owned values in `scripts/phase-6-operator-inputs.json` and keep that register fail-closed until an authorized operator supplies the real values.
 - Record a passing workflow and immutable artifacts for the exact commit selected as the next release candidate.
 - Record verified Supabase project/table evidence for the exact release candidate after the read-only bridge is exercised against an approved external project.
 - Run CodeQL Advanced on the available self-hosted runner for the exact selected SHA and capture the alert-closure evidence before promoting any new release candidate.
@@ -147,6 +149,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Cloudflare environment, domain routing, and production secret-management location.
 - Observability platform, alert routing, external backup target, incident ownership, and watch window.
 - Production deployment approval for the exact release in each environment.
+- The operator-input register in `scripts/phase-6-operator-inputs.json` must stay aligned with those decisions without exposing real production identifiers.
 
 ## Validation gate for every pull request
 
