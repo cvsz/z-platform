@@ -1,5 +1,19 @@
 # Migration Validation Report
 
+## Current branch head compose/start evidence
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local compose startup slice for the current branch head. |
+| Agent Control Panel startup | pass | `deploy/docker/next-service.Dockerfile` installs dependencies, builds the Next.js app, prunes dev dependencies, and starts the service without the missing `next` binary failure. |
+| ZChat smoke alignment | pass | `scripts/staging-smoke.mjs` now checks the committed `<main class="shell">` markup and the current `@media (max-width: 720px)` breakpoint used by deployed checks. |
+| Compose bring-up | pass | `DOCKER_CONFIG=/tmp/docker-config docker compose -f compose.yml up -d --build --wait` completed with all services healthy in isolated Compose. |
+| Deployed smoke | pass | `node scripts/staging-smoke.mjs` completed successfully after the compose rebuild. |
+
+This slice is repository-local and isolated Compose only. It does not replace GitHub Actions evidence or any operator-owned staging/production approval requirement.
+
 ## Release governance operator-signoff coverage
 
 Date: 2026-07-16
