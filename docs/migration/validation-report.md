@@ -27,6 +27,19 @@ Date: 2026-07-16
 
 This slice remains repository-local until an approved Supabase project and table are exercised as external evidence for the exact release candidate SHA.
 
+## GitHub environment helper operator-field sync
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local environment-helper and docs-sync slice only. |
+| Helper contract | pass | `scripts/configure-github-environments.sh` imports the staging review fields `STAGING_REVIEWER`, `INCIDENT_OWNER`, `ESCALATION_ROUTE`, `WATCH_WINDOW`, and the production reviewer selector fields from the loaded dotenv overlays. |
+| Drift guard | pass | `scripts/test/configure-github-environments-script.test.mjs` and `scripts/test/current-head-evidence-sync.test.mjs` now assert the helper contract and the `origin/main` SHA used by the readiness docs. |
+| Format and shell validation | pass | `bash -n scripts/configure-github-environments.sh` and `git diff --check` passed in this worktree. |
+
+This slice is repository-local. It improves operator-readiness coverage and prevents the environment helper contract from silently drifting, but it does not claim external staging evidence or production approval.
+
 ## AI Gateway disconnect-aware upstream cancellation
 
 Date: 2026-07-15

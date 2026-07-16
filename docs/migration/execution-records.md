@@ -1,5 +1,15 @@
 # Migration Execution Records
 
+## 2026-07-16 — GitHub environment helper operator-field sync
+
+- Base revision: current branch head after the environment-helper drift guard patch.
+- Scope: one repository-local environment bootstrap slice.
+- Implementation: documented and tested the GitHub environment helper contract that imports the operator-owned review fields `STAGING_REVIEWER`, `INCIDENT_OWNER`, `ESCALATION_ROUTE`, `WATCH_WINDOW`, and the production reviewer selector values from the loaded dotenv overlays.
+- Compatibility: existing environment creation and branch-policy behavior is unchanged; the helper still requires explicit reviewer selectors when the caller supplies them.
+- Security: no credentials or production identifiers were added; the helper continues to keep secrets server-side and avoids printing secret values.
+- Tests: `bash -n scripts/configure-github-environments.sh`, `node --test scripts/test/configure-github-environments-script.test.mjs scripts/test/current-head-evidence-sync.test.mjs`, and `git diff --check` passed in this worktree.
+- Limitations: repository-local validation only; the exact `origin/main` SHA still needs GitHub Actions revalidation for immutable artifact evidence.
+
 ## 2026-07-16 — Release governance operator-signoff coverage
 
 - Base revision: current branch head after the operator-signoff coverage patch.

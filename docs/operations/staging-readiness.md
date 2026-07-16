@@ -29,6 +29,14 @@ Current `main` SHA: `634135b8c9ec9f166e67c68433b8d767fa7fb265` (2026-07-16).
 | AI Gateway disconnect-aware upstream cancellation | IMPLEMENTED | Branch-local gateway factory, disconnect abort handling, and deterministic client-disconnect regression test on this branch | PR-head workflow, immutable artifact binding, and any external staging evidence are still pending. |
 | Supabase read-only Data API bridge | IMPLEMENTED | Phase 6 API authenticated `/supabase/read` route with env-based URL, anon-key, and table selection; route-level success and failure-path tests on this branch | Real Supabase project/table evidence and external staging execution are still **PENDING_EXTERNAL**. |
 
+## Remote-tracking main drift
+
+Remote `origin/main` SHA: `0f181f19b2a53473af96fa5790c1191d4ddc4ae9` (merge PR #55, 2026-07-16).
+
+| Claim | Status | Evidence | Limitations |
+|---|---|---|---|
+| GitHub environment helper and operator review-field import | IMPLEMENTED | `bash -n scripts/configure-github-environments.sh`; `node --test scripts/test/configure-github-environments-script.test.mjs scripts/test/current-head-evidence-sync.test.mjs`; the helper imports `STAGING_REVIEWER`, `INCIDENT_OWNER`, `ESCALATION_ROUTE`, `WATCH_WINDOW`, `PRODUCTION_REVIEWER`, and `PRODUCTION_APPROVER` from the loaded overlays | Repository-local validation only; CI, SBOM, provenance, and immutable artifact evidence for the exact `0f181f19...` SHA still need revalidation. |
+
 ## CodeQL Advanced self-hosted runner slice
 
 | Claim | Status | Evidence | Limitations |

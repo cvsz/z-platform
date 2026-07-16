@@ -117,6 +117,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Verified Workspace Runtime approval boundaries, Billing Ledger idempotency, ZWallet denial paths, and automated ZChat static QA.
 - Recorded eligible workflow runs, SBOMs, provenance, smoke artifacts, rollback candidates, and repository-controlled execution evidence.
 - Added `docs/operations/phase-6-evidence-matrix.md` to separate repository, Compose, external staging, and production-approval evidence.
+- Added a dotenv-backed GitHub environment helper that imports `STAGING_REVIEWER`, `INCIDENT_OWNER`, `ESCALATION_ROUTE`, `WATCH_WINDOW`, and production review selectors from the loaded overlays into the environment bootstrap path.
 - Implemented Full-Stack Agent Control Panel for provider API key management and rotation.
 - Verified AI multi-provider routing, fallback quotas, and failover using Redis pool limits.
 - Implemented Cloudflare edge routing and identity proxy configuration; real external account and policy evidence remains **PENDING_EXTERNAL**.

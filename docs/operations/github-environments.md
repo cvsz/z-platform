@@ -20,7 +20,7 @@ Do not store provider credentials, service tokens, payment secrets, wallet keys,
 4. Create `ci`, `staging`, and `production`.
 5. Configure protection rules before adding secrets.
 
-Repository-local automation is available in `scripts/configure-github-environments.sh`. It creates or updates `ci`, `staging`, and `production`, loads `.env`, `.env.phase6`, and `.env.phase6.server` in order, and imports populated keys into GitHub environment variables and secrets for the environments that use them. It still requires explicit reviewer selectors such as `user:LOGIN` or `team:SLUG` when a reviewer is supplied on the command line. Bare `STAGING_REVIEWER` and `PRODUCTION_APPROVER` values from the env overlays are treated as GitHub user logins.
+Repository-local automation is available in `scripts/configure-github-environments.sh`. It creates or updates `ci`, `staging`, and `production`, loads `.env`, `.env.phase6`, and `.env.phase6.server` in order, and imports populated keys into GitHub environment variables and secrets for the environments that use them. It still requires explicit reviewer selectors such as `user:LOGIN` or `team:SLUG` when a reviewer is supplied on the command line. Bare `STAGING_REVIEWER`, `PRODUCTION_REVIEWER`, and `PRODUCTION_APPROVER` values from the env overlays are treated as GitHub user logins, and the helper also publishes the operator-owned non-secret review fields `INCIDENT_OWNER`, `ESCALATION_ROUTE`, and `WATCH_WINDOW` into the `staging` environment so release records and sign-off workflows can consume the same values without retyping them.
 It also updates deployment branch policies for `staging` and `production`, so the helper can enforce `main`-only or protected-branch behavior without manual API calls.
 
 ## `ci` environment
