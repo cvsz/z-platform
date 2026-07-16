@@ -21,6 +21,7 @@ Status definitions use the issue #1 semantics: **VERIFIED**, **IMPLEMENTED**, **
 | Structured logs and Prometheus metrics | PR #5, PR #7 | Isolated deployed smoke | Isolated Compose | VERIFIED |
 | Dashboard, distributed traces, alert delivery | Platform selection and deployment required | None yet | External staging | PENDING_EXTERNAL |
 | AI non-streaming completion | Gateway evidence request `79a7ce8b-4d50-4ba9-972d-a5d219293b72` | Status `200`, `proxy_success` | Local/staging provider account | VERIFIED |
+| Supabase read-only Data API bridge | Phase 6 API authenticated `/supabase/read` route with env-based URL, anon-key, and table selection | Route-level success and failure-path tests in `services/phase6-api/tests/test_supabase_read.py` | Repository / isolated Compose | IMPLEMENTED |
 | AI streaming and file upload | Approved upstream account required | None yet | External staging | PENDING_EXTERNAL |
 | Multi-provider failover contracts | PR #12 | Deterministic unit and integration tests | Repository | VERIFIED |
 | Multi-provider external verification | Agent Control Panel UI and Redis Pool Gateway | Real approved-account evidence absent | External staging | PENDING_EXTERNAL |
@@ -35,8 +36,8 @@ Status definitions use the issue #1 semantics: **VERIFIED**, **IMPLEMENTED**, **
 | Staging reviewer and review time | Review controls exist | Named completed review absent | External staging | PENDING_OPERATOR |
 | Incident owner, escalation, watch window | Incident runbook exists | Named operational record absent | Production | PENDING_OPERATOR |
 | Production release approval | Production environment requires approval | Explicit release SHA approval absent | Production | PENDING_OPERATOR |
-| Current `main` evidence (`36fc7f594c933137a1d8da2855bac752fb2f03b3`) | Seven-service topology and release gates | Runs `29431078328`, `29431079935`, `29431078865`, and `29431080079` pass; smoke artifact `8349399112`; SBOM IDs `8349364297`, `8349363768`, `8349360484` | GitHub Actions / isolated Compose | VERIFIED |
-| Current `main` security eligibility | CodeQL and Dependabot scanning | CodeQL workflow run `29431080079` passed; Dependabot alert state was not re-fetched with authenticated API access | GitHub security scanning | IMPLEMENTED |
+| Current `main` evidence (`634135b8c9ec9f166e67c68433b8d767fa7fb265`) | Seven-service topology and release gates | Runs `29468958977`, `29468958979`, and `29468958931` pass; smoke artifact `8364578530`; SBOM artifacts `8364711825`, `8364710149`; provenance artifact `8364198676` | GitHub Actions / isolated Compose | VERIFIED |
+| Current `main` security eligibility | CodeQL and Dependabot scanning | CodeQL Advanced run `29468958931` passed; Dependabot alert state was not re-fetched with authenticated API access | GitHub security scanning | IMPLEMENTED |
 | AI Gateway disconnect-aware upstream cancellation | Branch-local gateway abort handling and disconnect regression test | Deterministic repository-local test coverage on this branch; PR-head workflow artifacts pending | Repository | IMPLEMENTED |
 | CodeQL Advanced self-hosted runner lane | Self-hosted runner, broader query suite configuration, and explicit language toolchain setup | Workflow-shape regression test covers `runs-on: [self-hosted, Linux, X64]`, `security-and-quality` config loading, and setup ordering for Node/pnpm/Go/Python analysis | Repository / self-hosted runner | IMPLEMENTED |
 

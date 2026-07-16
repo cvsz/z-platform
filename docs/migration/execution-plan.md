@@ -121,6 +121,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Verified AI multi-provider routing, fallback quotas, and failover using Redis pool limits.
 - Implemented Cloudflare edge routing and identity proxy configuration; real external account and policy evidence remains **PENDING_EXTERNAL**.
 - Implemented AI streaming, upload/file proxy, multi-provider, and failover verification harnesses; approved-account execution remains **PENDING_EXTERNAL**.
+- Implemented a read-only Supabase Data API bridge in `services/phase6-api` with authenticated access, env-based URL/anon-key/table selection, and deterministic success/failure coverage; real Supabase project evidence remains **PENDING_EXTERNAL**.
 - Implemented browser bundle and HAR credential scanners; actual deployed artifacts remain **PENDING_EXTERNAL**.
 - Implemented automated ZChat accessibility, responsive, session, and external-readiness contracts; human target-environment QA remains **PENDING_EXTERNAL**.
 - Implemented a CodeQL Advanced workflow that runs on the available self-hosted Linux/X64 lane with the broader `security-and-quality` query suite and explicit language toolchain setup, plus repository-local drift tests for the workflow shape and setup ordering.
@@ -129,6 +130,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 
 - Record billing/legal decisions, staging reviewer, production approver, incident owner, escalation route, and post-launch watch window.
 - Record a passing workflow and immutable artifacts for the exact commit selected as the next release candidate.
+- Record verified Supabase project/table evidence for the exact release candidate after the read-only bridge is exercised against an approved external project.
 - Run CodeQL Advanced on the available self-hosted runner for the exact selected SHA and capture the alert-closure evidence before promoting any new release candidate.
 - **VERIFIED** - Current `main` SHA `36fc7f594c933137a1d8da2855bac752fb2f03b3` has passing CI, secret and browser scans, Compose build, deployed smoke, SBOM, provenance, and CodeQL workflows. `validate` run `29431079935` produced smoke artifact `8349399112` with digest `sha256:68526290de0f0325123e58e0adfe68246ecf57d617fbd207eff1e568a6bd6495`.
 - **IMPLEMENTED** - AI Gateway disconnect-aware upstream cancellation exists on this branch. PR-head validation and immutable artifact evidence are still required before the branch can be selected as a release candidate.

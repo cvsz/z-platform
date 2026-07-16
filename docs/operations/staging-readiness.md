@@ -15,18 +15,19 @@ Environment bootstrap for `ci`, `staging`, and `production` is handled by `scrip
 
 ## Current-head evidence
 
-Current `main` SHA: `36fc7f594c933137a1d8da2855bac752fb2f03b3` (2026-07-15).
+Current `main` SHA: `634135b8c9ec9f166e67c68433b8d767fa7fb265` (2026-07-16).
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
-| Node and Python tests and dependency audits | VERIFIED | `CI` run `29431078328`, success, 2026-07-15, GitHub Actions | Repository-local CI evidence only. |
-| Secret and browser credential scans | VERIFIED | `validate` run `29431079935`, `secret-patterns` job `87405925283`, success, 2026-07-15 | Pattern checks do not supersede CodeQL or Dependabot findings. |
-| Compose configuration and image builds | VERIFIED | `validate` run `29431079935`, `compose` job `87405925253`, success, 2026-07-15 | Build success is not external staging evidence. |
-| SPDX SBOM | VERIFIED | `validate` run `29431079935`; `z-platform-sbom` ID `8349364297`, digest `sha256:36df0f176b0a4db2421c10dcb72d28d5e163d5b75ba8906b3950b9b8fa8fbc13`; `z-platform-sbom.spdx.json` ID `8349363768`, digest `sha256:b355f72d5d1af1e7c54b5cbb7dd3dfe169366aefd3138a19e6fb4be453bce83a` | Artifacts are bound only to `36fc7f5`. |
-| Dependency and provenance policy | VERIFIED | `operations` run `29431078865`, success; `sbom-spdx-json` ID `8349360484`, digest `sha256:56bcb3bb88cd155d13aafd533c50a9bb92f51cd13b431e6761a61150ad412b45`, 2026-07-15 | Valid only for `36fc7f5`. |
-| Seven-service deployed smoke | VERIFIED | `validate` run `29431079935`, job `87405925323`, success; `staging-smoke-evidence` ID `8349399112`, digest `sha256:68526290de0f0325123e58e0adfe68246ecf57d617fbd207eff1e568a6bd6495` | Isolated Compose evidence only; not external staging. |
-| Main security-alert state | IMPLEMENTED | CodeQL workflow on `36fc7f5` passed in run `29431080079`; Dependabot alert state was not re-fetched with authenticated API access | Passing workflows do not by themselves prove alert closure. |
+| Node and Python tests and dependency audits | VERIFIED | `validate` run `29468958977`, jobs `node` and `python`, success, 2026-07-16, GitHub Actions | Repository-local CI evidence only. |
+| Secret and browser credential scans | VERIFIED | `validate` run `29468958977`, `secret-patterns` job, success, 2026-07-16 | Pattern checks do not supersede CodeQL or Dependabot findings. |
+| Compose configuration and image builds | VERIFIED | `validate` run `29468958977`, `compose` job, success, 2026-07-16 | Build success is not external staging evidence. |
+| SPDX SBOM | VERIFIED | `validate` run `29468958977`; `z-platform-sbom` ID `8364711825`; `z-platform-sbom.spdx.json` ID `8364710149` | Artifact digests were not re-fetched in this pass; artifacts are bound only to `634135b8c9ec9f166e67c68433b8d767fa7fb265`. |
+| Dependency and provenance policy | VERIFIED | `operations` run `29468958979`, success; `sbom-spdx-json` ID `8364198676`, 2026-07-16 | Artifact digest was not re-fetched in this pass; valid only for `634135b8c9ec9f166e67c68433b8d767fa7fb265`. |
+| Seven-service deployed smoke | VERIFIED | `validate` run `29468958977`, `deployed-smoke` job, success; `staging-smoke-evidence` ID `8364578530` | Isolated Compose evidence only; not external staging. |
+| Main security-alert state | IMPLEMENTED | CodeQL Advanced run `29468958931` passed on `634135b8c9ec9f166e67c68433b8d767fa7fb265`; Dependabot alert state was not re-fetched with authenticated API access | Passing workflows do not by themselves prove alert closure. |
 | AI Gateway disconnect-aware upstream cancellation | IMPLEMENTED | Branch-local gateway factory, disconnect abort handling, and deterministic client-disconnect regression test on this branch | PR-head workflow, immutable artifact binding, and any external staging evidence are still pending. |
+| Supabase read-only Data API bridge | IMPLEMENTED | Phase 6 API authenticated `/supabase/read` route with env-based URL, anon-key, and table selection; route-level success and failure-path tests on this branch | Real Supabase project/table evidence and external staging execution are still **PENDING_EXTERNAL**. |
 
 ## CodeQL Advanced self-hosted runner slice
 

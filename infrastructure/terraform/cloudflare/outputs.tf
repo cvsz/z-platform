@@ -25,6 +25,7 @@ output "phase6_urls" {
     AI_UPLOAD_URL             = "https://${var.app_routes.phase6.hostname}/ai/upload"
     AI_FAILOVER_URL           = "https://${var.app_routes.phase6.hostname}/ai/failover"
     AI_STREAMING_URL          = "https://${var.app_routes.phase6.hostname}/ai/stream"
+    GITHUB_WEBHOOK_URL        = "https://${var.app_routes.phase6.hostname}/webhooks/github"
     SESSION_PROVIDER_URL      = "https://${var.app_routes.phase6.hostname}/session/health"
     OBS_DASHBOARD_URL         = "https://${var.app_routes.phase6.hostname}/grafana/"
     OBS_TRACES_URL            = "https://${var.app_routes.phase6.hostname}/jaeger/"
