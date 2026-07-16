@@ -16,9 +16,12 @@ for (const [name, workflow] of [
   ["validate", validateWorkflow],
 ]) {
   test(`${name} workflow installs pnpm before running package-manager commands`, () => {
+    assert.match(workflow, /uses:\s*actions\/checkout@v5/);
+    assert.match(workflow, /uses:\s*actions\/setup-node@v5/);
     assert.match(workflow, /uses:\s*pnpm\/action-setup@v4/);
     assert.match(workflow, /version:\s*11\.4\.0/);
     assert.match(workflow, /node-version:\s*24/);
+    assert.match(workflow, /package-manager-cache:\s*false/);
     assert.match(workflow, /run:\s*pnpm install --ignore-scripts/);
   });
 }

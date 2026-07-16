@@ -59,13 +59,14 @@ jobs:
             cat "$response_file"
             exit 2
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
+          package-manager-cache: false
       - name: Verify checkout
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
       - name: Materialize protected inputs
@@ -92,7 +93,7 @@ jobs:
           test "$(jq -r '.result' final-release-evidence/phase6-external-evidence.json)" = VERIFIED
           test "$(jq '.checks | length' final-release-evidence/phase6-external-evidence.json)" -eq 14
           test "$(jq -r '.releaseSha' final-release-evidence/phase6-external-evidence.json)" = "$RELEASE_SHA"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: final-staging-evidence-${{ inputs.release_sha }}
           path: final-release-evidence/phase6-external-evidence.json
@@ -125,7 +126,7 @@ jobs:
             --arg run "$GITHUB_RUN_ID" \
             '{schemaVersion:"1.0.0",releaseSha:$sha,approver:$approver,approvedAt:$at,workflowRunId:$run,result:"APPROVED"}' \
             > production-approval.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: final-production-approval-${{ inputs.release_sha }}
           path: production-approval.json

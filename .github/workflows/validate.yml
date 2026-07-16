@@ -15,7 +15,7 @@ jobs:
   secret-patterns:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Reject obvious credentials
         shell: bash
         run: |
@@ -43,10 +43,11 @@ jobs:
   node:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
+          package-manager-cache: false
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -81,8 +82,8 @@ jobs:
   python:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Test and audit ZAI Coder backend
@@ -99,7 +100,7 @@ jobs:
   compose:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate Compose configuration
         env:
           Z_PLATFORM_SERVICE_TOKEN: ci-placeholder-not-a-secret
@@ -116,10 +117,11 @@ jobs:
       AGENT_TEST_FAILURE_INJECTION: "true"
       STAGING_SMOKE_TEST_FAILURE_RETRY: "true"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
+          package-manager-cache: false
       - name: Start isolated Compose deployment
         run: docker compose up -d --build
       - name: Wait for every service to become healthy
@@ -148,7 +150,7 @@ jobs:
       - name: Run deployed readiness contracts
         run: node scripts/staging-smoke.mjs | tee staging-smoke-result.json
       - name: Upload deployed smoke evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: staging-smoke-evidence
           path: staging-smoke-result.json
@@ -163,7 +165,7 @@ jobs:
   sbom:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@v0
         with:
@@ -171,7 +173,7 @@ jobs:
           format: spdx-json
           output-file: z-platform.spdx.json
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: z-platform-sbom
           path: z-platform.spdx.json

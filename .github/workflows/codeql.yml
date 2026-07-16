@@ -58,13 +58,14 @@ jobs:
         # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup Node.js for JavaScript analysis
       if: matrix.language == 'javascript-typescript'
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: 24
+        package-manager-cache: false
 
     - name: Setup pnpm for JavaScript analysis
       if: matrix.language == 'javascript-typescript'
@@ -78,13 +79,13 @@ jobs:
 
     - name: Setup Go for Go analysis
       if: matrix.language == 'go'
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: tools/zctl/go.mod
 
     - name: Setup Python for Python analysis
       if: matrix.language == 'python'
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.11"
 

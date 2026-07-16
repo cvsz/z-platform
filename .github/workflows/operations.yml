@@ -12,10 +12,11 @@ jobs:
   dependency-and-provenance:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
+          package-manager-cache: false
       - name: Dependency check
         run: node tools/ops/check-dependencies.mjs
       - name: Generate SBOM
@@ -23,7 +24,7 @@ jobs:
       - name: Verify provenance manifest
         run: node tools/ops/verify-provenance.mjs sbom.spdx.json
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-spdx-json
           path: sbom.spdx.json

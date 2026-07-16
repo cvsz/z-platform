@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- GitHub Actions workflow pins upgraded to Node 24-compatible releases across checkout, setup-node, setup-python, setup-go, and artifact upload steps, with repository tests updated to match the new workflow contracts.
 - Deployment readiness workflows now verify that the requested release SHA exists in `cvsz/z-platform` before checkout, so stale or invalid SHAs fail closed instead of surfacing as broken deployment records.
 - CI, validate, and CodeQL workflows now provision Node 24 before installing `pnpm@11.4.0`, which keeps the repository toolchain compatible with the pinned package manager and prevents `node:sqlite` install failures on Node 20 runners.
 - Cloudflare Terraform examples and installer defaults now use service-named public hostnames such as `phase6.zeaz.dev`, `zchat.zeaz.dev`, and `zai.zeaz.dev`.
