@@ -8,9 +8,10 @@ This stack ports the active Cloudflare DNS-to-Tunnel ownership model from `cvsz/
 - Proxied CNAME records targeting an existing Cloudflare Tunnel.
 - A validated application-route contract.
 - Generated cloudflared ingress and Phase 6 readiness URLs.
+- Optional remote tunnel ingress ownership behind an explicit `manage_tunnel_config` safety switch.
 - No credentials, Terraform state, legacy backups, stale resources, or account tokens are copied.
 
-The tunnel itself remains an existing account resource. Importing or recreating it is intentionally outside this initial migration to avoid replacing a live connector.
+The tunnel itself remains an existing account resource. The remote ingress configuration can be managed only after the current configuration is imported and reviewed; this avoids replacing a live connector accidentally.
 
 ## Authentication
 
@@ -43,6 +44,14 @@ terraform plan -out=tfplan
 terraform show -no-color tfplan
 ```
 
+To adopt the existing remote-managed ingress safely, first set `manage_tunnel_config = true` only in an uncommitted operator tfvars file, import the existing configuration, and review the plan:
+
+```bash
+terraform import cloudflare_zero_trust_tunnel_cloudflared_config.platform[0] "<account-id>/<tunnel-id>"
+terraform plan -out=tfplan
+terraform show -no-color tfplan
+```
+
 Review DNS ownership before applying. Existing records must be imported rather than duplicated:
 
 ```bash
@@ -57,7 +66,7 @@ terraform output -json cloudflared_ingress
 terraform output -json phase6_urls
 ```
 
-Merge the `cloudflared_ingress` output into the remotely managed tunnel configuration or the connector configuration owned by operations. The terminal `http_status:404` rule must remain last.
+When `manage_tunnel_config` is false, merge the `cloudflared_ingress` output into the remotely managed tunnel configuration owned by operations. When it is true, Terraform applies the ingress directly. The terminal `http_status:404` rule must remain last.
 
 ## Cloudflare-proxied Phase 6
 

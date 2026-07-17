@@ -35,7 +35,7 @@ Status: `PENDING_OPERATOR`
 ## Explicit decision
 
 Decision: `<GO/NO-GO>`  
-Production approver: `<name-or-handle>`  
+Production approver: `PHIPHAT PHOEMSUK` (CEO, ZeaZDev Company Limited; `seaza@msn.com`)
 Approved commit SHA: `<40-character-sha>`  
 Approved evidence digest: `sha256:<digest>`  
 Approved at: `<ISO-8601>`  
@@ -58,7 +58,7 @@ The production release record also carries the operator-owned staging review con
 
 | Field | Value |
 |---|---|
-| Release operator | `<name-or-service-identity>` |
+| Release operator | `PHIPHAT PHOEMSUK` (CEO, ZeaZDev Company Limited; `seaza@msn.com`) |
 | Started at | `<ISO-8601>` |
 | Completed at | `<ISO-8601>` |
 | Deployed commit SHA | `<40-character-sha>` |

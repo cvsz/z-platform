@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import test from "node:test";
 
-import { chat, chatStream, createZChatRequestHandler, models, zchatHealthSnapshot } from "../server.mjs";
+import { chat, chatStream, createZChatRequestHandler, models, platformStatus, zchatHealthSnapshot } from "../server.mjs";
 
 const env = { Z_PLATFORM_AI_GATEWAY_URL: "http://gateway", Z_PLATFORM_SERVICE_TOKEN: "service-token" };
 
@@ -55,6 +55,21 @@ test("health reports gateway configuration and session policy without auth", { c
     gateway_configured: true,
     session_ttl_seconds: 3600,
   });
+});
+
+test("platform status keeps api6 and zc as separate backend boundaries", { concurrency: false }, async () => {
+  const calls = [];
+  const result = await platformStatus({
+    PHASE6_API_URL: "http://api6",
+    ZC_API_URL: "http://zc",
+  }, async (url) => {
+    calls.push(url);
+    return new Response("ok", { status: 200 });
+  });
+
+  assert.equal(result.status, "ok");
+  assert.deepEqual(result.backends.map((backend) => backend.service), ["phase6", "zc"]);
+  assert.deepEqual(calls.sort(), ["http://api6/health", "http://zc/v1/wire/health/live"]);
 });
 
 test("loads model catalog from the AI gateway without exposing provider config", { concurrency: false }, async () => {

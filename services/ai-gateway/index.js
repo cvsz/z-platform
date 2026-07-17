@@ -21,6 +21,23 @@ const logger = pino({
   }
 });
 
+async function seedProviderKeys(redisClient, appLogger = logger) {
+  const raw = process.env.AI_PROVIDER_KEYS_JSON || '{}';
+  let configured;
+  try {
+    configured = JSON.parse(raw);
+  } catch (error) {
+    appLogger.error({ err: error }, 'Invalid AI_PROVIDER_KEYS_JSON');
+    return;
+  }
+  if (!configured || typeof configured !== 'object') return;
+  for (const [provider, values] of Object.entries(configured)) {
+    const keys = Array.isArray(values) ? values : [values];
+    const usable = keys.filter((value) => typeof value === 'string' && value.trim());
+    if (usable.length) await redisClient.sadd(`provider:${provider}:active_keys`, ...usable);
+  }
+}
+
 export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: appLogger = logger } = {}) {
   if (typeof fetchImpl !== 'function') {
     throw new Error('fetch implementation is unavailable');
@@ -53,9 +70,23 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
     res.status(200).json({ status: 'ok', service: 'ai-gateway' });
   });
 
+  app.get('/v1/models', requireAuth, (req, res) => {
+    let models = [];
+    try {
+      models = JSON.parse(process.env.AI_MODELS_JSON || '[]');
+    } catch {
+      return res.status(500).json({ error: { code: 'INVALID_MODEL_CONFIG', message: 'AI_MODELS_JSON is invalid' } });
+    }
+    const fallback = process.env.AI_MODEL || 'default';
+    const data = Array.isArray(models) && models.length
+      ? models.map((id) => ({ id: String(id), object: 'model', owned_by: 'z-platform' }))
+      : [{ id: fallback, object: 'model', owned_by: 'z-platform' }];
+    return res.json({ object: 'list', data });
+  });
+
   // Primary Gateway Route
   app.post('/v1/chat/completions', requireAuth, async (req, res) => {
-    const provider = req.headers['x-provider'] || 'openai-compatible';
+    const provider = req.headers['x-provider'] || process.env.AI_DEFAULT_PROVIDER || 'openai-compatible';
     const modelId = req.body.model;
 
     if (!modelId) {
@@ -151,8 +182,9 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
   return { app, logger: appLogger, redis: redisClient };
 }
 
-export function startGateway(options = {}) {
-  const { app, logger: appLogger } = createGatewayApp(options);
+export async function startGateway(options = {}) {
+  const { app, logger: appLogger, redis } = createGatewayApp(options);
+  await seedProviderKeys(redis, appLogger);
   const PORT = process.env.PORT || 8080;
   return app.listen(PORT, () => {
     appLogger.info(`AI Gateway running on port ${PORT}`);

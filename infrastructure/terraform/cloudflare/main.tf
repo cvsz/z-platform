@@ -37,3 +37,22 @@ resource "terraform_data" "route_contract" {
     }
   }
 }
+
+resource "cloudflare_zero_trust_tunnel_cloudflared_config" "platform" {
+  count      = var.manage_tunnel_config ? 1 : 0
+  account_id = var.cloudflare_account_id
+  tunnel_id  = var.cloudflare_tunnel_id
+  source     = "cloudflare"
+
+  config = {
+    ingress = concat(
+      [
+        for key in sort(keys(var.app_routes)) : {
+          hostname = var.app_routes[key].hostname
+          service  = var.app_routes[key].service
+        }
+      ],
+      [{ service = "http_status:404" }]
+    )
+  }
+}

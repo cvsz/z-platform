@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Reviewer | `<name-or-handle>` |
+| Reviewer | `PHIPHAT PHOEMSUK` (CEO, ZeaZDev Company Limited; `seaza@msn.com`) |
 | Reviewer role | `<operations/security/release>` |
 | Reviewed at | `<ISO-8601>` |
 | Repository | `cvsz/z-platform` |
@@ -40,6 +40,6 @@
 
 I confirm that the referenced evidence was reviewed against the exact commit and image digests listed above. I did not treat local tests, mocked services, or an unbound CI run as proof of external staging deployment.
 
-Reviewer: `<name-or-handle>`  
+Reviewer: `PHIPHAT PHOEMSUK` (CEO, ZeaZDev Company Limited; `seaza@msn.com`)
 Timestamp: `<ISO-8601>`  
 Signature or auditable approval reference: `<reference>`

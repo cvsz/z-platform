@@ -43,5 +43,5 @@ Production release approval is invalid until accountable people, backups, escala
 5. the ownership record references the candidate release and approval window.
 
 Approval reference: `<auditable-reference>`  
-Approved by: `<name-or-handle>`  
+Approved by: `PHIPHAT PHOEMSUK` (CEO, ZeaZDev Company Limited; `seaza@msn.com`)
 Approved at: `<ISO-8601>`

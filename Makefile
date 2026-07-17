@@ -1,8 +1,15 @@
-.PHONY: all install build test lint typecheck clean \
-	gpg-commit gpg-push gpg-pull gpg-finalize
+.PHONY: all setup install build test lint typecheck clean start stop restart update upgrade updgrade status logs k8s-validate k3s-validate cilium-preflight cilium-prepare cilium-install \
+	phase6-start phase6-stop phase6-restart phase6-update gpg-commit gpg-push gpg-pull gpg-finalize
+
+STACK ?= compose.yml
+COMPOSE = docker compose -f $(STACK)
 
 # Default to running the full validation pipeline
 all: install lint typecheck build test
+
+setup: install
+	@echo "==> Validating compose configuration..."
+	$(COMPOSE) config --quiet
 
 # ==========================================
 # Full-Stack Orchestration
@@ -19,6 +26,8 @@ build:
 	pnpm run build
 	@echo "==> Building Go CLI (zctl)..."
 	$(MAKE) -C tools/zctl build
+	@echo "==> Building service images..."
+	$(COMPOSE) build
 
 test:
 	@echo "==> Testing Workspace (Node)..."
@@ -44,6 +53,60 @@ clean:
 	find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +
 	@echo "==> Cleaning Go CLI (zctl)..."
 	$(MAKE) -C tools/zctl clean
+
+start:
+	@test -f .env || { echo "ERROR: .env is required; copy .env.example and fill secrets"; exit 1; }
+	$(COMPOSE) up -d
+
+stop:
+	$(COMPOSE) stop
+
+restart:
+	$(COMPOSE) up -d --remove-orphans
+
+update:
+	@echo "==> Refreshing dependencies and rebuilding images..."
+	pnpm install --frozen-lockfile
+	cd tools/zctl && go mod download
+	$(COMPOSE) build --pull
+
+upgrade: update restart
+
+# Backward-compatible spelling retained for existing operator runbooks.
+updgrade: upgrade
+
+k8s-validate:
+	node scripts/validate-kubernetes-manifests.mjs
+
+k3s-validate:
+	bash scripts/validate-k3s-cilium.sh
+
+cilium-preflight:
+	bash scripts/cilium-migration-preflight.sh
+
+cilium-prepare:
+	bash scripts/prepare-k3s-cilium-migration.sh
+
+cilium-install:
+	bash scripts/install-cilium-k3s.sh
+
+status:
+	$(COMPOSE) ps
+
+logs:
+	$(COMPOSE) logs -f --tail=200
+
+phase6-start:
+	$(MAKE) start STACK=docker-compose.phase6.yml
+
+phase6-stop:
+	$(MAKE) stop STACK=docker-compose.phase6.yml
+
+phase6-restart:
+	$(MAKE) restart STACK=docker-compose.phase6.yml
+
+phase6-update:
+	$(MAKE) update STACK=docker-compose.phase6.yml
 
 # ==========================================
 # Git GPG Workflows
