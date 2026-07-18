@@ -112,3 +112,31 @@ test("sends JSON probe bodies with an explicit content type", async () => {
     global.fetch = originalFetch;
   }
 });
+
+test("sends Cloudflare Access service-token headers without exposing them in evidence", async () => {
+  const value = manifest();
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zplatform.dev/health" };
+  const originalFetch = global.fetch;
+  let observed;
+  global.fetch = async (_url, init) => {
+    observed = init;
+    return new Response("ok", { status: 200 });
+  };
+  try {
+    const evidence = await collectEvidence(value, {
+      releaseSha,
+      accessClientId: "client-id",
+      accessClientSecret: "client-secret",
+      stagingReviewer: "reviewer",
+      incidentOwner: "owner",
+      escalationRoute: "pager-policy",
+      watchWindow: "24h",
+    });
+    assert.equal(evidence.result, "VERIFIED");
+    assert.equal(observed.headers["CF-Access-Client-Id"], "client-id");
+    assert.equal(observed.headers["CF-Access-Client-Secret"], "client-secret");
+    assert.equal(JSON.stringify(evidence).includes("client-secret"), false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
