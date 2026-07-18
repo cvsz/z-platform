@@ -69,6 +69,20 @@ async def health(_: None = Depends(auth)):
     await r.ping()
     return {"status": "ok", "providers": list(PROVIDERS)}
 
+@app.get("/health/live")
+async def health_live():
+    """Unauthenticated process liveness endpoint for Kubernetes probes."""
+    return {"status": "alive"}
+
+@app.get("/health/ready")
+async def health_ready():
+    """Readiness endpoint that exposes no protected application data."""
+    try:
+        await r.ping()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="redis unavailable") from exc
+    return {"status": "ready"}
+
 @app.post("/alerts/test")
 async def alert_test(payload: dict[str, Any], _: None = Depends(auth)):
     marker = str(payload.get("marker") or uuid.uuid4())
