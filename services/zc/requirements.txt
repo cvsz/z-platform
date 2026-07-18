@@ -25,7 +25,7 @@ python-dotenv>=1.0.0
 # Not required for any other flag; zc_excel.py raises a clear error
 # and exits if these aren't installed and --excel is used.
 pandas>=2.0.0
-openpyxl>=3.1.0
+openpyxl>=3.1.5
 
 # Optional — --pptx conversational slide-deck chat (v1.15.0)
 # Not required for any other flag; zc_powerpoint.py raises a clear
