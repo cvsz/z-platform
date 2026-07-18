@@ -525,14 +525,7 @@ def cmd_compliance_activities(api_key: str, since: Optional[str] = None,
 
 def _print_activity(a: dict):
     actor = a.get("actor", {})
-    who = actor.get("email_address") or actor.get("api_key_id") or actor.get("admin_api_key_id") \
-        or actor.get("unauthenticated_email_address") or actor.get("type", "?")
-    who_str = str(who)
-    if "@" in who_str:
-        user, domain = who_str.split("@", 1)
-        who = f"{user[:2]}***@{domain}" if len(user) > 2 else f"***@{domain}"
-    elif len(who_str) > 6:
-        who = f"{who_str[:3]}***{who_str[-3:]}"
+    who = str(actor.get("type") or "actor")
     print(f"  {a.get('created_at', '?'):<25} {a.get('type', '?'):<30} {who}")
 
 

@@ -138,7 +138,14 @@ def supabase_read_config() -> tuple[str, str, str]:
     if not base_url or not anon_key or not table:
         raise HTTPException(status_code=503, detail="supabase read access not configured")
     parsed = urlparse(base_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.path not in {"", "/"}:
+    hostname = (parsed.hostname or "").lower()
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.path not in {"", "/"}
+        or not hostname.endswith(".supabase.co")
+        or hostname.count(".") < 2
+    ):
         raise HTTPException(status_code=400, detail="supabase base url is invalid")
     if not re.fullmatch(r"[A-Za-z0-9_]+", table):
         raise HTTPException(status_code=400, detail="supabase table name is invalid")
@@ -155,7 +162,7 @@ async def supabase_read_rows(limit: int) -> dict[str, Any]:
         "Accept": "application/json",
     }
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        response = await client.get(url, headers=headers)
+        response = await client.get(url, headers=headers, follow_redirects=False)
     if response.status_code in {401, 403}:
         raise HTTPException(status_code=502, detail="supabase rejected the read request")
     try:
