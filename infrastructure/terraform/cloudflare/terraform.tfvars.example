@@ -3,9 +3,10 @@ cloudflare_account_id = "00000000000000000000000000000000"
 cloudflare_zone_id    = "00000000000000000000000000000000"
 cloudflare_tunnel_id  = "00000000-0000-0000-0000-000000000000"
 manage_tunnel_config   = true
-manage_free_access     = false
+manage_free_access     = true
 free_access_session_duration = "8h"
 free_access_require_mfa = true
+free_access_allowed_idps = ["a8cd7aa7-0d5b-4bab-bf7a-e78fc7d86253"]
 zone_name             = "zeaz.dev"
 
 app_routes = {

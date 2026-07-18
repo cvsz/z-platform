@@ -70,7 +70,7 @@ When `manage_tunnel_config` is false, merge the `cloudflared_ingress` output int
 
 ## Free-mode Access
 
-This stack intentionally does not create WAF, API Shield, Workers, R2, or D1 resources. Those products are not part of the account's approved Free-mode baseline. Set `manage_free_access = true` only after reviewing the Access application plan and confirming the route email allow-lists. Protected routes use the configured email allow-list and can require MFA.
+This stack intentionally does not create WAF, API Shield, Workers, R2, or D1 resources. Those products are not part of the account's approved Free-mode baseline. Set `manage_free_access = true` only after reviewing the Access application plan and confirming the route email allow-lists. Protected routes use the configured email allow-list and can require MFA. Supply an existing `free_access_allowed_idps` list when the account requires a specific identity provider.
 
 Access applications are managed as nested policies in `free-access.tf`; import existing Access applications before enabling management to avoid duplicate applications.
 
