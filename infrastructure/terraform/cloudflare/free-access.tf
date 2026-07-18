@@ -31,7 +31,8 @@ resource "cloudflare_zero_trust_access_application" "free_mode" {
         }]
       )
       mfa_config = {
-        mfa_disabled = !var.free_access_require_mfa
+        mfa_disabled     = !var.free_access_require_mfa
+        session_duration = var.free_access_session_duration
       }
     }],
     [for token_id in var.free_access_service_token_ids : {

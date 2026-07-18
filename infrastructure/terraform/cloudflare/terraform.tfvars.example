@@ -21,19 +21,19 @@ app_routes = {
 
   zchat = {
     hostname       = "zchat.zeaz.dev"
-    service        = "http://zchat:3021"
+    service        = "http://127.0.0.1:3021"
     access_enabled = false
   }
 
   zchat_staging = {
     hostname       = "zchat-staging.zeaz.dev"
-    service        = "http://zchat:3021"
+    service        = "http://127.0.0.1:3021"
     access_enabled = false
   }
 
   zchat_web = {
     hostname       = "zchat-web.zeaz.dev"
-    service        = "http://zchat:3021"
+    service        = "http://127.0.0.1:3021"
     access_enabled = false
   }
 
