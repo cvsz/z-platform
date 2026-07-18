@@ -24,7 +24,7 @@ jobs:
         include:
           - name: phase6-api
             context: services/phase6-api
-            file: services/phase6-api/Dockerfile
+            file: Dockerfile
           - name: zc-api
             context: .
             file: services/zc/Dockerfile
