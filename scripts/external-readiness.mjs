@@ -80,12 +80,16 @@ function hash(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-async function runProbe(check, token) {
+async function runProbe(check, token, accessClientId, accessClientSecret) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), check.timeoutMs ?? 15000);
   try {
     const headers = { Accept: "application/json, text/plain, */*" };
     if (token) headers.Authorization = `Bearer ${token}`;
+    if (accessClientId && accessClientSecret) {
+      headers["CF-Access-Client-Id"] = accessClientId;
+      headers["CF-Access-Client-Secret"] = accessClientSecret;
+    }
     const request = withJsonBody(headers, check.body);
     const response = await fetch(check.url, {
       method: check.method ?? "GET",
@@ -133,7 +137,11 @@ export async function collectEvidence(manifest, options = {}) {
   validateManifest(manifest, options.releaseSha);
   const checks = [];
   for (const check of manifest.checks) {
-    checks.push(check.mode === "probe" ? await runProbe(check, options.token) : sanitizeAttestation(check));
+    checks.push(
+      check.mode === "probe"
+        ? await runProbe(check, options.token, options.accessClientId, options.accessClientSecret)
+        : sanitizeAttestation(check),
+    );
   }
   const complete = checks.every((check) => SAFE_STATUS.has(check.status) && check.status === "verified");
   const evidence = {
@@ -168,6 +176,8 @@ async function main() {
   const evidence = await collectEvidence(manifest, {
     releaseSha,
     token: process.env.STAGING_BEARER_TOKEN,
+    accessClientId: process.env.STAGING_CF_ACCESS_CLIENT_ID,
+    accessClientSecret: process.env.STAGING_CF_ACCESS_CLIENT_SECRET,
     repository: process.env.GITHUB_REPOSITORY,
     workflowRunId: process.env.GITHUB_RUN_ID,
     stagingReviewer: process.env.STAGING_REVIEWER,

@@ -78,6 +78,8 @@ jobs:
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
           STAGING_BEARER_TOKEN: ${{ secrets.STAGING_BEARER_TOKEN }}
+          STAGING_CF_ACCESS_CLIENT_ID: ${{ secrets.STAGING_CF_ACCESS_CLIENT_ID }}
+          STAGING_CF_ACCESS_CLIENT_SECRET: ${{ secrets.STAGING_CF_ACCESS_CLIENT_SECRET }}
           STAGING_REVIEWER: ${{ vars.STAGING_REVIEWER }}
           INCIDENT_OWNER: ${{ vars.INCIDENT_OWNER }}
           ESCALATION_ROUTE: ${{ vars.ESCALATION_ROUTE }}
