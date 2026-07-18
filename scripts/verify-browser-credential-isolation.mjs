@@ -19,17 +19,22 @@ const SUSPICIOUS_PATTERNS = [
 let hasErrors = false;
 
 function scanDirectory(dir) {
-  if (!fs.existsSync(dir)) {
-    console.warn(`Directory not found: ${dir}`);
-    return;
+  let files;
+  try {
+    files = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      console.warn(`Directory not found: ${dir}`);
+      return;
+    }
+    throw error;
   }
-  const files = fs.readdirSync(dir);
-  for (const file of files) {
-    const fullPath = path.join(dir, file);
-    const stat = fs.statSync(fullPath);
-    if (stat.isDirectory()) {
+
+  for (const entry of files) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
       scanDirectory(fullPath);
-    } else if (fullPath.endsWith('.js') || fullPath.endsWith('.html') || fullPath.endsWith('.tsx') || fullPath.endsWith('.ts')) {
+    } else if (entry.isFile() && ['.js', '.html', '.tsx', '.ts'].some((extension) => fullPath.endsWith(extension))) {
       const content = fs.readFileSync(fullPath, 'utf8');
       for (const pattern of SUSPICIOUS_PATTERNS) {
         if (pattern.test(content)) {
