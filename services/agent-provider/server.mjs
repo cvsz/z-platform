@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,30 @@ import { fileURLToPath } from "node:url";
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 8800);
 const dataDir = process.env.DATA_DIR || "/data";
+
+function emptyOperationalState() {
+  return { jobs: {}, idempotency: {}, queue: [], audit: [], workspaces: {} };
+}
+
+function operationalSnapshot(value) {
+  return structuredClone({
+    jobs: value?.jobs || {},
+    idempotency: value?.idempotency || {},
+    queue: value?.queue || [],
+    audit: value?.audit || [],
+    workspaces: value?.workspaces || {},
+  });
+}
+
+function snapshotEvidence(snapshot) {
+  return {
+    digest: createHash("sha256").update(JSON.stringify(snapshot)).digest("hex"),
+    jobs: Object.keys(snapshot.jobs).length,
+    queue: snapshot.queue.length,
+    audit: snapshot.audit.length,
+    workspaces: Object.keys(snapshot.workspaces).length,
+  };
+}
 
 function send(res, status, payload) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
@@ -36,7 +60,7 @@ class DurableState {
   constructor(dir = dataDir) {
     this.dir = dir;
     this.path = join(dir, "state.json");
-    this.state = { jobs: {}, idempotency: {}, queue: [], audit: [], workspaces: {} };
+    this.state = { ...emptyOperationalState(), restoreNamespaces: {} };
     this.writeChain = Promise.resolve();
   }
 
@@ -60,7 +84,7 @@ class DurableState {
     return this.writeChain;
   }
 
-  async snapshot() { return structuredClone(this.state); }
+  async snapshot() { return operationalSnapshot(this.state); }
 }
 
 function metricText(state) {
@@ -176,23 +200,31 @@ export async function createAgentProviderServer({ env = process.env, state = new
         return send(res, 200, { deleted });
       }
       if (req.method === "GET" && req.url === "/backup/export") return send(res, 200, await state.snapshot());
-      if (req.method === "GET" && req.url?.startsWith("/backup/verify?object=")) {
-        const snapshot = await state.snapshot();
+      if (req.method === "GET" && req.url?.startsWith("/backup/verify?")) {
+        const params = new URL(req.url, "http://agent-provider").searchParams;
+        const object = params.get("object");
+        const namespace = params.get("namespace");
+        if (!object) return send(res, 400, { error: "object is required" });
+        if (!namespace || !/^[A-Za-z0-9_-]{1,128}$/.test(namespace)) return send(res, 400, { error: "valid namespace is required" });
+        const snapshot = state.state.restoreNamespaces?.[namespace];
+        if (!snapshot) return send(res, 404, { error: "Restore namespace not found" });
         return send(res, 200, {
           verified: true,
           status: "verified",
-          object: new URL(req.url, "http://agent-provider").searchParams.get("object"),
-          jobs: Object.keys(snapshot.jobs).length,
-          queue: snapshot.queue.length,
-          audit: snapshot.audit.length,
-          workspaces: Object.keys(snapshot.workspaces).length,
+          object,
+          namespace,
+          ...snapshotEvidence(snapshot),
         });
       }
       if (req.method === "POST" && req.url === "/backup/restore") {
-        const snapshot = await readJson(req);
-        state.state = { jobs: {}, idempotency: {}, queue: [], audit: [], workspaces: {}, ...snapshot };
+        const { namespace, snapshot: suppliedSnapshot } = await readJson(req);
+        if (!namespace || !/^[A-Za-z0-9_-]{1,128}$/.test(namespace)) return send(res, 400, { error: "valid namespace is required" });
+        if (!suppliedSnapshot || typeof suppliedSnapshot !== "object" || Array.isArray(suppliedSnapshot)) return send(res, 400, { error: "snapshot is required" });
+        const snapshot = { ...emptyOperationalState(), ...operationalSnapshot(suppliedSnapshot) };
+        state.state.restoreNamespaces ||= {};
+        state.state.restoreNamespaces[namespace] = snapshot;
         await state.persist();
-        return send(res, 200, { restored: true });
+        return send(res, 200, { restored: true, isolated: true, namespace, ...snapshotEvidence(snapshot) });
       }
       return send(res, 404, { error: "Not found" });
     } catch (error) {
