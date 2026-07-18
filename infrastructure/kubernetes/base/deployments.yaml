@@ -17,10 +17,10 @@ spec:
           ports: [{name: http, containerPort: 8080}]
           envFrom: [{secretRef: {name: z-platform-runtime}}]
           readinessProbe:
-            httpGet: {path: /health, port: http}
+            httpGet: {path: /health/ready, port: http}
             initialDelaySeconds: 5
           livenessProbe:
-            httpGet: {path: /health, port: http}
+            httpGet: {path: /health/live, port: http}
             periodSeconds: 20
           resources:
             requests: {cpu: 100m, memory: 256Mi}
