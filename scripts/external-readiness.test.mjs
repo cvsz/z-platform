@@ -42,7 +42,7 @@ test("rejects insecure probe URLs", () => {
 
 test("rejects invalid expected probe statuses", () => {
   const value = manifest();
-  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zplatform.dev/health", expectedStatus: 0 };
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zeaz.dev/health", expectedStatus: 0 };
   assert.throws(() => validateManifest(value, releaseSha), /invalid expectedStatus/);
 });
 
@@ -90,7 +90,7 @@ test("produces verified evidence with complete operator record", async () => {
 
 test("sends JSON probe bodies with an explicit content type", async () => {
   const value = manifest();
-  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zplatform.dev/health", body: { hello: "world" } };
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zeaz.dev/health", body: { hello: "world" } };
   const originalFetch = global.fetch;
   let observed;
   global.fetch = async (_url, init) => {
@@ -104,7 +104,7 @@ test("sends JSON probe bodies with an explicit content type", async () => {
       incidentOwner: "owner",
       escalationRoute: "pager-policy",
       watchWindow: "24h",
-      allowedOrigins: "https://staging.zplatform.dev",
+      allowedOrigins: "https://staging.zeaz.dev",
     });
     assert.equal(evidence.result, "VERIFIED");
     assert.equal(observed.headers["Content-Type"], "application/json");
@@ -116,7 +116,7 @@ test("sends JSON probe bodies with an explicit content type", async () => {
 
 test("sends Cloudflare Access service-token headers without exposing them in evidence", async () => {
   const value = manifest();
-  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zplatform.dev/health" };
+  value.checks[0] = { id: REQUIRED_CHECKS[0], mode: "probe", url: "https://staging.zeaz.dev/health" };
   const originalFetch = global.fetch;
   let observed;
   global.fetch = async (_url, init) => {
@@ -132,7 +132,7 @@ test("sends Cloudflare Access service-token headers without exposing them in evi
       incidentOwner: "owner",
       escalationRoute: "pager-policy",
       watchWindow: "24h",
-      allowedOrigins: "https://staging.zplatform.dev",
+      allowedOrigins: "https://staging.zeaz.dev",
     });
     assert.equal(evidence.result, "VERIFIED");
     assert.equal(observed.headers["CF-Access-Client-Id"], "client-id");
