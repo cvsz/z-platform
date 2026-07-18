@@ -22,9 +22,9 @@ on:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
-    # Run CodeQL on the available self-hosted runner pool so analysis stays on
-    # the hardened CI lane used for security workflows.
-    runs-on: [self-hosted, Linux, X64]
+    # Static analysis runs on GitHub-hosted capacity; cluster-bound deployment
+    # workflows remain on the protected self-hosted runner.
+    runs-on: ubuntu-latest
     permissions:
       # required for all workflows
       security-events: write
