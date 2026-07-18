@@ -13,7 +13,7 @@ spec:
       securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: phase6-api
-          image: ghcr.io/zeazdev/z-platform/phase6-api:dev
+          image: ghcr.io/cvsz/z-platform/phase6-api:dev
           ports: [{name: http, containerPort: 8080}]
           envFrom: [{secretRef: {name: z-platform-runtime}}]
           readinessProbe:
@@ -42,7 +42,7 @@ spec:
       securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: zc-api
-          image: ghcr.io/zeazdev/z-platform/zc-api:dev
+          image: ghcr.io/cvsz/z-platform/zc-api:dev
           ports: [{name: http, containerPort: 8420}, {name: grpc, containerPort: 8421}]
           envFrom: [{secretRef: {name: z-platform-runtime}}]
           readinessProbe: {httpGet: {path: /v1/wire/health/ready, port: http}, periodSeconds: 10}
@@ -65,7 +65,7 @@ spec:
       securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: ai-gateway
-          image: ghcr.io/zeazdev/z-platform/ai-gateway:dev
+          image: ghcr.io/cvsz/z-platform/ai-gateway:dev
           ports: [{name: http, containerPort: 8400}]
           envFrom: [{secretRef: {name: z-platform-runtime}}]
           readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10}
@@ -88,7 +88,7 @@ spec:
       securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: zchat
-          image: ghcr.io/zeazdev/z-platform/zchat:dev
+          image: ghcr.io/cvsz/z-platform/zchat:dev
           ports: [{name: http, containerPort: 3021}]
           envFrom: [{secretRef: {name: z-platform-runtime}}]
           readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10}
