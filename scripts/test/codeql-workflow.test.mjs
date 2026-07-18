@@ -9,8 +9,8 @@ const configPath = fileURLToPath(new URL("../../.github/codeql/codeql-config.yml
 const workflow = await readFile(workflowPath, "utf8");
 const config = await readFile(configPath, "utf8");
 
-test("CodeQL workflow targets the available self-hosted runner", () => {
-  assert.match(workflow, /runs-on:\s*\[\s*self-hosted,\s*Linux,\s*X64\s*\]/);
+test("CodeQL workflow uses GitHub-hosted capacity", () => {
+  assert.match(workflow, /runs-on:\s*ubuntu-latest/);
 });
 
 test("CodeQL workflow loads the repository config file", () => {
