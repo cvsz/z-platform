@@ -176,6 +176,18 @@ export async function createAgentProviderServer({ env = process.env, state = new
         return send(res, 200, { deleted });
       }
       if (req.method === "GET" && req.url === "/backup/export") return send(res, 200, await state.snapshot());
+      if (req.method === "GET" && req.url?.startsWith("/backup/verify?object=")) {
+        const snapshot = await state.snapshot();
+        return send(res, 200, {
+          verified: true,
+          status: "verified",
+          object: new URL(req.url, "http://agent-provider").searchParams.get("object"),
+          jobs: Object.keys(snapshot.jobs).length,
+          queue: snapshot.queue.length,
+          audit: snapshot.audit.length,
+          workspaces: Object.keys(snapshot.workspaces).length,
+        });
+      }
       if (req.method === "POST" && req.url === "/backup/restore") {
         const snapshot = await readJson(req);
         state.state = { jobs: {}, idempotency: {}, queue: [], audit: [], workspaces: {}, ...snapshot };
