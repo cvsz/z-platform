@@ -10,7 +10,7 @@ aiohttp>=3.10.0
 
 # === Protocol Buffers & gRPC ===
 protobuf>=5.28.0
-grpcio>=1.66.0
+grpcio>=1.82.1
 grpcio-tools>=1.66.0
 
 # === High-Performance Serialization ===
