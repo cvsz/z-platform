@@ -25,6 +25,18 @@ app_routes = {
     access_enabled = false
   }
 
+  zchat_staging = {
+    hostname       = "zchat-staging.zeaz.dev"
+    service        = "http://zchat:3021"
+    access_enabled = false
+  }
+
+  zchat_web = {
+    hostname       = "zchat-web.zeaz.dev"
+    service        = "http://zchat:3021"
+    access_enabled = false
+  }
+
   zwallet = {
     hostname       = "wallet.zeaz.dev"
     service        = "http://zwallet:3040"
