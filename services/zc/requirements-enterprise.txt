@@ -23,7 +23,7 @@ zstandard>=0.23.0
 
 # === Redis Client (Async) ===
 redis>=5.2.0
-hiredis>=3.0.0
+hiredis>=3.4.0
 
 # === Observability (OpenTelemetry) ===
 opentelemetry-api>=1.27.0
