@@ -61,6 +61,8 @@ jobs:
             --from-literal=ZC_API_TOKEN="$ZC_API_TOKEN" \
             --from-literal=PHASE6_API_TOKEN="$PHASE6_API_TOKEN" \
             --from-literal=REDIS_URL="${REDIS_URL:-redis://redis:6379/0}" \
+            --from-literal=AI_PROVIDER_ENDPOINTS="${AI_PROVIDER_ENDPOINTS:-{}}" \
+            --from-literal=AI_PROVIDER_KEYS_JSON="${AI_PROVIDER_KEYS_JSON:-{}}" \
             --from-literal=JWT_SECRET="$JWT_SECRET" \
             --from-literal=ENCRYPTION_KEY="$ENCRYPTION_KEY" \
             --from-literal=AI_GATEWAY_PROVIDER_TOKEN="$AI_GATEWAY_PROVIDER_TOKEN" \
