@@ -84,6 +84,7 @@ jobs:
           INCIDENT_OWNER: ${{ vars.INCIDENT_OWNER }}
           ESCALATION_ROUTE: ${{ vars.ESCALATION_ROUTE }}
           WATCH_WINDOW: ${{ vars.WATCH_WINDOW }}
+          STAGING_ALLOWED_ORIGINS: ${{ vars.STAGING_ALLOWED_ORIGINS }}
           DECISION_RECORD_JSON: ${{ secrets.STAGING_DECISION_RECORD_JSON }}
         run: node scripts/external-readiness.mjs /tmp/staging-readiness-manifest.json external-staging-evidence.json
 

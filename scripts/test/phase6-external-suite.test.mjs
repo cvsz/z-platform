@@ -17,7 +17,7 @@ test("phase6 probes send JSON bodies with the expected content type", async () =
       method: "POST",
       body: { model: "approved-model", stream: true },
       expectedStatus: 200,
-    }, "token");
+    }, "token", new Set(["https://staging.zplatform.dev"]));
     assert.equal(result.status, "verified");
     assert.equal(observed.headers.Authorization, "Bearer token");
     assert.equal(observed.headers["Content-Type"], "application/json");

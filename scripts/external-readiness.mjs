@@ -39,6 +39,19 @@ function isPlaceholderEvidence(value) {
   return PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(value.trim()));
 }
 
+function allowedOrigins(value = process.env.STAGING_ALLOWED_ORIGINS) {
+  if (typeof value !== "string" || !value.trim()) throw new Error("STAGING_ALLOWED_ORIGINS is required for HTTPS probes");
+  return new Set(value.split(",").map((origin) => {
+    const parsed = new URL(origin.trim());
+    if (parsed.protocol !== "https:" || parsed.pathname !== "/" || parsed.search || parsed.hash) throw new Error("STAGING_ALLOWED_ORIGINS must contain HTTPS origins only");
+    return parsed.origin;
+  }));
+}
+
+function assertAllowedOrigin(url, origins) {
+  if (!origins.has(url.origin)) throw new Error(`probe origin is not allowlisted: ${url.origin}`);
+}
+
 export function validateManifest(manifest, releaseSha) {
   if (!SHA_RE.test(releaseSha)) throw new Error("release SHA must be a full 40-character lowercase Git SHA");
   if (!manifest || manifest.schemaVersion !== "1.0.0") throw new Error("unsupported readiness manifest schema");
@@ -80,7 +93,7 @@ function hash(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-async function runProbe(check, token, accessClientId, accessClientSecret) {
+async function runProbe(check, token, accessClientId, accessClientSecret, origins) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), check.timeoutMs ?? 15000);
   try {
@@ -91,7 +104,9 @@ async function runProbe(check, token, accessClientId, accessClientSecret) {
       headers["CF-Access-Client-Secret"] = accessClientSecret;
     }
     const request = withJsonBody(headers, check.body);
-    const response = await fetch(check.url, {
+    const url = new URL(check.url);
+    assertAllowedOrigin(url, origins);
+    const response = await fetch(url, {
       method: check.method ?? "GET",
       headers: request.headers,
       body: request.body,
@@ -105,7 +120,7 @@ async function runProbe(check, token, accessClientId, accessClientSecret) {
       status: response.status === expected ? "verified" : "failed",
       observedStatus: response.status,
       expectedStatus: expected,
-      endpointFingerprint: hash(new URL(check.url).origin),
+      endpointFingerprint: hash(url.origin),
       checkedAt: new Date().toISOString(),
     };
   } catch (error) {
@@ -139,7 +154,7 @@ export async function collectEvidence(manifest, options = {}) {
   for (const check of manifest.checks) {
     checks.push(
       check.mode === "probe"
-        ? await runProbe(check, options.token, options.accessClientId, options.accessClientSecret)
+        ? await runProbe(check, options.token, options.accessClientId, options.accessClientSecret, options.origins ?? allowedOrigins(options.allowedOrigins))
         : sanitizeAttestation(check),
     );
   }
@@ -178,6 +193,7 @@ async function main() {
     token: process.env.STAGING_BEARER_TOKEN,
     accessClientId: process.env.STAGING_CF_ACCESS_CLIENT_ID,
     accessClientSecret: process.env.STAGING_CF_ACCESS_CLIENT_SECRET,
+    allowedOrigins: process.env.STAGING_ALLOWED_ORIGINS,
     repository: process.env.GITHUB_REPOSITORY,
     workflowRunId: process.env.GITHUB_RUN_ID,
     stagingReviewer: process.env.STAGING_REVIEWER,

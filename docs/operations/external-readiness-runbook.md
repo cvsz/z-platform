@@ -23,6 +23,7 @@ Use `scripts/configure-github-environments.sh` before loading the secrets below 
 - `STAGING_BEARER_TOKEN`: optional bearer token for HTTPS probes.
 - `STAGING_CF_ACCESS_CLIENT_ID`: optional Cloudflare Access service-token client ID for protected HTTPS probes.
 - `STAGING_CF_ACCESS_CLIENT_SECRET`: optional Cloudflare Access service-token client secret for protected HTTPS probes.
+- `STAGING_ALLOWED_ORIGINS`: comma-separated HTTPS origins explicitly allowed for staging probes.
 - `STAGING_DECISION_RECORD_JSON`: sanitized decision record covering external identity, secret manager, managed data services, backup target class, observability platform, AI policy, and billing policy. Do not include account IDs, credentials, tax identifiers, or sensitive infrastructure identifiers.
 
 ### Variables

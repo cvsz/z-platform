@@ -21,6 +21,15 @@ function safeRef(value, id) {
   return value.trim();
 }
 
+function allowedOrigins(value = process.env.STAGING_ALLOWED_ORIGINS) {
+  assert(typeof value === "string" && value.trim(), "STAGING_ALLOWED_ORIGINS is required for HTTPS probes");
+  return new Set(value.split(",").map((origin) => {
+    const url = new URL(origin.trim());
+    assert(url.protocol === "https:" && url.pathname === "/" && !url.search && !url.hash, "STAGING_ALLOWED_ORIGINS must contain HTTPS origins only");
+    return url.origin;
+  }));
+}
+
 async function runCommand(command, timeoutMs = 120000) {
   return await new Promise((resolve) => {
     const child = spawn("bash", ["-lc", command], { stdio: ["ignore", "pipe", "pipe"] });
@@ -35,9 +44,10 @@ async function runCommand(command, timeoutMs = 120000) {
   });
 }
 
-export async function httpProbe(check, token) {
+export async function httpProbe(check, token, origins = allowedOrigins()) {
   const url = new URL(check.url);
   assert(url.protocol === "https:", `${check.id} must use HTTPS`);
+  assert(origins.has(url.origin), `${check.id} origin is not allowlisted`);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), check.timeoutMs ?? 30000);
   try {
