@@ -23,6 +23,29 @@ http://{$PHASE6_DOMAIN} {
   }
 }
 
+# Public observability hostnames are routed through the Caddy gateway so the
+# Cloudflare Tunnel does not depend on Compose container names being resolvable
+# from the cloudflared runtime.
+http://grafana.zeaz.dev {
+  encode zstd gzip
+  reverse_proxy grafana:3000
+
+  log {
+    output stdout
+    format json
+  }
+}
+
+http://prometheus.zeaz.dev {
+  encode zstd gzip
+  reverse_proxy prometheus:9090
+
+  log {
+    output stdout
+    format json
+  }
+}
+
 http://{$ZC_DOMAIN} {
   encode zstd gzip
 

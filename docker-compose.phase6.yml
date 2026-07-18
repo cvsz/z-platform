@@ -165,7 +165,7 @@ services:
     image: grafana/grafana:12.1.0
     restart: unless-stopped
     environment:
-      GF_SERVER_ROOT_URL: https://${PHASE6_DOMAIN}/grafana/
+      GF_SERVER_ROOT_URL: https://${GRAFANA_DOMAIN:-grafana.zeaz.dev}/
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}

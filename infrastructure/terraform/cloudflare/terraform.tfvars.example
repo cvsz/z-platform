@@ -2,7 +2,7 @@ cloudflare_api_token = "set-via-TF_VAR_cloudflare_api_token"
 cloudflare_account_id = "00000000000000000000000000000000"
 cloudflare_zone_id    = "00000000000000000000000000000000"
 cloudflare_tunnel_id  = "00000000-0000-0000-0000-000000000000"
-manage_tunnel_config   = false
+manage_tunnel_config   = true
 zone_name             = "zeaz.dev"
 
 app_routes = {
@@ -64,14 +64,14 @@ app_routes = {
 
   grafana = {
     hostname       = "grafana.zeaz.dev"
-    service        = "http://z-platform-phase6-grafana-1:3000"
+    service        = "http://172.20.0.8:80"
     access_enabled = true
     allowed_email_domains = ["zeaz.dev"]
   }
 
   prometheus = {
     hostname       = "prometheus.zeaz.dev"
-    service        = "http://z-platform-phase6-prometheus-1:9090"
+    service        = "http://172.20.0.8:80"
     access_enabled = true
     allowed_email_domains = ["zeaz.dev"]
   }
