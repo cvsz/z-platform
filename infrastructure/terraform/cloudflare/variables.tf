@@ -103,3 +103,10 @@ variable "free_access_allowed_idps" {
   nullable    = false
   default     = []
 }
+
+variable "free_access_service_token_ids" {
+  type        = list(string)
+  description = "Cloudflare Access service token IDs allowed to probe protected Free-mode applications."
+  nullable    = false
+  default     = []
+}

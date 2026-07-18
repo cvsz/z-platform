@@ -17,20 +17,30 @@ resource "cloudflare_zero_trust_access_application" "free_mode" {
   auto_redirect_to_identity = length(var.free_access_allowed_idps) == 1
   enable_binding_cookie     = true
   app_launcher_visible      = false
-  policies = [{
-    name       = "z-platform ${each.key} allow"
-    decision   = "allow"
-    precedence = 1
-    include = concat(
-      [for domain in each.value.allowed_email_domains : {
-        email_domain = { domain = domain }
-      }],
-      [for email in each.value.allowed_emails : {
-        email = { email = email }
+  policies = concat(
+    [{
+      name       = "z-platform ${each.key} allow"
+      decision   = "allow"
+      precedence = 1
+      include = concat(
+        [for domain in each.value.allowed_email_domains : {
+          email_domain = { domain = domain }
+        }],
+        [for email in each.value.allowed_emails : {
+          email = { email = email }
+        }]
+      )
+      mfa_config = {
+        mfa_disabled = !var.free_access_require_mfa
+      }
+    }],
+    [for token_id in var.free_access_service_token_ids : {
+      name       = "z-platform ${each.key} service auth"
+      decision   = "non_identity"
+      precedence = 10
+      include = [{
+        service_token = { token_id = token_id }
       }]
-    )
-    mfa_config = {
-      mfa_disabled = !var.free_access_require_mfa
-    }
-  }]
+    }]
+  )
 }
