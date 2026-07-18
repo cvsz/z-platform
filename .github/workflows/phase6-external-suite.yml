@@ -32,13 +32,10 @@ jobs:
       AI_UPLOAD_URL: ${{ secrets.AI_UPLOAD_URL }}
       AI_PROVIDER_ENDPOINTS: ${{ secrets.AI_PROVIDER_ENDPOINTS }}
       AI_FAILOVER_URL: ${{ secrets.AI_FAILOVER_URL }}
-      S3_API_ENDPOINT: ${{ secrets.S3_API_ENDPOINT }}
-      S3_BUCKET: ${{ secrets.S3_BUCKET }}
-      S3_PREFIX: ${{ secrets.S3_PREFIX }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.ACCESS_SECRET_KEY }}
-      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      SUPABASE_BACKUP_BUCKET: ${{ secrets.SUPABASE_BACKUP_BUCKET }}
+      SUPABASE_BACKUP_PREFIX: ${{ secrets.SUPABASE_BACKUP_PREFIX }}
       BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
       BACKUP_SOURCE_URL: ${{ secrets.BACKUP_SOURCE_URL }}
       BACKUP_RESTORE_URL: ${{ secrets.BACKUP_RESTORE_URL }}
@@ -96,12 +93,10 @@ jobs:
             AI_UPLOAD_URL
             AI_PROVIDER_ENDPOINTS
             AI_FAILOVER_URL
-            S3_API_ENDPOINT
-            S3_BUCKET
-            S3_PREFIX
-            AWS_ACCESS_KEY_ID
-            AWS_SECRET_ACCESS_KEY
-            AWS_REGION
+            SUPABASE_URL
+            SUPABASE_SECRET_KEY
+            SUPABASE_BACKUP_BUCKET
+            SUPABASE_BACKUP_PREFIX
             BACKUP_ENCRYPTION_KEY
             BACKUP_SOURCE_URL
             BACKUP_RESTORE_URL
