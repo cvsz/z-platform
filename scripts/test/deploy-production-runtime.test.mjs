@@ -15,5 +15,6 @@ test("production deploy requires distinct Phase 6 runtime provider JSON secrets"
   assert.match(workflow, /PHASE6_AI_PROVIDER_KEYS_JSON: \$\{\{ secrets\.PHASE6_AI_PROVIDER_KEYS_JSON \}\}/);
   assert.match(workflow, /AI endpoint and key provider names must match exactly/);
   assert.match(workflow, /AI providers must use distinct origins/);
+  assert.match(workflow, /typeof provider\.model !== "string"/);
   assert.doesNotMatch(workflow, /AI_PROVIDER_ENDPOINTS="\$\{AI_PROVIDER_ENDPOINTS:-\{\}\}"/);
 });

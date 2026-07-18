@@ -63,7 +63,13 @@ jobs:
           }
           const origins = new Set();
           for (const name of names) {
-            const url = new URL(endpoints[name]);
+            const provider = typeof endpoints[name] === "string"
+              ? { baseUrl: endpoints[name], model: process.env.AI_MODEL || "Qwen/Qwen2.5-Coder-32B-Instruct" }
+              : endpoints[name];
+            if (!provider || typeof provider.baseUrl !== "string" || typeof provider.model !== "string" || !provider.model.trim()) {
+              throw new Error(`Invalid Phase 6 AI provider configuration for ${name}`);
+            }
+            const url = new URL(provider.baseUrl);
             if (url.protocol !== "https:" || url.username || url.password) throw new Error(`Invalid Phase 6 AI endpoint for ${name}`);
             if (typeof keys[name] !== "string" || keys[name].length < 16) throw new Error(`Invalid Phase 6 AI key for ${name}`);
             origins.add(url.origin);
