@@ -20,6 +20,8 @@ jobs:
       RELEASE_SHA: ${{ inputs.release_sha }}
       GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
       GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+      GHCR_OAUTH_ID: ${{ secrets.GHCR_OAUTH_ID }}
+      GHCR_OAUTH_TOKEN: ${{ secrets.GHCR_OAUTH_TOKEN }}
       Z_PLATFORM_SERVICE_TOKEN: ${{ secrets.Z_PLATFORM_SERVICE_TOKEN }}
       ZC_API_TOKEN: ${{ secrets.ZC_API_TOKEN }}
       PHASE6_API_TOKEN: ${{ secrets.PHASE6_API_TOKEN || secrets.Z_PLATFORM_SERVICE_TOKEN }}
@@ -35,12 +37,18 @@ jobs:
       BILLING_LEDGER_URL: ${{ secrets.BILLING_LEDGER_URL }}
 
     steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve GHCR credential pair
+        shell: bash
+        run: bash scripts/resolve-ghcr-credentials.sh
+
       - name: Validate immutable release input
         shell: bash
         run: |
           set -euo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          for name in GHCR_USERNAME GHCR_PULL_TOKEN Z_PLATFORM_SERVICE_TOKEN ZC_API_TOKEN PHASE6_API_TOKEN JWT_SECRET ENCRYPTION_KEY AI_GATEWAY_PROVIDER_TOKEN; do
+          for name in GHCR_EFFECTIVE_USERNAME GHCR_EFFECTIVE_TOKEN Z_PLATFORM_SERVICE_TOKEN ZC_API_TOKEN PHASE6_API_TOKEN JWT_SECRET ENCRYPTION_KEY AI_GATEWAY_PROVIDER_TOKEN; do
             [[ -n "${!name:-}" ]] || { echo "Missing required production secret: $name" >&2; exit 1; }
           done
 
@@ -80,8 +88,8 @@ jobs:
           set -euo pipefail
           kubectl -n z-platform create secret docker-registry ghcr-pull \
             --docker-server=ghcr.io \
-            --docker-username="$GHCR_USERNAME" \
-            --docker-password "$GHCR_PULL_TOKEN" \
+            --docker-username="$GHCR_EFFECTIVE_USERNAME" \
+            --docker-password "$GHCR_EFFECTIVE_TOKEN" \
             --docker-email="platform@zeazdev.com" \
             --dry-run=client -o yaml | kubectl apply -f -
 
@@ -90,7 +98,7 @@ jobs:
         run: |
           set -euo pipefail
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-          printf '%s' "$GHCR_PULL_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin >/dev/null
+          printf '%s' "$GHCR_EFFECTIVE_TOKEN" | docker login ghcr.io --username "$GHCR_EFFECTIVE_USERNAME" --password-stdin >/dev/null
 
           image_overrides=()
           for name in phase6-api zc-api ai-gateway zchat; do
