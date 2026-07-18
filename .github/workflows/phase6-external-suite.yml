@@ -32,6 +32,14 @@ jobs:
       AI_UPLOAD_URL: ${{ secrets.AI_UPLOAD_URL }}
       AI_PROVIDER_ENDPOINTS: ${{ secrets.AI_PROVIDER_ENDPOINTS }}
       AI_FAILOVER_URL: ${{ secrets.AI_FAILOVER_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      SUPABASE_BACKUP_BUCKET: ${{ secrets.SUPABASE_BACKUP_BUCKET }}
+      SUPABASE_BACKUP_PREFIX: ${{ secrets.SUPABASE_BACKUP_PREFIX }}
+      BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+      BACKUP_SOURCE_URL: ${{ secrets.BACKUP_SOURCE_URL }}
+      BACKUP_RESTORE_URL: ${{ secrets.BACKUP_RESTORE_URL }}
+      BACKUP_VERIFY_URL: ${{ secrets.BACKUP_VERIFY_URL }}
     steps:
       - name: Validate immutable SHA
         shell: bash
@@ -85,6 +93,14 @@ jobs:
             AI_UPLOAD_URL
             AI_PROVIDER_ENDPOINTS
             AI_FAILOVER_URL
+            SUPABASE_URL
+            SUPABASE_SECRET_KEY
+            SUPABASE_BACKUP_BUCKET
+            SUPABASE_BACKUP_PREFIX
+            BACKUP_ENCRYPTION_KEY
+            BACKUP_SOURCE_URL
+            BACKUP_RESTORE_URL
+            BACKUP_VERIFY_URL
           )
           missing=()
           for name in "${required[@]}"; do
