@@ -51,7 +51,7 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 11.4.0
       - name: Install dependencies
@@ -172,7 +172,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Generate SPDX SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
           path: .
           format: spdx-json
