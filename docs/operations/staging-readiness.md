@@ -15,17 +15,17 @@ Environment bootstrap for `ci`, `staging`, and `production` is handled by `scrip
 
 ## Current-head evidence
 
-Current `main` SHA: `0f181f19b2a53473af96fa5790c1191d4ddc4ae9` (2026-07-16).
+Current `main` SHA: `e585a0b439907013ebac22010740985b85e5c029` (2026-07-16).
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
 | Node and Python tests and dependency audits | VERIFIED | `validate` run `29468958977`, jobs `node` and `python`, success, 2026-07-16, GitHub Actions | Repository-local CI evidence only. |
 | Secret and browser credential scans | VERIFIED | `validate` run `29468958977`, `secret-patterns` job, success, 2026-07-16 | Pattern checks do not supersede CodeQL or Dependabot findings. |
 | Compose configuration and image builds | VERIFIED | `validate` run `29468958977`, `compose` job, success, 2026-07-16 | Build success is not external staging evidence. |
-| SPDX SBOM | VERIFIED | `validate` run `29468958977`; `z-platform-sbom` ID `8364711825`; `z-platform-sbom.spdx.json` ID `8364710149` | Artifact digests were not re-fetched in this pass; artifacts are bound only to `0f181f19b2a53473af96fa5790c1191d4ddc4ae9`. |
-| Dependency and provenance policy | VERIFIED | `operations` run `29468958979`, success; `sbom-spdx-json` ID `8364198676`, 2026-07-16 | Artifact digest was not re-fetched in this pass; valid only for `0f181f19b2a53473af96fa5790c1191d4ddc4ae9`. |
+| SPDX SBOM | VERIFIED | `validate` run `29468958977`; `z-platform-sbom` ID `8364711825`; `z-platform-sbom.spdx.json` ID `8364710149` | Artifact digests were not re-fetched in this pass; artifacts are bound only to `e585a0b439907013ebac22010740985b85e5c029`. |
+| Dependency and provenance policy | VERIFIED | `operations` run `29468958979`, success; `sbom-spdx-json` ID `8364198676`, 2026-07-16 | Artifact digest was not re-fetched in this pass; valid only for `e585a0b439907013ebac22010740985b85e5c029`. |
 | Seven-service deployed smoke | VERIFIED | `validate` run `29468958977`, `deployed-smoke` job, success; `staging-smoke-evidence` ID `8364578530` | Isolated Compose evidence only; not external staging. |
-| Main security-alert state | IMPLEMENTED | CodeQL Advanced run `29468958931` passed on `0f181f19b2a53473af96fa5790c1191d4ddc4ae9`; Dependabot alert state was not re-fetched with authenticated API access | Passing workflows do not by themselves prove alert closure. |
+| Main security-alert state | IMPLEMENTED | CodeQL Advanced run `29468958931` passed on `e585a0b439907013ebac22010740985b85e5c029`; Dependabot alert state was not re-fetched with authenticated API access | Passing workflows do not by themselves prove alert closure. |
 | Current branch head repo-local validation (`d4b50605058786a800bcd9e8bfaa8d5def481424`) | VERIFIED | `git diff --check`; `node --test scripts/test/codeql-workflow.test.mjs`; `pnpm test`; pre-push lint, typecheck, tests, and build passed after the Cloudflare Terraform state cleanup commit | Repository-local validation only; no new GitHub Actions evidence or external staging evidence is claimed. |
 | AI Gateway disconnect-aware upstream cancellation | IMPLEMENTED | Branch-local gateway factory, disconnect abort handling, and deterministic client-disconnect regression test on this branch | PR-head workflow, immutable artifact binding, and any external staging evidence are still pending. |
 | Supabase read-only Data API bridge | IMPLEMENTED | Phase 6 API authenticated `/supabase/read` route with env-based URL, anon-key, and table selection; route-level success and failure-path tests on this branch | Real Supabase project/table evidence and external staging execution are still **PENDING_EXTERNAL**. |
@@ -36,7 +36,7 @@ Current `main` SHA: `0f181f19b2a53473af96fa5790c1191d4ddc4ae9` (2026-07-16).
 
 ## Remote-tracking main drift
 
-Remote `origin/main` SHA: `0f181f19b2a53473af96fa5790c1191d4ddc4ae9` (merge PR #55, 2026-07-16).
+Remote `origin/main` SHA: `e585a0b439907013ebac22010740985b85e5c029` (merge PR #55, 2026-07-16).
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
