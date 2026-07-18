@@ -27,3 +27,8 @@ The Argo CD application in `argocd/application.yaml` points to an operator-
 owned `overlays/production` path. It is deliberately not applied by local
 automation until the production image digests, secret-manager references,
 cluster identity, and release approval exist.
+
+The workflow `.github/workflows/container-images.yml` publishes the four runtime
+images to GHCR with immutable `sha-<full-commit>` tags, SBOMs, and provenance.
+Release promotion must copy the resulting digests into the production overlay
+before Argo CD synchronization.
