@@ -67,14 +67,14 @@ app_routes = {
 
   grafana = {
     hostname       = "grafana.zeaz.dev"
-    service        = "http://172.20.0.8:80"
+    service        = "http://127.0.0.1:80"
     access_enabled = true
     allowed_email_domains = ["zeaz.dev"]
   }
 
   prometheus = {
     hostname       = "prometheus.zeaz.dev"
-    service        = "http://172.20.0.8:80"
+    service        = "http://127.0.0.1:80"
     access_enabled = true
     allowed_email_domains = ["zeaz.dev"]
   }

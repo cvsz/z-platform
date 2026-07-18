@@ -74,6 +74,10 @@ This stack intentionally does not create WAF, API Shield, Workers, R2, or D1 res
 
 Access applications are managed as nested policies in `free-access.tf`; import existing Access applications before enabling management to avoid duplicate applications.
 
+### Locally managed cloudflared connectors
+
+If the connector runs from a local `cloudflared` service with a checked-in or operator-owned ingress file, merge [`cloudflared-observability-ingress.yml.example`](./cloudflared-observability-ingress.yml.example) into that file before the wildcard route. Terraform's remote tunnel configuration does not rewrite a connector that is explicitly running with local ingress configuration. The connector must use `127.0.0.1:80` when it runs on the same host as Caddy.
+
 ## Cloudflare-proxied Phase 6
 
 With the tunnel route in place, Caddy/ACME is not required for `phase6.zeaz.dev`. Cloudflare terminates public TLS and sends traffic through the tunnel to `http://phase6-api:8080`. This avoids exposing ports 80/443 on the private host.
