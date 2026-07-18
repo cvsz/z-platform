@@ -66,6 +66,7 @@ test("restores backups into an isolated namespace without mutating primary state
     assert.equal(verify.status, 200);
     const evidence = await verify.json();
     assert.equal(evidence.verified, true);
+    assert.equal(evidence.isolated, true);
     assert.equal(evidence.workspaces, 1);
     assert.match(evidence.digest, /^[0-9a-f]{64}$/);
   });

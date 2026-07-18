@@ -211,6 +211,7 @@ export async function createAgentProviderServer({ env = process.env, state = new
         return send(res, 200, {
           verified: true,
           status: "verified",
+          isolated: true,
           object,
           namespace,
           ...snapshotEvidence(snapshot),

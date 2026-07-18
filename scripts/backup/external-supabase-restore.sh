@@ -17,6 +17,7 @@ done
 command -v curl >/dev/null || die "curl is required"
 command -v openssl >/dev/null || die "openssl is required"
 command -v jq >/dev/null || die "jq is required"
+command -v node >/dev/null || die "node is required"
 
 WORKDIR="${PHASE6_BACKUP_WORKDIR:-$(mktemp -d)}"
 mkdir -p "$WORKDIR"
@@ -31,6 +32,7 @@ OBJECT_KEY="${SUPABASE_BACKUP_PREFIX%/}/phase6-${STAMP}.json.enc"
 PLAIN="$WORKDIR/backup.json"
 ENCRYPTED="$WORKDIR/backup.json.enc"
 OBJECT_FILE="$WORKDIR/object-key"
+NAMESPACE_FILE="$WORKDIR/restore-namespace"
 
 storage_url() { printf '%s/storage/v1/object/%s/%s' "$SUPABASE_URL" "$SUPABASE_BACKUP_BUCKET" "$1"; }
 
@@ -53,28 +55,53 @@ create_backup() {
 restore_backup() {
   object_key="${BACKUP_OBJECT_KEY:-$(cat "$OBJECT_FILE" 2>/dev/null || true)}"
   [[ -n "$object_key" ]] || die "BACKUP_OBJECT_KEY or a prior create operation is required"
+  namespace="${BACKUP_RESTORE_NAMESPACE:-$(cat "$NAMESPACE_FILE" 2>/dev/null || true)}"
+  if [[ -z "$namespace" ]]; then
+    namespace="phase6_${STAMP}_$(openssl rand -hex 8)"
+    printf '%s' "$namespace" > "$NAMESPACE_FILE"
+  fi
+  [[ "$namespace" =~ ^[A-Za-z0-9_-]{1,128}$ ]] || die "BACKUP_RESTORE_NAMESPACE is invalid"
   curl --fail --silent --show-error --max-time 120 "$(storage_url "$object_key")" "${AUTH[@]}" -o "$ENCRYPTED"
   openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
     -pass env:BACKUP_ENCRYPTION_KEY -in "$ENCRYPTED" -out "$PLAIN"
+  jq -e 'type == "object"' "$PLAIN" >/dev/null || die "decrypted backup is not a JSON object"
+  jq -n --arg namespace "$namespace" --slurpfile snapshot "$PLAIN" \
+    '{namespace: $namespace, snapshot: $snapshot[0]}' > "$WORKDIR/restore-request.json"
   curl --fail --silent --show-error --max-time 120 "${APP_AUTH[@]}" \
-    -H 'Content-Type: application/json' --data-binary "@$PLAIN" "$BACKUP_RESTORE_URL" >/dev/null
-  echo "backup restore request accepted"
+    -H 'Content-Type: application/json' --data-binary "@$WORKDIR/restore-request.json" "$BACKUP_RESTORE_URL" \
+    -o "$WORKDIR/restore-response.json"
+  jq -e --arg namespace "$namespace" '.restored == true and .isolated == true and .namespace == $namespace' \
+    "$WORKDIR/restore-response.json" >/dev/null || die "backup restore did not confirm isolated namespace"
+  printf 'restore_namespace=%s\n' "$namespace"
 }
 
 verify_backup() {
   object_key="${BACKUP_OBJECT_KEY:-$(cat "$OBJECT_FILE" 2>/dev/null || true)}"
   [[ -n "$object_key" ]] || die "BACKUP_OBJECT_KEY or a prior create operation is required"
+  namespace="${BACKUP_RESTORE_NAMESPACE:-$(cat "$NAMESPACE_FILE" 2>/dev/null || true)}"
+  [[ -n "$namespace" ]] || die "BACKUP_RESTORE_NAMESPACE or a prior restore operation is required"
+  object_query="$(printf '%s' "$object_key" | jq -sRr @uri)"
+  namespace_query="$(printf '%s' "$namespace" | jq -sRr @uri)"
   curl --fail --silent --show-error --max-time 120 "${APP_AUTH[@]}" \
-    -H 'Accept: application/json' "$BACKUP_VERIFY_URL?object=$(printf '%s' "$object_key" | jq -sRr @uri)" \
+    -H 'Accept: application/json' "$BACKUP_VERIFY_URL?object=$object_query&namespace=$namespace_query" \
     -o "$WORKDIR/verification.json"
-  jq -e '(.verified == true) or (.status == "verified") or (.restored == true)' "$WORKDIR/verification.json" >/dev/null \
-    || die "backup verification response did not confirm integrity and restore"
-  echo "backup restore verification passed"
+  expected_digest="$(node -e 'const fs=require("fs"),crypto=require("crypto"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex"))' "$PLAIN")"
+  jq -e --arg object "$object_key" --arg namespace "$namespace" --arg digest "$expected_digest" \
+    '.status == "verified" and .isolated == true and .object == $object and .namespace == $namespace and .digest == $digest' \
+    "$WORKDIR/verification.json" >/dev/null || die "backup verification did not confirm isolated restore integrity"
+  printf 'backup_restore_verification=passed\nrestore_namespace=%s\nrestored_digest=%s\n' "$namespace" "$expected_digest"
+}
+
+run_backup_cycle() {
+  create_backup
+  restore_backup
+  verify_backup
 }
 
 case "${1:-}" in
   create) create_backup ;;
   restore) restore_backup ;;
   verify) verify_backup ;;
-  *) die "usage: $0 {create|restore|verify}" ;;
+  run) run_backup_cycle ;;
+  *) die "usage: $0 {create|restore|verify|run}" ;;
 esac
