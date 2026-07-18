@@ -96,3 +96,10 @@ variable "free_access_require_mfa" {
   nullable    = false
   default     = true
 }
+
+variable "free_access_allowed_idps" {
+  type        = list(string)
+  description = "Existing Cloudflare Access identity provider IDs allowed for Free-mode applications."
+  nullable    = false
+  default     = []
+}

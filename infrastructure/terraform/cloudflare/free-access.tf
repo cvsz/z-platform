@@ -13,7 +13,8 @@ resource "cloudflare_zero_trust_access_application" "free_mode" {
   domain                    = each.value.hostname
   type                      = "self_hosted"
   session_duration          = var.free_access_session_duration
-  auto_redirect_to_identity = true
+  allowed_idps              = var.free_access_allowed_idps
+  auto_redirect_to_identity = length(var.free_access_allowed_idps) == 1
   enable_binding_cookie     = true
   app_launcher_visible      = false
   policies = [{
