@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, readdir, readFile, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { isAbsolute, relative, resolve } from "node:path";
 
@@ -81,7 +81,12 @@ export class FileWorkspaceAdapter {
 
   async save(record) {
     await mkdir(this.root, { recursive: true });
-    await writeFile(this.pathFor(record.id), JSON.stringify(record, null, 2) + "\n", "utf8");
+    const handle = await open(this.pathFor(record.id), "w", 0o600);
+    try {
+      await handle.writeFile(JSON.stringify(record, null, 2) + "\n", "utf8");
+    } finally {
+      await handle.close();
+    }
     return record;
   }
 
