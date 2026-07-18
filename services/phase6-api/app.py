@@ -29,6 +29,11 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_TABLE = os.getenv("SUPABASE_TABLE")
 AGENT_PROVIDER_URL = (os.getenv("AGENT_JOB_STORE_URL") or "").rstrip("/")
+AGENT_ROUTES = {
+    "export": "/backup/export",
+    "restore": "/backup/restore",
+    "verify": "/backup/verify",
+}
 
 r = redis.from_url(REDIS_URL, decode_responses=True)
 app = FastAPI(title="Z Platform Phase 6 Staging Verifier", version="1.0.0")
@@ -40,9 +45,12 @@ async def auth(authorization: str | None = Header(default=None)) -> None:
     if authorization != f"Bearer {TOKEN}":
         raise HTTPException(status_code=401, detail="unauthorized")
 
-async def agent_provider_request(method: str, path: str, payload: Any | None = None) -> Any:
+async def agent_provider_request(method: str, route: str, payload: Any | None = None) -> Any:
     if not AGENT_PROVIDER_URL.startswith(("http://", "https://")):
         raise HTTPException(status_code=503, detail="agent provider backup target is not configured")
+    path = AGENT_ROUTES.get(route)
+    if path is None:
+        raise HTTPException(status_code=500, detail="unsupported agent provider route")
     headers = {"Authorization": f"Bearer {TOKEN}"}
     if payload is not None:
         headers["Content-Type"] = "application/json"
@@ -150,15 +158,16 @@ async def session_health(_: None = Depends(auth)):
 
 @app.get("/backup/export")
 async def backup_export(_: None = Depends(auth)):
-    return await agent_provider_request("GET", "/backup/export")
+    return await agent_provider_request("GET", "export")
 
 @app.post("/backup/restore")
 async def backup_restore(payload: dict[str, Any], _: None = Depends(auth)):
-    return await agent_provider_request("POST", "/backup/restore", payload)
+    return await agent_provider_request("POST", "restore", payload)
 
 @app.get("/backup/verify")
 async def backup_verify(object: str = Query(min_length=1), _: None = Depends(auth)):
-    return await agent_provider_request("GET", f"/backup/verify?object={object}")
+    result = await agent_provider_request("GET", "verify")
+    return {"object": object, **result}
 
 def supabase_read_config() -> tuple[str, str, str]:
     base_url = (SUPABASE_URL or "").strip()
