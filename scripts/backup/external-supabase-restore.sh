@@ -30,6 +30,7 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OBJECT_KEY="${SUPABASE_BACKUP_PREFIX%/}/phase6-${STAMP}.json.enc"
 PLAIN="$WORKDIR/backup.json"
 ENCRYPTED="$WORKDIR/backup.json.enc"
+OBJECT_FILE="$WORKDIR/object-key"
 
 storage_url() { printf '%s/storage/v1/object/%s/%s' "$SUPABASE_URL" "$SUPABASE_BACKUP_BUCKET" "$1"; }
 
@@ -40,6 +41,7 @@ create_backup() {
   openssl enc -aes-256-cbc -pbkdf2 -salt -iter 600000 \
     -pass env:BACKUP_ENCRYPTION_KEY -in "$PLAIN" -out "$ENCRYPTED"
   DIGEST="$(sha256sum "$ENCRYPTED" | awk '{print $1}')"
+  printf '%s' "$OBJECT_KEY" > "$OBJECT_FILE"
   curl --fail --silent --show-error --max-time 120 -X POST "$(storage_url "$OBJECT_KEY")" \
     "${AUTH[@]}" -H 'Content-Type: application/octet-stream' -H 'x-upsert: false' --data-binary "@$ENCRYPTED" >/dev/null
   printf 'object=%s\nsha256=%s\ncreatedAt=%s\n' "$OBJECT_KEY" "$DIGEST" "$STAMP" | \
@@ -49,8 +51,9 @@ create_backup() {
 }
 
 restore_backup() {
-  require BACKUP_OBJECT_KEY
-  curl --fail --silent --show-error --max-time 120 "$(storage_url "$BACKUP_OBJECT_KEY")" "${AUTH[@]}" -o "$ENCRYPTED"
+  object_key="${BACKUP_OBJECT_KEY:-$(cat "$OBJECT_FILE" 2>/dev/null || true)}"
+  [[ -n "$object_key" ]] || die "BACKUP_OBJECT_KEY or a prior create operation is required"
+  curl --fail --silent --show-error --max-time 120 "$(storage_url "$object_key")" "${AUTH[@]}" -o "$ENCRYPTED"
   openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
     -pass env:BACKUP_ENCRYPTION_KEY -in "$ENCRYPTED" -out "$PLAIN"
   curl --fail --silent --show-error --max-time 120 "${APP_AUTH[@]}" \
@@ -59,9 +62,10 @@ restore_backup() {
 }
 
 verify_backup() {
-  require BACKUP_OBJECT_KEY
+  object_key="${BACKUP_OBJECT_KEY:-$(cat "$OBJECT_FILE" 2>/dev/null || true)}"
+  [[ -n "$object_key" ]] || die "BACKUP_OBJECT_KEY or a prior create operation is required"
   curl --fail --silent --show-error --max-time 120 "${APP_AUTH[@]}" \
-    -H 'Accept: application/json' "$BACKUP_VERIFY_URL?object=$(printf '%s' "$BACKUP_OBJECT_KEY" | jq -sRr @uri)" \
+    -H 'Accept: application/json' "$BACKUP_VERIFY_URL?object=$(printf '%s' "$object_key" | jq -sRr @uri)" \
     -o "$WORKDIR/verification.json"
   jq -e '(.verified == true) or (.status == "verified") or (.restored == true)' "$WORKDIR/verification.json" >/dev/null \
     || die "backup verification response did not confirm integrity and restore"
