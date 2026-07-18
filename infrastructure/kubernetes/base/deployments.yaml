@@ -68,6 +68,11 @@ spec:
           image: ghcr.io/cvsz/z-platform/ai-gateway:dev
           ports: [{name: http, containerPort: 8400}]
           envFrom: [{secretRef: {name: z-platform-runtime}}]
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8400"
           readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: 1, memory: 1Gi}}
