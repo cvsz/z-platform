@@ -170,11 +170,17 @@ services:
     depends_on:
       ai-gateway:
         condition: service_healthy
+      zc-api:
+        condition: service_healthy
     environment:
       HOST: 0.0.0.0
       PORT: 3021
       Z_PLATFORM_SERVICE_TOKEN: ${Z_PLATFORM_SERVICE_TOKEN:?set Z_PLATFORM_SERVICE_TOKEN in .env}
       Z_PLATFORM_AI_GATEWAY_URL: http://ai-gateway:8400
+      PHASE6_API_URL: ${PHASE6_API_URL:-http://phase6-api:8300}
+      PHASE6_API_TOKEN: ${PHASE6_API_TOKEN:-}
+      ZC_API_URL: ${ZC_API_URL:-http://zc-api:8420}
+      ZC_API_TOKEN: ${ZC_API_TOKEN:?set ZC_API_TOKEN in .env}
       ZCHAT_SESSION_TTL_SECONDS: ${ZCHAT_SESSION_TTL_SECONDS:-3600}
     ports:
       - "127.0.0.1:${ZCHAT_PORT:-3021}:3021"
@@ -184,6 +190,37 @@ services:
       timeout: 3s
       retries: 10
       start_period: 5s
+
+  zc-api:
+    build:
+      context: .
+      dockerfile: services/zc/Dockerfile
+    restart: unless-stopped
+    init: true
+    networks:
+      - z-platform-internal
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      ENVIRONMENT: ${ZC_ENVIRONMENT:-production}
+      API_HOST: 0.0.0.0
+      API_PORT: 8420
+      ZC_API_TOKEN: ${ZC_API_TOKEN:?set ZC_API_TOKEN in .env}
+      REDIS_URL: redis://redis:6379/1
+      REDIS_ENABLED: ${ZC_REDIS_ENABLED:-true}
+      UPLOAD_TEMP_DIR: /data/uploads
+      ZC_LOG_LEVEL: ${ZC_LOG_LEVEL:-INFO}
+    volumes:
+      - zc_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8420/v1/wire/health/live').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
   agent-control-panel:
     <<: *node-service
@@ -218,3 +255,4 @@ networks:
 volumes:
   agent-provider-data:
   redis_data:
+  zc_data:

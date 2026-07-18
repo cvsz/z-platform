@@ -22,6 +22,10 @@ All model calls include tenant, conversation, request, and usage-correlation hea
 
 - `Z_PLATFORM_AI_GATEWAY_URL`: AI Gateway base URL. Both `http://gateway:8400` and `http://gateway:8400/v1` are accepted.
 - `Z_PLATFORM_SERVICE_TOKEN`: service token used only by this server-side proxy.
+- `PHASE6_API_URL` and `ZC_API_URL`: internal backend URLs used by the unified platform status facade.
+- `PHASE6_API_TOKEN` and `ZC_API_TOKEN`: optional server-side backend credentials; never expose them to the browser.
+
+The production zc deployment requires `ZC_API_TOKEN`; liveness and readiness probes remain unauthenticated, while upload and wire operations require `Authorization: Bearer <ZC_API_TOKEN>`.
 - `ZCHAT_SESSION_TTL_SECONDS` optional. When set, requests with expired `X-Session-Started-At` are rejected.
 - `HOST` optional, defaults to `127.0.0.1`.
 - `PORT` optional, defaults to `3021`.

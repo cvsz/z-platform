@@ -41,6 +41,21 @@ Run `z-platform` as a least-privilege, auditable, gateway-first platform where b
 
 Production must not be the first environment to exercise a provider, queue, database, identity policy, sandbox profile, billing integration, Cloudflare rule, or restore path.
 
+## k3s CNI migration
+
+The repository includes a fail-closed Cilium migration preflight and installer
+under `scripts/cilium-migration-preflight.sh` and
+`scripts/install-cilium-k3s.sh`. The installer requires a pinned
+`CILIUM_CHART_VERSION` and the explicit maintenance acknowledgment
+`CILIUM_MAINTENANCE_ACK=I_HAVE_APPROVED_CNI_MIGRATION`; it will not install over
+an active Flannel daemonset. Confirm a tested rollback plan before execution.
+The currently verified chart pin is documented in
+`infrastructure/kubernetes/cilium/version.env.example`.
+The corresponding k3s settings are staged in
+`infrastructure/kubernetes/cilium/k3s-config-migration.yaml.example`; they
+must be merged with the existing config and followed by a controlled k3s
+restart, never applied as an unreviewed overwrite.
+
 ## Required production providers
 
 | Capability | Required production provider decision |

@@ -39,6 +39,12 @@ variable "cloudflare_tunnel_id" {
   }
 }
 
+variable "manage_tunnel_config" {
+  type        = bool
+  description = "When true, Terraform owns the existing tunnel ingress configuration. Keep false until the current remote configuration has been imported and reviewed."
+  default     = false
+}
+
 variable "zone_name" {
   type        = string
   description = "Managed DNS zone, for example zeaz.dev."

@@ -18,6 +18,7 @@ The `staging` environment must define:
 - Secret `BROWSER_HAR_BASE64`: base64-encoded deployed HAR JSON.
 
 Do not commit the completed configuration when it contains private staging URLs, request bodies, or operational details. Do not place credentials directly in URLs, commands, browser artifacts, or the configuration JSON.
+Use `scripts/configure-github-environments.sh` to create or refresh the `staging` and `production` environment protection rules before writing those secrets, passing only the real reviewer selectors approved by the operator.
 
 ## Verification modes
 

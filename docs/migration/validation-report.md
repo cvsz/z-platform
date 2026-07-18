@@ -1,18 +1,31 @@
 # Migration Validation Report
 
-## Current branch head compose/start evidence (`eb7a0f4a862939cbab764b2af185685a7c951fea`)
+## Prior branch head compose/start evidence (`3bc681f7a288b6a556d3885ee07623c8fb599b34`)
 
 Date: 2026-07-16
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Scope | pass | One repository-local compose startup slice for the current branch head `eb7a0f4a862939cbab764b2af185685a7c951fea`. |
+| Scope | pass | One repository-local compose startup slice for the prior branch head `3bc681f7a288b6a556d3885ee07623c8fb599b34`. |
 | Agent Control Panel startup | pass | `deploy/docker/next-service.Dockerfile` installs dependencies, builds the Next.js app, prunes dev dependencies, and starts the service without the missing `next` binary failure. |
 | ZChat smoke alignment | pass | `scripts/staging-smoke.mjs` now checks the committed `<main class="shell">` markup and the current `@media (max-width: 720px)` breakpoint used by deployed checks. |
 | Compose bring-up | pass | `DOCKER_CONFIG=/tmp/docker-config docker compose -f compose.yml up -d --build --wait` completed with all services healthy in isolated Compose. |
 | Deployed smoke | pass | `node scripts/staging-smoke.mjs` completed successfully after the compose rebuild. |
 
-This slice is repository-local and isolated Compose only. It does not replace GitHub Actions evidence or any operator-owned staging/production approval requirement.
+This slice is repository-local and isolated Compose only. It does not replace GitHub Actions evidence or any operator-owned staging/production approval requirement, and it is not revalidated for the later fallback-label commit in this worktree.
+
+## Current branch head repo-local validation (`d4b50605058786a800bcd9e8bfaa8d5def481424`)
+
+Date: 2026-07-16
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Scope | pass | One repository-local branch-head validation slice only. |
+| CodeQL workflow contract | pass | `node --test scripts/test/codeql-workflow.test.mjs` passed after the branch head was updated to `d4b50605058786a800bcd9e8bfaa8d5def481424`. |
+| Secret/state hygiene | pass | `git add infrastructure/terraform/cloudflare/.gitignore infrastructure/terraform/cloudflare/terraform.tfstate infrastructure/terraform/cloudflare/terraform.tfstate.backup infrastructure/terraform/cloudflare/terraform.tfvars` followed by the pre-push hook removed tracked Cloudflare state files from the branch. |
+| Repository-local validation | pass | `git diff --check` and `pnpm test` passed before the cleanup commit was pushed. |
+
+This note binds the latest branch head to repository-local validation only. It does not claim any new GitHub Actions or external staging evidence.
 
 ## Release governance operator-signoff coverage
 

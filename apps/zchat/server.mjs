@@ -32,6 +32,37 @@ function gatewayUrl(baseUrl, path) {
   return base.endsWith("/v1") ? base + path : base + "/v1" + path;
 }
 
+function serviceUrl(baseUrl, path) {
+  return baseUrl.replace(/\/$/, "") + path;
+}
+
+function backendConfig(env, name) {
+  const prefix = name === "zc" ? "ZC" : "PHASE6";
+  return {
+    name,
+    url: (env[`${prefix}_API_URL`] || env[`Z_PLATFORM_${prefix}_API_URL`])?.trim(),
+    token: env[`${prefix}_API_TOKEN`] || env[`Z_PLATFORM_${prefix}_API_TOKEN`],
+    healthPath: name === "zc" ? "/v1/wire/health/live" : "/health",
+  };
+}
+
+export async function platformStatus(env = process.env, fetchImpl = fetch) {
+  const backends = [backendConfig(env, "phase6"), backendConfig(env, "zc")];
+  const results = await Promise.all(backends.map(async (backend) => {
+    if (!backend.url) return { service: backend.name, status: "unconfigured" };
+    try {
+      const result = await fetchImpl(serviceUrl(backend.url, backend.healthPath), {
+        headers: backend.token ? { Authorization: "Bearer " + backend.token } : {},
+        signal: AbortSignal.timeout(3000),
+      });
+      return { service: backend.name, status: result.ok ? "ok" : "degraded", http_status: result.status };
+    } catch {
+      return { service: backend.name, status: "unavailable" };
+    }
+  }));
+  return { status: results.every((item) => item.status === "ok") ? "ok" : "degraded", service: "zchat", backends: results };
+}
+
 function combineAbortSignals(...signals) {
   const activeSignals = signals.filter(Boolean);
   if (!activeSignals.length) return undefined;
@@ -149,7 +180,7 @@ export async function chat(body, env = process.env, fetchImpl = fetch, request =
     method: "POST",
     headers: gatewayHeaders(env, request, conversationId),
     body: JSON.stringify({
-      model: typeof body.model === "string" && body.model ? body.model : "default",
+      model: typeof body.model === "string" && body.model ? body.model : (env.AI_MODEL || "default"),
       messages: chatMessages(body.prompt.trim(), systemPrompt),
       stream: false,
       metadata: {
@@ -183,7 +214,7 @@ export async function chatStream(body, env = process.env, fetchImpl = fetch, req
     method: "POST",
     headers: gatewayHeaders(env, request, conversationId),
     body: JSON.stringify({
-      model: typeof body.model === "string" && body.model ? body.model : "default",
+      model: typeof body.model === "string" && body.model ? body.model : (env.AI_MODEL || "default"),
       messages: chatMessages(body.prompt.trim(), systemPrompt),
       stream: true,
       metadata: {
@@ -204,7 +235,10 @@ export function createZChatRequestHandler({ env = process.env, fetchImpl = fetch
   return async (request, response) => {
     try {
       if (request.method === "GET" && request.url === "/health") {
-        return send(response, 200, JSON.stringify(zchatHealthSnapshot(env)));
+        return send(response, 200, JSON.stringify({ ...zchatHealthSnapshot(env), backends: await platformStatus(env, fetchImpl) }));
+      }
+      if (request.method === "GET" && request.url === "/api/platform/status") {
+        return send(response, 200, JSON.stringify(await platformStatus(env, fetchImpl)));
       }
       if (request.method === "GET" && request.url === "/api/models") {
         return send(response, 200, JSON.stringify(await models(env, fetchImpl)));

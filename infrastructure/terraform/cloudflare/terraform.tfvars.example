@@ -2,6 +2,7 @@ cloudflare_api_token = "set-via-TF_VAR_cloudflare_api_token"
 cloudflare_account_id = "00000000000000000000000000000000"
 cloudflare_zone_id    = "00000000000000000000000000000000"
 cloudflare_tunnel_id  = "00000000-0000-0000-0000-000000000000"
+manage_tunnel_config   = false
 zone_name             = "zeaz.dev"
 
 app_routes = {

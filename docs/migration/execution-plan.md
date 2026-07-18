@@ -126,6 +126,7 @@ Create a clean, secure platform successor to `https://github.com/cvsz/z-platform
 - Implemented browser bundle and HAR credential scanners; actual deployed artifacts remain **PENDING_EXTERNAL**.
 - Implemented automated ZChat accessibility, responsive, session, and external-readiness contracts; human target-environment QA remains **PENDING_EXTERNAL**.
 - Implemented a CodeQL Advanced workflow that runs on the available self-hosted Linux/X64 lane with the broader `security-and-quality` query suite and explicit language toolchain setup, plus repository-local drift tests for the workflow shape and setup ordering.
+- Removed tracked Cloudflare Terraform state, backup state, and committed `terraform.tfvars`, and added stack-local ignore rules so future state files stay out of the repository.
 - Added a machine-readable Phase 6 operator-input register at `scripts/phase-6-operator-inputs.json` so the remaining operator-owned items are tracked as a validated pending contract instead of loose prose.
 
 ### Remaining

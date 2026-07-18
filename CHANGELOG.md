@@ -62,6 +62,8 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Fixed
 
+- Removed tracked Cloudflare Terraform state, backup state, and committed `terraform.tfvars` from version control, and added a stack-local ignore file so future state files stay out of the repo.
+- Root `pnpm test` now runs workspace tests serially, which avoids the recursive workspace concurrency flake that surfaced in the default parallel runner.
 - `agent-control-panel` now uses a dedicated Next.js Dockerfile that installs dependencies, builds the app, and prunes dev dependencies before `npm start`, which stops the compose restart loop caused by the missing `next` binary.
 - Deployed smoke now accepts the committed ZChat semantic main region and current responsive breakpoint (`<main class="shell">` and `@media (max-width: 720px)`), with a regression test guarding the static markup used by the smoke script.
 

@@ -1,5 +1,25 @@
 # Migration Execution Records
 
+## 2026-07-16 — CodeQL Advanced self-hosted runner lane
+
+- Base revision: current branch head after the runner-lane patch.
+- Scope: one repository-local CodeQL workflow slice.
+- Implementation: updated `CodeQL Advanced` to run on the available self-hosted Linux/X64 runner labels so the security workflow can target the intended runner pool naming without changing the analysis languages or query suite.
+- Compatibility: the workflow still analyzes the same repository languages and uses the same repository CodeQL config; only the runner label selector changed.
+- Security: no credentials, service tokens, or production identifiers were added; the change only adjusts runner selection metadata for the security workflow.
+- Tests: `scripts/test/codeql-workflow.test.mjs` now checks the workflow label list and query-suite selection.
+- Limitations: repository-local validation only; PR-head CodeQL execution, artifact binding, and alert-closure evidence on the self-hosted runner remain pending.
+
+## 2026-07-16 — Cloudflare Terraform state cleanup
+
+- Base revision: current branch head after the Terraform state cleanup patch.
+- Scope: one repository-local secret/state hygiene slice.
+- Implementation: removed tracked Cloudflare Terraform state, backup state, and committed `terraform.tfvars`, and added a stack-local `.gitignore` so future state files stay out of the repository.
+- Compatibility: no runtime behavior changed; the cleanup only removes committed local state artifacts and adds ignore rules for future state files.
+- Security: this removes committed infrastructure state and prevents future accidental tracking of Terraform state or variable files in the Cloudflare stack.
+- Tests: `git diff --check`, `pnpm test`, and the pre-push hook that reran lint, typecheck, tests, and build passed for this commit.
+- Limitations: repository-local validation only; no external staging evidence is claimed for this hygiene-only slice.
+
 ## 2026-07-16 — Agent Control Panel compose startup fix
 
 - Base revision: current branch head after the Next.js service image patch.
