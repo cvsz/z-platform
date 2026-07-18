@@ -22,6 +22,8 @@ jobs:
       GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
       Z_PLATFORM_SERVICE_TOKEN: ${{ secrets.Z_PLATFORM_SERVICE_TOKEN }}
       ZC_API_TOKEN: ${{ secrets.ZC_API_TOKEN }}
+      PHASE6_API_TOKEN: ${{ secrets.PHASE6_API_TOKEN || secrets.Z_PLATFORM_SERVICE_TOKEN }}
+      REDIS_URL: ${{ secrets.REDIS_URL || 'redis://redis:6379/0' }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
       AI_GATEWAY_PROVIDER_TOKEN: ${{ secrets.AI_GATEWAY_PROVIDER_TOKEN }}
@@ -38,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          for name in GHCR_USERNAME GHCR_PULL_TOKEN Z_PLATFORM_SERVICE_TOKEN ZC_API_TOKEN JWT_SECRET ENCRYPTION_KEY AI_GATEWAY_PROVIDER_TOKEN; do
+          for name in GHCR_USERNAME GHCR_PULL_TOKEN Z_PLATFORM_SERVICE_TOKEN ZC_API_TOKEN PHASE6_API_TOKEN JWT_SECRET ENCRYPTION_KEY AI_GATEWAY_PROVIDER_TOKEN; do
             [[ -n "${!name:-}" ]] || { echo "Missing required production secret: $name" >&2; exit 1; }
           done
 
@@ -57,6 +59,8 @@ jobs:
           kubectl -n z-platform create secret generic z-platform-runtime \
             --from-literal=Z_PLATFORM_SERVICE_TOKEN="$Z_PLATFORM_SERVICE_TOKEN" \
             --from-literal=ZC_API_TOKEN="$ZC_API_TOKEN" \
+            --from-literal=PHASE6_API_TOKEN="$PHASE6_API_TOKEN" \
+            --from-literal=REDIS_URL="${REDIS_URL:-redis://redis:6379/0}" \
             --from-literal=JWT_SECRET="$JWT_SECRET" \
             --from-literal=ENCRYPTION_KEY="$ENCRYPTION_KEY" \
             --from-literal=AI_GATEWAY_PROVIDER_TOKEN="$AI_GATEWAY_PROVIDER_TOKEN" \
