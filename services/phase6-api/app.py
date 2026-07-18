@@ -28,6 +28,7 @@ GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_TABLE = os.getenv("SUPABASE_TABLE")
+AGENT_PROVIDER_URL = (os.getenv("AGENT_JOB_STORE_URL") or "").rstrip("/")
 
 r = redis.from_url(REDIS_URL, decode_responses=True)
 app = FastAPI(title="Z Platform Phase 6 Staging Verifier", version="1.0.0")
@@ -38,6 +39,22 @@ LATENCY = Histogram("phase6_request_seconds", "Request latency", ["endpoint"])
 async def auth(authorization: str | None = Header(default=None)) -> None:
     if authorization != f"Bearer {TOKEN}":
         raise HTTPException(status_code=401, detail="unauthorized")
+
+async def agent_provider_request(method: str, path: str, payload: Any | None = None) -> Any:
+    if not AGENT_PROVIDER_URL.startswith(("http://", "https://")):
+        raise HTTPException(status_code=503, detail="agent provider backup target is not configured")
+    headers = {"Authorization": f"Bearer {TOKEN}"}
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        response = await client.request(method, f"{AGENT_PROVIDER_URL}{path}", headers=headers, json=payload)
+    if response.status_code in {401, 403}:
+        raise HTTPException(status_code=502, detail="agent provider rejected the backup request")
+    try:
+        response.raise_for_status()
+        return response.json()
+    except (httpx.HTTPStatusError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail="agent provider backup request failed") from exc
 
 @app.get("/health")
 async def health(_: None = Depends(auth)):
@@ -130,6 +147,18 @@ async def session_health(_: None = Depends(auth)):
     await r.setex(f"session:{marker}", 60, "active")
     value = await r.get(f"session:{marker}")
     return {"status": "verified", "session": marker, "persisted": value == "active"}
+
+@app.get("/backup/export")
+async def backup_export(_: None = Depends(auth)):
+    return await agent_provider_request("GET", "/backup/export")
+
+@app.post("/backup/restore")
+async def backup_restore(payload: dict[str, Any], _: None = Depends(auth)):
+    return await agent_provider_request("POST", "/backup/restore", payload)
+
+@app.get("/backup/verify")
+async def backup_verify(object: str = Query(min_length=1), _: None = Depends(auth)):
+    return await agent_provider_request("GET", f"/backup/verify?object={object}")
 
 def supabase_read_config() -> tuple[str, str, str]:
     base_url = (SUPABASE_URL or "").strip()
