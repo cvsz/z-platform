@@ -70,3 +70,29 @@ variable "app_routes" {
     error_message = "Every route hostname must belong to zone_name and service must be an HTTP(S) URL reachable by cloudflared."
   }
 }
+
+variable "manage_free_access" {
+  type        = bool
+  description = "Manage Cloudflare Access applications for protected routes. Keep false until existing Access applications are imported."
+  nullable    = false
+  default     = false
+}
+
+variable "free_access_session_duration" {
+  type        = string
+  description = "Cloudflare Access session duration for protected routes."
+  nullable    = false
+  default     = "8h"
+
+  validation {
+    condition     = can(regex("^[0-9]+(m|h|d)$", var.free_access_session_duration))
+    error_message = "free_access_session_duration must use minutes, hours, or days (for example 8h)."
+  }
+}
+
+variable "free_access_require_mfa" {
+  type        = bool
+  description = "Require MFA for Free-mode Access policies."
+  nullable    = false
+  default     = true
+}

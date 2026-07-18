@@ -68,6 +68,12 @@ terraform output -json phase6_urls
 
 When `manage_tunnel_config` is false, merge the `cloudflared_ingress` output into the remotely managed tunnel configuration owned by operations. When it is true, Terraform applies the ingress directly. The terminal `http_status:404` rule must remain last.
 
+## Free-mode Access
+
+This stack intentionally does not create WAF, API Shield, Workers, R2, or D1 resources. Those products are not part of the account's approved Free-mode baseline. Set `manage_free_access = true` only after reviewing the Access application plan and confirming the route email allow-lists. Protected routes use the configured email allow-list and can require MFA.
+
+Access applications are managed as nested policies in `free-access.tf`; import existing Access applications before enabling management to avoid duplicate applications.
+
 ## Cloudflare-proxied Phase 6
 
 With the tunnel route in place, Caddy/ACME is not required for `phase6.zeaz.dev`. Cloudflare terminates public TLS and sends traffic through the tunnel to `http://phase6-api:8080`. This avoids exposing ports 80/443 on the private host.
