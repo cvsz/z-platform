@@ -153,12 +153,15 @@ export async function createAgentProviderServer({ env = process.env, state = new
       if (req.method === "PUT" && (match = req.url?.match(/^\/workspaces\/([^/]+)$/))) {
         const workspace = await readJson(req);
         const id = decodeURIComponent(match[1]);
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) return send(res, 400, { error: "Invalid workspace id" });
         state.state.workspaces[id] = { ...workspace, id, updated_at: new Date().toISOString() };
         await state.persist();
         return send(res, 200, state.state.workspaces[id]);
       }
       if (req.method === "GET" && (match = req.url?.match(/^\/workspaces\/([^/]+)$/))) {
-        const workspace = state.state.workspaces[decodeURIComponent(match[1])];
+        const id = decodeURIComponent(match[1]);
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) return send(res, 400, { error: "Invalid workspace id" });
+        const workspace = state.state.workspaces[id];
         return workspace ? send(res, 200, workspace) : send(res, 404, { error: "Not found" });
       }
       if (req.method === "POST" && req.url === "/workspaces/cleanup") {
