@@ -45,7 +45,7 @@ async def auth(authorization: str | None = Header(default=None)) -> None:
     if authorization != f"Bearer {TOKEN}":
         raise HTTPException(status_code=401, detail="unauthorized")
 
-async def agent_provider_request(method: str, route: str, payload: Any | None = None) -> Any:
+async def agent_provider_request(method: str, route: str, payload: Any | None = None, params: dict[str, str] | None = None) -> Any:
     if not AGENT_PROVIDER_URL.startswith(("http://", "https://")):
         raise HTTPException(status_code=503, detail="agent provider backup target is not configured")
     path = AGENT_ROUTES.get(route)
@@ -55,7 +55,7 @@ async def agent_provider_request(method: str, route: str, payload: Any | None = 
     if payload is not None:
         headers["Content-Type"] = "application/json"
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        response = await client.request(method, f"{AGENT_PROVIDER_URL}{path}", headers=headers, json=payload)
+        response = await client.request(method, f"{AGENT_PROVIDER_URL}{path}", headers=headers, json=payload, params=params)
     if response.status_code in {401, 403}:
         raise HTTPException(status_code=502, detail="agent provider rejected the backup request")
     try:
@@ -176,12 +176,17 @@ async def backup_export(_: None = Depends(auth)):
 
 @app.post("/backup/restore")
 async def backup_restore(payload: dict[str, Any], _: None = Depends(auth)):
+    namespace = str(payload.get("namespace") or "")
+    snapshot = payload.get("snapshot")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", namespace):
+        raise HTTPException(status_code=400, detail="valid namespace is required")
+    if not isinstance(snapshot, dict):
+        raise HTTPException(status_code=400, detail="snapshot is required")
     return await agent_provider_request("POST", "restore", payload)
 
 @app.get("/backup/verify")
-async def backup_verify(object: str = Query(min_length=1), _: None = Depends(auth)):
-    result = await agent_provider_request("GET", "verify")
-    return {"object": object, **result}
+async def backup_verify(object: str = Query(min_length=1), namespace: str = Query(pattern=r"^[A-Za-z0-9_-]{1,128}$"), _: None = Depends(auth)):
+    return await agent_provider_request("GET", "verify", params={"object": object, "namespace": namespace})
 
 def supabase_read_config() -> tuple[str, str, str]:
     base_url = (SUPABASE_URL or "").strip()

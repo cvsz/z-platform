@@ -52,13 +52,29 @@ test("enforces identity and sandbox approval", async () => {
   });
 });
 
-test("supports workspace retention and backup restore", async () => {
+test("restores backups into an isolated namespace without mutating primary state", async () => {
   await withServer(async ({ base }) => {
     await request(base, "/workspaces/ws-1", { method: "PUT", body: JSON.stringify({ project: "demo" }) });
     const snapshot = await (await request(base, "/backup/export")).json();
     await request(base, "/workspaces/cleanup", { method: "POST", body: JSON.stringify({ before: "2999-01-01T00:00:00Z" }) });
     assert.equal((await request(base, "/workspaces/ws-1")).status, 404);
-    assert.equal((await request(base, "/backup/restore", { method: "POST", body: JSON.stringify(snapshot) })).status, 200);
-    assert.equal((await request(base, "/workspaces/ws-1")).status, 200);
+    const restore = await request(base, "/backup/restore", { method: "POST", body: JSON.stringify({ namespace: "readiness-run-1", snapshot }) });
+    assert.equal(restore.status, 200);
+    assert.equal((await restore.json()).isolated, true);
+    assert.equal((await request(base, "/workspaces/ws-1")).status, 404);
+    const verify = await request(base, "/backup/verify?object=backup-1&namespace=readiness-run-1");
+    assert.equal(verify.status, 200);
+    const evidence = await verify.json();
+    assert.equal(evidence.verified, true);
+    assert.equal(evidence.workspaces, 1);
+    assert.match(evidence.digest, /^[0-9a-f]{64}$/);
+  });
+});
+
+test("rejects primary and unnamed backup restores", async () => {
+  await withServer(async ({ base }) => {
+    const response = await request(base, "/backup/restore", { method: "POST", body: JSON.stringify({ snapshot: {} }) });
+    assert.equal(response.status, 400);
+    assert.equal((await request(base, "/backup/verify?object=backup-1")).status, 400);
   });
 });
