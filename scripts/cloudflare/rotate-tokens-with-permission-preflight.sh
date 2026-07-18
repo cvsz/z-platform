@@ -62,10 +62,11 @@ pick_permission(){
   jq -r --arg kind "$kind" '
     def txt: ([.name // "", .description // "", .scope // "", (.scopes // [] | tostring), (.resource_groups // [] | tostring)] | join(" "));
     def has($re): (txt | test($re));
+    def named($re): ((.name // "") | test($re));
     def score($k):
       if $k == "dns" then
-        if has("(?i)^DNS Write$") then 0
-        elif has("(?i)^DNS View Write$") then 1
+        if named("(?i)^DNS Write$") then 0
+        elif named("(?i)^DNS View Write$") then 1
         elif has("(?i)dns.*(write|edit)") and (has("(?i)settings") | not) and (has("(?i)(dns firewall|account)") | not) then 10
         else 999 end
       elif $k == "waf" then
@@ -80,13 +81,13 @@ pick_permission(){
         if has("(?i)^Workers Scripts Write$") and (has("(?i)(AI|CI|KV|Containers|Observability|Routes|Tail|Websearch|R2)") | not) then 0
         elif has("(?i)(Workers Scripts|Workers).*(write|edit)") and (has("(?i)(AI|CI|KV|Containers|Observability|Routes|Tail|Websearch|R2)") | not) then 1
         else 999 end
-      elif $k == "workers_routes" then if has("(?i)^Workers Routes Write$") then 0 else 999 end
-      elif $k == "pages" then if has("(?i)^Pages Write$") then 0 else 999 end
-      elif $k == "tunnel" then if has("(?i)^Cloudflare Tunnel Write$") then 0 else 999 end
-      elif $k == "r2" then if has("(?i)^Workers R2 Storage Write$") then 0 else 999 end
-      elif $k == "d1" then if has("(?i)^D1 Write$") then 0 else 999 end
-      elif $k == "audit" then if has("(?i)^AI Audit Write$") then 0 else 999 end
-      elif $k == "ai_gateway" then if has("(?i)^AI Gateway Write$") then 0 else 999 end
+      elif $k == "workers_routes" then if named("(?i)^Workers Routes Write$") then 0 else 999 end
+      elif $k == "pages" then if named("(?i)^Pages Write$") then 0 else 999 end
+      elif $k == "tunnel" then if named("(?i)^Cloudflare Tunnel Write$") then 0 else 999 end
+      elif $k == "r2" then if named("(?i)^Workers R2 Storage Write$") then 0 else 999 end
+      elif $k == "d1" then if named("(?i)^D1 Write$") then 0 else 999 end
+      elif $k == "audit" then if named("(?i)^AI Audit Write$") then 0 else 999 end
+      elif $k == "ai_gateway" then if named("(?i)^AI Gateway Write$") then 0 else 999 end
       else 999 end;
     (.result // [])
     | map(. + {__score: score($kind)})

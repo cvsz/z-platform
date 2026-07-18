@@ -60,6 +60,39 @@ test("Cloudflare env scope falls back from blank base identity to generated iden
 test("offline token rotation previews scoped tokens without writing output", () => {
   const fixture = mkdtempSync(join(tmpdir(), "z-platform-cf-rotation-"));
   const outputFile = join(fixture, "tokens.env");
+  const cacheDirectory = join(fixture, "cache");
+  const permissionCache = join(
+    cacheDirectory,
+    "account-token-permission-groups.00000000000000000000000000000000.json",
+  );
+  execFileSync("mkdir", ["-p", cacheDirectory]);
+  writeFileSync(
+    permissionCache,
+    JSON.stringify({
+      success: true,
+      result: [
+        { name: "DNS Write", id: "dns-write" },
+        { name: "Access: Apps and Policies Write", id: "access-write" },
+        { name: "Workers Scripts Write", id: "workers-write" },
+        { name: "Workers Routes Write", id: "workers-routes-write" },
+        { name: "Pages Write", id: "pages-write" },
+        { name: "Cloudflare Tunnel Write", id: "tunnel-write" },
+      ],
+    }),
+    { mode: 0o600 },
+  );
+  writeFileSync(
+    outputFile,
+    [
+      "PRIMARY_DOMAIN=zeaz.dev",
+      "CLOUDFLARE_BOOTSTRAP_TOKEN=sentinel-bootstrap-secret",
+      'CLOUDFLARE_API_TOKEN="sentinel-api-secret"',
+      "ACCESS_SECRET_KEY=sentinel-access-secret",
+      "ACCESS_KEY_ID=sentinel-access-id",
+      "",
+    ].join("\n"),
+    { mode: 0o600 },
+  );
   const result = spawnSync(
     "bash",
     [
@@ -68,8 +101,6 @@ test("offline token rotation previews scoped tokens without writing output", () 
       "--regenerate",
       "--types",
       "dns,zt,workers,pages,tunnel",
-      "--perm-id",
-      "test-permission-group",
       "--write",
       outputFile,
       "--dry-run",
@@ -82,7 +113,7 @@ test("offline token rotation previews scoped tokens without writing output", () 
         CLOUDFLARE_TOKEN_ENV_FILE: "/dev/null",
         CLOUDFLARE_ACCOUNT_ID: "00000000000000000000000000000000",
         CLOUDFLARE_ZONE_ID: "11111111111111111111111111111111",
-        CACHE_DIR: join(fixture, "cache"),
+        CACHE_DIR: cacheDirectory,
         BACKUP_DIR: join(fixture, "backups"),
         AUDIT_LOG: join(fixture, "audit.log"),
       },
@@ -92,13 +123,23 @@ test("offline token rotation previews scoped tokens without writing output", () 
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /DRY-RUN: would create zeaz-dns-token/);
-  assert.match(result.stdout, /CLOUDFLARE_DNS_TOKEN=""/);
-  assert.throws(() => readFileSync(outputFile), /ENOENT/);
+  assert.match(result.stdout, /resolved dns permission-group override: dns-write/);
+  assert.match(result.stdout, /resolved pages permission-group override: pages-write/);
+  assert.match(result.stdout, /resolved tunnel permission-group override: tunnel-write/);
+  assert.doesNotMatch(result.stdout + result.stderr, /could not resolve permission-group ID for (dns|pages|tunnel)/);
+  assert.match(result.stdout, /CLOUDFLARE_DNS_TOKEN="<redacted>"/);
+  assert.doesNotMatch(result.stdout, /sentinel-/);
+  assert.match(result.stdout, /CLOUDFLARE_BOOTSTRAP_TOKEN="<redacted>"/);
+  assert.match(result.stdout, /ACCESS_SECRET_KEY="<redacted>"/);
+  assert.match(result.stdout, /ACCESS_KEY_ID="<redacted>"/);
+  assert.match(readFileSync(outputFile, "utf8"), /sentinel-bootstrap-secret/);
 });
 
 test("live Make targets require explicit operator confirmation", () => {
   const makefile = readFileSync(join(root, "Makefile"), "utf8");
   assert.match(makefile, /TOKEN_ROTATE_CONFIRM\)" = "YES"/);
   assert.match(makefile, /TOKEN_CLEAN_CONFIRM\)" = "YES"/);
+  assert.match(makefile, /TOKEN_BOOTSTRAP_ROLL_CONFIRM\)" = "YES"/);
+  assert.match(makefile, /TOKEN_LEGACY_SCRUB_CONFIRM\)" = "YES"/);
   assert.match(makefile, /TOKEN_ROTATE_TYPES \?= dns,zt,workers,pages,tunnel/);
 });
