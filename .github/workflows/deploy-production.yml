@@ -18,6 +18,8 @@ jobs:
     environment: production
     env:
       RELEASE_SHA: ${{ inputs.release_sha }}
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
       Z_PLATFORM_SERVICE_TOKEN: ${{ secrets.Z_PLATFORM_SERVICE_TOKEN }}
       ZC_API_TOKEN: ${{ secrets.ZC_API_TOKEN }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -36,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          for name in Z_PLATFORM_SERVICE_TOKEN ZC_API_TOKEN JWT_SECRET ENCRYPTION_KEY AI_GATEWAY_PROVIDER_TOKEN; do
+          for name in GHCR_USERNAME GHCR_PULL_TOKEN Z_PLATFORM_SERVICE_TOKEN ZC_API_TOKEN JWT_SECRET ENCRYPTION_KEY AI_GATEWAY_PROVIDER_TOKEN; do
             [[ -n "${!name:-}" ]] || { echo "Missing required production secret: $name" >&2; exit 1; }
           done
 
@@ -64,6 +66,17 @@ jobs:
             --from-literal=AGENT_QUEUE_URL="${AGENT_QUEUE_URL:-}" \
             --from-literal=AGENT_SANDBOX_URL="${AGENT_SANDBOX_URL:-}" \
             --from-literal=BILLING_LEDGER_URL="${BILLING_LEDGER_URL:-}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Materialize private GHCR pull secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl -n z-platform create secret docker-registry ghcr-pull \
+            --docker-server=ghcr.io \
+            --docker-username="$GHCR_USERNAME" \
+            --docker-password "$GHCR_PULL_TOKEN" \
+            --docker-email="platform@zeazdev.com" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Request Argo CD sync for the selected release
