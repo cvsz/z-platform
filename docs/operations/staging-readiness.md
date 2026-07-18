@@ -15,7 +15,7 @@ Environment bootstrap for `ci`, `staging`, and `production` is handled by `scrip
 
 ## Current-head evidence
 
-Current `main` SHA: `4b8da305fde83a27c06138f488aebcccc4802d62` (2026-07-18).
+Current `main` SHA: `572ab7c7bee431a854f2bf311c242d23942314f2` (2026-07-18).
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
@@ -36,7 +36,7 @@ Current `main` SHA: `4b8da305fde83a27c06138f488aebcccc4802d62` (2026-07-18).
 
 ## Remote-tracking main drift
 
-Remote `origin/main` SHA: `4b8da305fde83a27c06138f488aebcccc4802d62` (merge PR #67, 2026-07-18).
+Remote `origin/main` SHA: `572ab7c7bee431a854f2bf311c242d23942314f2` (merge PR #68, 2026-07-18).
 
 | Claim | Status | Evidence | Limitations |
 |---|---|---|---|
