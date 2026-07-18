@@ -22,7 +22,8 @@ jobs:
     env:
       RELEASE_SHA: ${{ inputs.release_sha }}
       STAGING_REVIEWER: ${{ vars.STAGING_REVIEWER }}
-      STAGING_BEARER_TOKEN: ${{ secrets.STAGING_BEARER_TOKEN }}
+          STAGING_BEARER_TOKEN: ${{ secrets.STAGING_BEARER_TOKEN }}
+          STAGING_ALLOWED_ORIGINS: ${{ vars.STAGING_ALLOWED_ORIGINS }}
       ALERT_TEST_URL: ${{ secrets.ALERT_TEST_URL }}
       ALERT_DELIVERY_STATUS_URL: ${{ secrets.ALERT_DELIVERY_STATUS_URL }}
       BACKUP_CREATE_COMMAND: ${{ secrets.BACKUP_CREATE_COMMAND }}

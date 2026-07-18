@@ -104,6 +104,7 @@ test("sends JSON probe bodies with an explicit content type", async () => {
       incidentOwner: "owner",
       escalationRoute: "pager-policy",
       watchWindow: "24h",
+      allowedOrigins: "https://staging.zplatform.dev",
     });
     assert.equal(evidence.result, "VERIFIED");
     assert.equal(observed.headers["Content-Type"], "application/json");
@@ -131,6 +132,7 @@ test("sends Cloudflare Access service-token headers without exposing them in evi
       incidentOwner: "owner",
       escalationRoute: "pager-policy",
       watchWindow: "24h",
+      allowedOrigins: "https://staging.zplatform.dev",
     });
     assert.equal(evidence.result, "VERIFIED");
     assert.equal(observed.headers["CF-Access-Client-Id"], "client-id");
