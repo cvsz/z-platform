@@ -155,14 +155,18 @@ async def supabase_read_rows(limit: int) -> dict[str, Any]:
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
     base_url, anon_key, table = supabase_read_config()
-    url = base_url.rstrip("/") + f"/rest/v1/{table}?select=*&limit={limit}"
+    # Keep the allowlisted table in the path and pass the bounded integer as a
+    # structured query parameter so request data cannot alter the authority or
+    # path used by the outbound client.
+    url = base_url.rstrip("/") + f"/rest/v1/{table}"
+    params = {"select": "*", "limit": str(limit)}
     headers = {
         "apikey": anon_key,
         "Authorization": f"Bearer {anon_key}",
         "Accept": "application/json",
     }
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        response = await client.get(url, headers=headers, follow_redirects=False)
+        response = await client.get(url, params=params, headers=headers, follow_redirects=False)
     if response.status_code in {401, 403}:
         raise HTTPException(status_code=502, detail="supabase rejected the read request")
     try:

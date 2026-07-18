@@ -36,6 +36,7 @@ class FakeAsyncClient:
     def __init__(self, timeout: float | None = None) -> None:
         self.timeout = timeout
         self.url: str | None = None
+        self.params: dict[str, str] | None = None
         self.headers: dict[str, str] | None = None
         type(self).last = self
 
@@ -45,9 +46,18 @@ class FakeAsyncClient:
     async def __aexit__(self, exc_type, exc, tb) -> bool:
         return False
 
-    async def get(self, url: str, headers: dict[str, str]) -> httpx.Response:
+    async def get(
+        self,
+        url: str,
+        *,
+        params: dict[str, str],
+        headers: dict[str, str],
+        follow_redirects: bool,
+    ) -> httpx.Response:
         self.url = url
+        self.params = params
         self.headers = headers
+        assert follow_redirects is False
         assert type(self).response is not None
         return type(self).response
 
@@ -97,7 +107,8 @@ def test_supabase_read_returns_rows_and_uses_read_only_headers(monkeypatch):
     assert body["limit"] == 2
     assert body["rows"] == [{"id": 1, "name": "alpha"}]
     assert FakeAsyncClient.last is not None
-    assert FakeAsyncClient.last.url == "https://project.supabase.co/rest/v1/readiness?select=*&limit=2"
+    assert FakeAsyncClient.last.url == "https://project.supabase.co/rest/v1/readiness"
+    assert FakeAsyncClient.last.params == {"select": "*", "limit": "2"}
     assert FakeAsyncClient.last.headers == {
         "apikey": "anon-key",
         "Authorization": "Bearer anon-key",

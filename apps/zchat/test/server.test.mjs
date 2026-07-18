@@ -57,6 +57,16 @@ test("health reports gateway configuration and session policy without auth", { c
   });
 });
 
+test("liveness does not depend on configured upstream backends", { concurrency: false }, async () => {
+  const response = await invoke(createZChatRequestHandler({ env: {} }), {
+    method: "GET",
+    url: "/health/live",
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: "ok", service: "zchat" });
+});
+
 test("platform status keeps api6 and zc as separate backend boundaries", { concurrency: false }, async () => {
   const calls = [];
   const result = await platformStatus({

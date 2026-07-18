@@ -237,6 +237,9 @@ export function createZChatRequestHandler({ env = process.env, fetchImpl = fetch
       if (request.method === "GET" && request.url === "/health") {
         return send(response, 200, JSON.stringify({ ...zchatHealthSnapshot(env), backends: await platformStatus(env, fetchImpl) }));
       }
+      if (request.method === "GET" && request.url === "/health/live") {
+        return send(response, 200, JSON.stringify({ status: "ok", service: "zchat" }));
+      }
       if (request.method === "GET" && request.url === "/api/platform/status") {
         return send(response, 200, JSON.stringify(await platformStatus(env, fetchImpl)));
       }
