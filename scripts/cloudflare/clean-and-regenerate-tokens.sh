@@ -172,10 +172,10 @@ fetch_permission_groups(){
 resolve_permission_id(){
   local token_type="$1" cache pattern env_key explicit
   case "$token_type" in
-    dns) env_key="CLOUDFLARE_DNS_PERMISSION_GROUP_ID"; pattern='(?i)^dns write$' ;;
+    dns) env_key="CLOUDFLARE_DNS_PERMISSION_GROUP_ID"; pattern='(?i)^dns write\b' ;;
     zt) env_key="CLOUDFLARE_ZT_PERMISSION_GROUP_ID"; pattern='(?i)\bZero Trust\b.*Write' ;;
     workers) env_key="CLOUDFLARE_WORKERS_PERMISSION_GROUP_ID"; pattern='(?i)\bWorkers Scripts?\b.*Write' ;;
-    pages) env_key="CLOUDFLARE_PAGES_PERMISSION_GROUP_ID"; pattern='(?i)^Pages Write$' ;;
+    pages) env_key="CLOUDFLARE_PAGES_PERMISSION_GROUP_ID"; pattern='(?i)^Pages Write\b' ;;
     waf) env_key="CLOUDFLARE_WAF_PERMISSION_GROUP_ID"; pattern='(?i)(waf.*(write|edit)|rulesets.*(write|edit)|firewall.*(write|edit))' ;;
     tunnel) env_key="CLOUDFLARE_TUNNEL_PERMISSION_GROUP_ID"; pattern='(?i)(tunnel.*(write|edit)|cloudflare tunnel.*(write|edit))' ;;
     r2) env_key="CLOUDFLARE_R2_PERMISSION_GROUP_ID"; pattern='(?i)\bR2 Storage\b.*Write' ;;
@@ -205,7 +205,7 @@ resolve_workers_routes_permission_id(){
   [[ -f "$cache" ]] || die "permission-group cache file not found: $cache"
   jq -r '
     (.result // [])
-    | map(select(([.name // "", .description // "", .scope // "", (.scopes // [] | tostring), (.resource_groups // [] | tostring)] | join(" ")) | test("(?i)\\bWorkers Routes\\b.*Write")))
+    | map(select((.name // "") | test("(?i)^Workers Routes Write$")))
     | .[0].id // empty
   ' "$cache"
 }
@@ -238,6 +238,25 @@ write_optional_env(){
   local key="$1" value="$2"
   [[ -n "${value//[[:space:]]/}" ]] || return 0
   printf '%s="%s"\n' "$key" "$value"
+}
+
+redact_env_stream(){
+  awk '
+    /^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*=/ {
+      assignment = $0
+      key = assignment
+      sub(/^[[:space:]]*(export[[:space:]]+)?/, "", key)
+      sub(/=.*/, "", key)
+      normalized = toupper(key)
+      if (normalized ~ /(TOKEN|SECRET|PASSWORD|PRIVATE_KEY|ACCESS_KEY|API_KEY|AUTHORIZATION|CREDENTIAL)/) {
+        prefix = assignment
+        sub(/=.*/, "=", prefix)
+        print prefix "\"<redacted>\""
+        next
+      }
+    }
+    { print }
+  '
 }
 
 epoch_of(){
@@ -492,7 +511,7 @@ write_optional_env CLOUDFLARE_AI_GATEWAY_TOKEN "${CLOUDFLARE_AI_GATEWAY_TOKEN:-$
 
 if $DRY_RUN; then
   log "DRY-RUN: preview of $OUT_FILE"
-  sed -E 's/(TOKEN=")[^"]+("$)/\1<redacted>\2/' "$tmp"
+  redact_env_stream < "$tmp"
   rm -f "$tmp"
   exit 0
 fi
