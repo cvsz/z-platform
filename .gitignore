@@ -1,6 +1,12 @@
-```bash
 # Scripts
 *.sh
+!scripts/cloudflare/
+!scripts/cloudflare/**/*.sh
+
+# Cloudflare token lifecycle artifacts
+.cloudflare-backups/
+.cloudflare-token-audit.log
+.cache/cloudflare-permissions/
 
 # Logs and temp files
 *.log
