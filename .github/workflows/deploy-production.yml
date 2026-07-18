@@ -79,6 +79,28 @@ jobs:
             --docker-email="platform@zeazdev.com" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Bind Argo CD to immutable release images
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          printf '%s' "$GHCR_PULL_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin >/dev/null
+
+          image_overrides=()
+          for name in phase6-api zc-api ai-gateway zchat; do
+            image="ghcr.io/${GITHUB_REPOSITORY}/${name}:sha-${RELEASE_SHA}"
+            digest="$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}')"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+              echo "Could not resolve immutable digest for $name" >&2
+              exit 1
+            }
+            image_overrides+=("ghcr.io/${GITHUB_REPOSITORY}/${name}=ghcr.io/${GITHUB_REPOSITORY}/${name}:sha-${RELEASE_SHA}@${digest}")
+          done
+
+          images_json="$(printf '%s\n' "${image_overrides[@]}" | jq -R . | jq -s .)"
+          patch="$(jq -n --argjson images "$images_json" '{spec:{source:{kustomize:{images:$images}}}}')"
+          kubectl -n argocd patch application z-platform --type=merge -p "$patch"
+
       - name: Request Argo CD sync for the selected release
         shell: bash
         run: |
