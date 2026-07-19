@@ -62,7 +62,8 @@ def _model(args):
 
 def _read_file(path):
     try:
-        return open(path).read()
+        with open(path) as f:
+            return f.read()
     except Exception as e:
         print(f"[ERROR] Cannot read {path}: {e}", file=sys.stderr)
         sys.exit(1)
@@ -1737,7 +1738,10 @@ def main():
                              show_stats=args.cache_stats); return
     if args.cache:
         from wire.zc_cache import cmd_cache_generate
-        docs = [open(f).read() for f in (args.cache_docs or [])]
+        docs = []
+        for f in (args.cache_docs or []):
+            with open(f) as fh:
+                docs.append(fh.read())
         cmd_cache_generate(args.prompt or "", key, model,
                            system=args.cache_system or None, docs=docs,
                            ttl=args.cache_ttl, show_stats=args.cache_stats,
@@ -2098,7 +2102,8 @@ def main():
                             file_content=_read_file(args.file) if args.file else None)
         print(result)
         if args.output:
-            open(args.output, "w").write(result)
+            with open(args.output, "w") as fh:
+                fh.write(result)
         return
 
     parser.print_help()

@@ -132,7 +132,8 @@ class AIRetryStrategy:
                 )
                 time.sleep(delay)
 
-        # Unreachable in practice, but keeps mypy happy.
+        # last_exception is guaranteed to be set here because we only reach
+        # this point if an exception was caught in the loop above.
         raise last_exception  # type: ignore[misc]
 
     def calculate_delay(self, attempt: int) -> float:

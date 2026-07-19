@@ -173,31 +173,30 @@ class wireServiceServicer:
             # Check if upload is complete
             chunks_received = session.get('chunks_received', 0)
             
-            if True:
-                total_size = session['total_size']
-                chunk_size = session.get('chunk_size', 1024 * 1024)
-                total_chunks = session.get('total_chunks', 1)
-                
-                bytes_transferred = chunks_received * chunk_size
-                percent_complete = (chunks_received / total_chunks) * 100
-                
-                # Estimate transfer rate and ETA
-                elapsed = time.time() - session['started_at']
-                transfer_rate = (bytes_transferred / elapsed / 1_000_000) if elapsed > 0 else 0
-                remaining_bytes = total_size - bytes_transferred
-                eta_seconds = (remaining_bytes / transfer_rate / 1_000_000) if transfer_rate > 0 else 0
-                
-                yield wire_pb2.UploadProgressStream(  # type: ignore[attr-defined]
-                    session_id=session_id,
-                    percent_complete=percent_complete,
-                    bytes_transferred=bytes_transferred,
-                    bytes_total=total_size,
-                    transfer_rate_mbps=transfer_rate,
-                    eta_seconds=int(eta_seconds)
-                )
-                
-                if chunks_received >= total_chunks:
-                    break
+            total_size = session['total_size']
+            chunk_size = session.get('chunk_size', 1024 * 1024)
+            total_chunks = session.get('total_chunks', 1)
+
+            bytes_transferred = chunks_received * chunk_size
+            percent_complete = (chunks_received / total_chunks) * 100
+
+            # Estimate transfer rate and ETA
+            elapsed = time.time() - session['started_at']
+            transfer_rate = (bytes_transferred / elapsed / 1_000_000) if elapsed > 0 else 0
+            remaining_bytes = total_size - bytes_transferred
+            eta_seconds = (remaining_bytes / transfer_rate / 1_000_000) if transfer_rate > 0 else 0
+
+            yield wire_pb2.UploadProgressStream(  # type: ignore[attr-defined]
+                session_id=session_id,
+                percent_complete=percent_complete,
+                bytes_transferred=bytes_transferred,
+                bytes_total=total_size,
+                transfer_rate_mbps=transfer_rate,
+                eta_seconds=int(eta_seconds)
+            )
+
+            if chunks_received >= total_chunks:
+                break
             
             await asyncio.sleep(0.5)
     

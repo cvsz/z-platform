@@ -243,7 +243,7 @@ async def upload_chunk(
                 form = await request.form()
                 chunk_index_val = form.get("chunk_index")
             else:
-                chunk_index_val = data.get("chunk_index")
+                chunk_index_val = data.get("chunk_index") if data else None
         
         if chunk_index_val is None:
             raise HTTPException(400, "Missing chunk_index")
@@ -257,7 +257,7 @@ async def upload_chunk(
                 form = await request.form()
                 chunk_hash_val = form.get("chunk_hash")
             else:
-                chunk_hash_val = data.get("chunk_hash")
+                chunk_hash_val = data.get("chunk_hash") if data else None
         
         if not chunk_hash_val:
             raise HTTPException(400, "Missing chunk_hash for integrity verification")
