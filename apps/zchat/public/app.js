@@ -17,6 +17,7 @@ import {
   renameActiveConversation,
   replaceMessage,
   removePromptTemplate,
+  searchConversationSummaries,
   selectConversation,
   startNewConversation,
   setActiveSystemPrompt,
@@ -27,6 +28,7 @@ import { readEventStream } from "./chat-stream.mjs";
 
 const transcript = document.querySelector("#transcript");
 const historyList = document.querySelector("#history");
+const historySearch = document.querySelector("#history-search");
 const templatesList = document.querySelector("#templates");
 const templateForm = document.querySelector("#template-form");
 const templateTitle = document.querySelector("#template-title");
@@ -111,7 +113,11 @@ function setBusy(nextBusy) {
     element.disabled = nextBusy;
   });
   model.disabled = nextBusy;
+  historySearch.disabled = nextBusy;
   historyList.querySelectorAll("button").forEach((button) => {
+    button.disabled = nextBusy;
+  });
+  transcript.querySelectorAll("button").forEach((button) => {
     button.disabled = nextBusy;
   });
 }
@@ -143,7 +149,41 @@ function renderMessage(message) {
   const stamp = document.createElement("span");
   stamp.className = "message__stamp";
   stamp.textContent = new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  meta.append(role, stamp);
+  const actions = document.createElement("span");
+  actions.className = "message__actions";
+
+  const copyButton = document.createElement("button");
+  copyButton.type = "button";
+  copyButton.textContent = "Copy";
+  copyButton.setAttribute("aria-label", `Copy ${formatRole(message.role)} message`);
+  copyButton.disabled = busy || !message.content;
+  copyButton.addEventListener("click", () => {
+    if (!navigator.clipboard?.writeText) {
+      setStatus("Clipboard access is unavailable", "error");
+      return;
+    }
+    void navigator.clipboard.writeText(message.content).then(
+      () => setStatus("Message copied", "ready"),
+      () => setStatus("Unable to copy message", "error"),
+    );
+  });
+  actions.append(copyButton);
+
+  if (message.role === "user") {
+    const reuseButton = document.createElement("button");
+    reuseButton.type = "button";
+    reuseButton.textContent = "Use as draft";
+    reuseButton.setAttribute("aria-label", "Use this message as the current draft");
+    reuseButton.disabled = busy || !message.content;
+    reuseButton.addEventListener("click", () => {
+      if (busy) return;
+      prompt.value = message.content;
+      prompt.focus();
+      setStatus("Message loaded as draft", "ready");
+    });
+    actions.append(reuseButton);
+  }
+  meta.append(role, stamp, actions);
 
   const body = document.createElement(message.role === "assistant" ? "div" : "pre");
   body.className = "message__body";
@@ -196,11 +236,12 @@ function renderHistoryItem(summary) {
 }
 
 function renderHistory() {
-  const summaries = conversationSummaries(state);
+  const allSummaries = conversationSummaries(state);
+  const summaries = searchConversationSummaries(state, historySearch.value);
   if (!summaries.length) {
     const emptyItem = document.createElement("li");
     emptyItem.className = "history__empty";
-    emptyItem.textContent = "No saved chats yet.";
+    emptyItem.textContent = allSummaries.length ? "No chats match this search." : "No saved chats yet.";
     historyList.replaceChildren(emptyItem);
     return;
   }
@@ -616,6 +657,29 @@ newChat.addEventListener("click", () => {
   prompt.value = "";
   setStatus("New chat ready", "ready");
   render();
+});
+
+historySearch.addEventListener("input", () => {
+  renderHistory();
+});
+
+document.addEventListener("keydown", (event) => {
+  const commandKey = event.ctrlKey || event.metaKey;
+  if (commandKey && !event.shiftKey && event.key.toLocaleLowerCase() === "k") {
+    event.preventDefault();
+    historySearch.focus();
+    historySearch.select();
+    return;
+  }
+  if (commandKey && event.shiftKey && event.key.toLocaleLowerCase() === "o") {
+    event.preventDefault();
+    if (!busy) newChat.click();
+    return;
+  }
+  if (event.key === "Escape" && document.activeElement === historySearch && historySearch.value) {
+    historySearch.value = "";
+    renderHistory();
+  }
 });
 
 logout.addEventListener("click", async () => {

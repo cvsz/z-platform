@@ -475,6 +475,23 @@ export function conversationSummaries(state) {
   return materializeState(state).conversations.map((conversation) => summarizeConversation(conversation));
 }
 
+export function searchConversationSummaries(state, query) {
+  const summaries = conversationSummaries(state);
+  const terms = normalizeText(query).toLocaleLowerCase().split(" ").filter(Boolean);
+  if (!terms.length) return summaries;
+
+  return summaries.filter((summary) => {
+    const searchableText = [
+      summary.title,
+      summary.preview,
+      summary.model,
+      summary.systemPrompt,
+      ...summary.messages.map((message) => message?.content),
+    ].map(normalizeText).join(" ").toLocaleLowerCase();
+    return terms.every((term) => searchableText.includes(term));
+  });
+}
+
 function formatExportStamp(timestamp) {
   return new Date(timestamp).toISOString();
 }

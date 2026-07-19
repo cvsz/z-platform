@@ -151,6 +151,24 @@ a[role="button"] {
   min-width: 96px;
 }
 
+.history-search {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.history-search input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
 .history {
   list-style: none;
   margin: 0;
@@ -555,6 +573,26 @@ button:disabled {
   color: var(--muted);
 }
 
+.message__actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.message__actions button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.message__actions button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
 .message__role {
   font-weight: 650;
 }
@@ -728,6 +766,16 @@ button:disabled {
 
   .message {
     max-width: 100%;
+  }
+
+  .message__meta {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .message__actions {
+    width: 100%;
+    margin-left: 0;
   }
 
   .messages {

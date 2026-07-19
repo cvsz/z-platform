@@ -30,6 +30,10 @@
           </div>
           <button id="new-chat" type="button" aria-label="Start a new chat">New chat</button>
         </div>
+        <label class="history-search" for="history-search">
+          <span>Search chats</span>
+          <input id="history-search" type="search" placeholder="Search title or message" autocomplete="off" aria-keyshortcuts="Control+K Meta+K">
+        </label>
         <ol id="history" class="history" aria-label="Saved conversations"></ol>
       </aside>
 
@@ -101,7 +105,7 @@
           <label for="prompt">Message</label>
           <textarea id="prompt" rows="5" placeholder="Write a message"></textarea>
           <div class="composer__actions">
-            <p class="hint">Enter sends. Shift+Enter inserts a new line.</p>
+            <p class="hint">Enter sends. Shift+Enter inserts a new line. Ctrl/⌘+K searches chats.</p>
             <div class="composer__actions-group">
               <button id="stop" type="button" aria-label="Stop generating" disabled>Stop</button>
               <button id="send" type="submit">Send</button>
