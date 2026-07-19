@@ -21,8 +21,57 @@ permissions:
   issues: write
 
 jobs:
+  capture-browser:
+    name: Capture release-bound browser evidence
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      ZCHAT_STAGING_URL: ${{ vars.ZCHAT_STAGING_URL }}
+      STAGING_CF_ACCESS_CLIENT_ID: ${{ secrets.STAGING_CF_ACCESS_CLIENT_ID }}
+      STAGING_CF_ACCESS_CLIENT_SECRET: ${{ secrets.STAGING_CF_ACCESS_CLIENT_SECRET }}
+    steps:
+      - name: Validate immutable SHA
+        shell: bash
+        run: '[[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+      - name: Verify release SHA exists in repository
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          status="$(curl -sS -o /tmp/release-commit.json -w '%{http_code}' \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${RELEASE_SHA}")"
+          test "$status" = 200
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 1
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install locked browser tooling
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Capture and sanitize deployed browser evidence
+        run: node scripts/capture-zchat-browser-evidence.mjs
+      - name: Remove commit lookup response
+        if: always()
+        run: rm -f /tmp/release-commit.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: final-browser-evidence-${{ inputs.release_sha }}
+          path: artifacts/browser/
+          if-no-files-found: error
+          retention-days: 365
+
   verify-staging:
     name: Verify all Phase 6 real staging gates
+    needs: capture-browser
     runs-on: self-hosted
     environment: staging
     env:
@@ -72,18 +121,22 @@ jobs:
       - name: Materialize protected inputs
         env:
           CONFIG_JSON: ${{ secrets.PHASE6_EXTERNAL_SUITE_CONFIG_JSON }}
-          BROWSER_BUNDLE_BASE64: ${{ secrets.BROWSER_BUNDLE_BASE64 }}
-          BROWSER_HAR_BASE64: ${{ secrets.BROWSER_HAR_BASE64 }}
         run: |
           set -euo pipefail
           test -n "$CONFIG_JSON"
-          test -n "$BROWSER_BUNDLE_BASE64"
-          test -n "$BROWSER_HAR_BASE64"
           umask 077
           printf '%s' "$CONFIG_JSON" > /tmp/phase6.json
-          mkdir -p artifacts/browser
-          printf '%s' "$BROWSER_BUNDLE_BASE64" | base64 --decode > artifacts/browser/app.js
-          printf '%s' "$BROWSER_HAR_BASE64" | base64 --decode > artifacts/browser/session.har
+      - name: Download release-bound browser evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: final-browser-evidence-${{ inputs.release_sha }}
+          path: artifacts/browser
+      - name: Verify browser evidence identity
+        run: |
+          test -s artifacts/browser/app.js
+          test -s artifacts/browser/session.har
+          test "$(jq -r '.releaseSha' artifacts/browser/browser-evidence.json)" = "$RELEASE_SHA"
+          test "$(jq -r '.runtimeReleaseVerified' artifacts/browser/browser-evidence.json)" = true
       - name: Enforce real-only inputs
         run: node scripts/validate-phase6-real-inputs.mjs /tmp/phase6.json artifacts/browser/app.js artifacts/browser/session.har
       - name: Execute all fourteen checks
