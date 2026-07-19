@@ -129,7 +129,6 @@ class UploadManager:
         """Recover incomplete upload sessions from Redis."""
         CacheKey.build('upload', 'session', '*')
         # In production, scan Redis for incomplete sessions
-        pass
     
     async def init_upload(
         self,
