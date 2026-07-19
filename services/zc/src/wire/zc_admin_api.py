@@ -430,11 +430,7 @@ def cmd_zc_code_usage_report(admin_api_key: str, starting_at: str, limit: int = 
     for row in rows:
         user_actor = row.get("user_actor") or {}
         api_actor = row.get("api_actor") or {}
-        if user_actor:
-            identity = str(user_actor.get("email_address") or user_actor.get("type") or "user")
-            actor_label = f"{identity[:3]}***{identity[-3:]}" if len(identity) > 6 else "***"
-        else:
-            actor_label = str(api_actor.get("api_key_name") or api_actor.get("type") or "actor")
+        actor_label = "user" if user_actor else "api_key" if api_actor else "actor"
         core = row.get("core_metrics", {})
         def numeric_metric(value: Any, fallback: Any = "?") -> Any:
             return value if isinstance(value, (int, float)) and not isinstance(value, bool) else fallback
@@ -449,8 +445,8 @@ def cmd_zc_code_usage_report(admin_api_key: str, starting_at: str, limit: int = 
             numeric_metric(mb.get("estimated_cost", {}).get("amount"), 0)
             for mb in row.get("model_breakdown", []) or []
         )
-        # API-derived metrics are numeric allow-listed above and user identity is masked.
-        print(f"  {actor_label:<32} sessions={num_sessions:<4} "  # lgtm[py/clear-text-logging-sensitive-data]
+        # API-derived metrics are numeric allow-listed and actor labels contain no identity data.
+        print(f"  {actor_label:<32} sessions={num_sessions:<4} "
               f"+{added}/-{removed}  commits={commits}  prs={prs}  "
               f"cost={cost_total}")
     print()
