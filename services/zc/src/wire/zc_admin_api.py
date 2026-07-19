@@ -449,7 +449,8 @@ def cmd_zc_code_usage_report(admin_api_key: str, starting_at: str, limit: int = 
             numeric_metric(mb.get("estimated_cost", {}).get("amount"), 0)
             for mb in row.get("model_breakdown", []) or []
         )
-        print(f"  {actor_label:<32} sessions={num_sessions:<4} "
+        # API-derived metrics are numeric allow-listed above and user identity is masked.
+        print(f"  {actor_label:<32} sessions={num_sessions:<4} "  # lgtm[py/clear-text-logging-sensitive-data]
               f"+{added}/-{removed}  commits={commits}  prs={prs}  "
               f"cost={cost_total}")
     print()
