@@ -132,9 +132,9 @@ class AIRetryStrategy:
                 )
                 time.sleep(delay)
 
-        # last_exception is guaranteed to be set here because we only reach
-        # this point if an exception was caught in the loop above.
-        raise last_exception  # type: ignore[misc]
+        # This line should never be reached, but included for type safety
+        assert last_exception is not None, "Expected an exception to be set"
+        raise last_exception
 
     def calculate_delay(self, attempt: int) -> float:
         """Return the back-off delay for the given *attempt* index.

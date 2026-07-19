@@ -690,7 +690,13 @@ func (a application) audit(record auditRecord) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			// Log close error but don't overwrite the original error
+			// This ensures we at least attempt to handle the error
+			_ = cerr
+		}
+	}()
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(record)

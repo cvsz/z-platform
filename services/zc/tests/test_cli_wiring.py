@@ -34,7 +34,8 @@ KNOWN_EXCEPTIONS = {
 
 def _cmd_functions(path):
     """Top-level `def cmd_*` function names in a Python source file."""
-    tree = ast.parse(open(path, encoding="utf-8").read(), filename=path)
+    with open(path, encoding="utf-8") as f:
+        tree = ast.parse(f.read(), filename=path)
     return [node.name for node in ast.iter_child_nodes(tree)
             if isinstance(node, ast.FunctionDef) and node.name.startswith("cmd_")]
 

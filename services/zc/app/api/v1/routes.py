@@ -243,6 +243,9 @@ async def upload_chunk(
                 form = await request.form()
                 chunk_index_val = form.get("chunk_index")
             else:
+                body = await request.body()
+                import json
+                data = json.loads(body.decode('utf-8'))
                 chunk_index_val = data.get("chunk_index") if data else None
         
         if chunk_index_val is None:
@@ -257,6 +260,10 @@ async def upload_chunk(
                 form = await request.form()
                 chunk_hash_val = form.get("chunk_hash")
             else:
+                if 'data' not in locals():
+                    body = await request.body()
+                    import json
+                    data = json.loads(body.decode('utf-8'))
                 chunk_hash_val = data.get("chunk_hash") if data else None
         
         if not chunk_hash_val:

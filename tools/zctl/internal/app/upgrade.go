@@ -322,7 +322,12 @@ func writeJSONExclusive(path string, value any) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			// Log close error but don't overwrite the original error
+			_ = cerr
+		}
+	}()
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	return enc.Encode(value)

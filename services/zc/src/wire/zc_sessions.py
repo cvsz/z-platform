@@ -118,7 +118,8 @@ def latest_session(mode: Optional[str] = None) -> Optional[Session]:
         try:
             s = Session.from_dict(json.loads(p.read_text()))
             if mode is None or s.mode == mode: sessions.append(s)
-        except Exception: pass
+        except Exception:
+            pass  # Skip corrupted session files
     return max(sessions, key=lambda s: s.updated) if sessions else None
 
 def list_sessions(mode: Optional[str] = None) -> list[Session]:
@@ -128,7 +129,8 @@ def list_sessions(mode: Optional[str] = None) -> list[Session]:
         try:
             s = Session.from_dict(json.loads(p.read_text()))
             if mode is None or s.mode == mode: out.append(s)
-        except Exception: pass
+        except Exception:
+            pass  # Skip corrupted session files
     return sorted(out, key=lambda s: s.updated, reverse=True)
 
 def capture_checkpoint(s: Session, label: str) -> Checkpoint:
@@ -153,7 +155,8 @@ def list_checkpoints(sid: str) -> list[Checkpoint]:
         try:
             cp = Checkpoint.from_dict(json.loads(p.read_text()))
             if cp.sid == sid: out.append(cp)
-        except Exception: pass
+        except Exception:
+            pass  # Skip corrupted checkpoint files
     return sorted(out, key=lambda c: c.ts)
 
 
