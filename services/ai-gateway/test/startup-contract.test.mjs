@@ -23,7 +23,8 @@ test("entrypoint uses the Node runtime fetch implementation", () => {
 
 test("health and authentication failure contracts remain fail closed", () => {
   assert.match(entrypoint, /app\.get\(['"]\/health['"]/);
-  assert.match(entrypoint, /status\(200\)\.json\(\{ status: ['"]ok['"], service: ['"]ai-gateway['"] \}\)/);
+  assert.match(entrypoint, /Z_PLATFORM_RELEASE_SHA/);
+  assert.match(entrypoint, /release_sha: releaseSha/);
   assert.match(entrypoint, /if \(!token \|\| token !== process\.env\.Z_PLATFORM_SERVICE_TOKEN\)/);
   assert.match(entrypoint, /status\(401\)\.json/);
   assert.match(entrypoint, /req\.headers\.authorization/);

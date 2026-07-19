@@ -49,9 +49,10 @@ async function invoke(handler, { method, url, headers = {}, body = "" }) {
 }
 
 test("health reports gateway configuration and session policy without auth", { concurrency: false }, async () => {
-  assert.deepEqual(zchatHealthSnapshot({ ...env, ZCHAT_SESSION_TTL_SECONDS: "3600" }), {
+  assert.deepEqual(zchatHealthSnapshot({ ...env, ZCHAT_SESSION_TTL_SECONDS: "3600", Z_PLATFORM_RELEASE_SHA: "a".repeat(40) }), {
     status: "ok",
     service: "zchat",
+    release_sha: "a".repeat(40),
     gateway_configured: true,
     session_ttl_seconds: 3600,
   });
@@ -64,7 +65,7 @@ test("liveness does not depend on configured upstream backends", { concurrency: 
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { status: "ok", service: "zchat" });
+  assert.deepEqual(await response.json(), { status: "ok", service: "zchat", release_sha: "unknown" });
 });
 
 test("chat shell exposes accessible history search and shortcut guidance", { concurrency: false }, async () => {
