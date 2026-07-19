@@ -21,6 +21,7 @@ import {
   loadThemeMode,
   removePromptTemplate,
   renameActiveConversation,
+  searchConversationSummaries,
   selectConversation,
   startNewConversation,
   setActiveSystemPrompt,
@@ -223,6 +224,25 @@ test("history helpers preserve selection and support new chat and clearing", () 
   assert.equal(cleared.activeConversationId, "conversation-1");
   assert.equal(cleared.messages.length, 0);
   assert.equal(activeConversationSummary(cleared).title, "New chat");
+});
+
+test("conversation search matches all user-visible conversation fields", () => {
+  const first = appendMessage(
+    setActiveSystemPrompt(createChatState(1700000000000, () => "conversation-1"), "Act as a security reviewer."),
+    { id: "1", role: "user", content: "Inspect the payment gateway" },
+    1700000000100,
+  );
+  const second = startNewConversation(first, 1700000000200, () => "conversation-2");
+  const state = {
+    ...appendMessage(second, { id: "2", role: "assistant", content: "Deployment is healthy" }, 1700000000300),
+    model: "gemini:flash",
+  };
+
+  assert.deepEqual(searchConversationSummaries(state, "security payment").map(({ id }) => id), ["conversation-1"]);
+  assert.deepEqual(searchConversationSummaries(state, "deployment healthy").map(({ id }) => id), ["conversation-2"]);
+  assert.deepEqual(searchConversationSummaries(state, "GEMINI").map(({ id }) => id), ["conversation-2"]);
+  assert.deepEqual(searchConversationSummaries(state, "missing"), []);
+  assert.equal(searchConversationSummaries(state, "  ").length, 2);
 });
 
 test("setActiveSystemPrompt persists with the active conversation", () => {
