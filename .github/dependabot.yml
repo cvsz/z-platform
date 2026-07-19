@@ -5,7 +5,72 @@
 
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  
+  # npm/pnpm (root)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  
+  # npm/pnpm (apps)
+  - package-ecosystem: "npm"
+    directory: "/apps"
+    schedule:
+      interval: "weekly"
+  
+  # npm/pnpm (services)
+  - package-ecosystem: "npm"
+    directory: "/services"
+    schedule:
+      interval: "weekly"
+  
+  # npm/pnpm (packages)
+  - package-ecosystem: "npm"
+    directory: "/packages"
+    schedule:
+      interval: "weekly"
+  
+  # npm/pnpm (tools)
+  - package-ecosystem: "npm"
+    directory: "/tools"
+    schedule:
+      interval: "weekly"
+  
+  # Go
+  - package-ecosystem: "gomod"
+    directory: "/tools/zctl"
+    schedule:
+      interval: "weekly"
+  
+  # Python
+  - package-ecosystem: "pip"
+    directory: "/services/zc"
+    schedule:
+      interval: "weekly"
+  
+  - package-ecosystem: "pip"
+    directory: "/services/phase6-api"
+    schedule:
+      interval: "weekly"
+  
+  - package-ecosystem: "pip"
+    directory: "/apps/zaicoder/backend"
+    schedule:
+      interval: "weekly"
+  
+  # Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  
+  # Terraform
+  - package-ecosystem: "terraform"
+    directory: "/infrastructure/terraform/cloudflare"
     schedule:
       interval: "weekly" 

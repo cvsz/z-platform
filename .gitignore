@@ -1,20 +1,4 @@
-```bash
-# Scripts
-*.sh
-
-# Logs and temp files
-*.log
-*.tmp
-
-# Environment
-.env
-.env.local
-.env.*
-
-# Editors
-.vscode/
-.idea/
-
+```
 # Dependencies
 node_modules/
 .venv/
@@ -22,23 +6,12 @@ venv/
 __pycache__/
 .mypy_cache/
 .pytest_cache/
+target/
+.gradle/
+
+# Build artifacts
 dist/
 build/
-coverage/
-.next/
-.env
-.env.*
-!.env.example
-.apikey
-.apikey.backup.*
-apikey-validation-report.csv
-API-KEY.txt
-API-KEY*.txt
-*.log
-.DS_Store
-Thumbs.db
-
-# Compiled files
 *.pyc
 *.class
 *.o
@@ -48,6 +21,25 @@ Thumbs.db
 *.a
 *.obj
 *.out
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 
 # Coverage
 coverage/
@@ -77,5 +69,4 @@ htmlcov/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-.terraform/
-.terraform.lock.hcl
+```
