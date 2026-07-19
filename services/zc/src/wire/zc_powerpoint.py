@@ -11,7 +11,7 @@ on disk always reflects the latest state of the conversation.
 This is the CLI's answer to a "zAICoder in PowerPoint"-style experience: no
 Office add-in, just a terminal chat that keeps a real .pptx file in sync.
 Mirrors zc_excel.py's design one-for-one (same session/history/undo
-shape, same denylisted-exec safety model) since both are the same kind of
+shape, same AST-based safety model) since both are the same kind of
 product: a chat loop that edits a live in-memory document and re-saves the
 real file after every turn.
 
@@ -31,6 +31,7 @@ Slash commands inside the session:
   /show N              Print the text content of slide N
   /undo                Revert to the state before the last applied change
 """
+import ast
 import re
 import sys
 
@@ -77,15 +78,18 @@ document.
 
 _CODE_BLOCK = re.compile(r"```(?:python)?\s*\n(.*?)```", re.DOTALL)
 
-# Mirrors zc_excel.py's denylist for the same reason: this is a
-# best-effort catch for obviously unsafe generated code, not a real
-# sandbox. Anything more sensitive should go through
-# --code-agent-sandbox instead.
-_DENYLIST = (
-    "import os", "import sys", "import subprocess", "import socket",
-    "__import__", "open(", "eval(", "exec(", "os.", "sys.", "subprocess.",
-    "socket.", "shutil.", ".system(", "pathlib",
+# Forbidden AST node types and attributes for safe code execution
+# Mirrors zc_excel.py's security model
+_FORBIDDEN_NODES = (
+    ast.Import,
+    ast.ImportFrom,
 )
+
+_FORBIDDEN_ATTRS = frozenset([
+    "os", "sys", "subprocess", "socket", "shutil", "pathlib",
+    "open", "eval", "exec", "__import__", "compile", "globals", 
+    "locals", "vars", "dir", "getattr", "setattr", "delattr",
+])
 
 
 class PptxSession:
@@ -153,12 +157,48 @@ class PptxSession:
         self.slides = self._history_stack.pop()
         return True
 
+    def _validate_code_ast(self, code: str) -> tuple[bool, str]:
+        """Validate code using AST to prevent code injection attacks.
+        
+        This is more secure than string-based denylists which can be bypassed
+        through encoding, obfuscation, or character concatenation.
+        Mirrors zc_excel.py's security model.
+        """
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as e:
+            return False, f"syntax error: {e}"
+        
+        # Check for forbidden node types (imports)
+        for node in ast.walk(tree):
+            if isinstance(node, _FORBIDDEN_NODES):
+                return False, f"forbidden statement: {ast.dump(node)}"
+            
+            # Check for forbidden attribute access
+            if isinstance(node, ast.Attribute):
+                if node.attr in _FORBIDDEN_ATTRS:
+                    return False, f"forbidden attribute: {node.attr}"
+            
+            # Check for forbidden names (function calls like open(), eval(), etc.)
+            if isinstance(node, ast.Name):
+                if node.id in _FORBIDDEN_ATTRS:
+                    return False, f"forbidden name: {node.id}"
+            
+            # Check for Call nodes with forbidden functions
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id in _FORBIDDEN_ATTRS:
+                    return False, f"forbidden function call: {node.func.id}"
+                if isinstance(node.func, ast.Attribute) and node.func.attr in _FORBIDDEN_ATTRS:
+                    return False, f"forbidden method call: {node.func.attr}"
+        
+        return True, ""
+
     def apply_code(self, code):
         """Run model-generated code against `self.slides`. Returns (ok, message)."""
-        lowered = code.lower()
-        for bad in _DENYLIST:
-            if bad in lowered:
-                return False, f"[blocked] generated code used a disallowed construct: {bad!r}"
+        # Validate code using AST before execution
+        is_valid, error_msg = self._validate_code_ast(code)
+        if not is_valid:
+            return False, f"[blocked] generated code contains unsafe operations: {error_msg}"
 
         self._snapshot()
 
