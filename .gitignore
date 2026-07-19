@@ -59,6 +59,25 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
 # Coverage
 coverage.xml
 *.gcda
