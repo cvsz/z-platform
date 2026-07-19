@@ -41,6 +41,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Repair and verify shell helper checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          helper="scripts/resolve-ghcr-credentials.sh"
+          git -c core.autocrlf=false checkout-index --force -- "$helper"
+          expected="$(git rev-parse "HEAD:$helper")"
+          actual="$(git hash-object --no-filters "$helper")"
+          test "$actual" = "$expected" || {
+            echo "Checked-out GHCR helper differs from the immutable Git blob" >&2
+            exit 1
+          }
+          bash -n "$helper"
+
       - name: Resolve GHCR credential pair
         shell: bash
         run: bash scripts/resolve-ghcr-credentials.sh
