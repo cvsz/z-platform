@@ -50,7 +50,7 @@ jobs:
             exit 2
           fi
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 1

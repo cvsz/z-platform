@@ -39,7 +39,7 @@ jobs:
       BILLING_LEDGER_URL: ${{ secrets.BILLING_LEDGER_URL }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Repair and verify shell helper checkout
         shell: bash
