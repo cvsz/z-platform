@@ -6,6 +6,10 @@ import {
   conversationSummaries,
   conversationToExportData,
   conversationToMarkdown,
+  deleteConversation,
+  deleteMessage,
+  forkActiveConversation,
+  importConversation,
   addPromptTemplate,
   lastUserMessage,
   loadChatState,
@@ -22,6 +26,8 @@ import {
   startNewConversation,
   setActiveSystemPrompt,
   setActiveConversationTitle,
+  setActiveDraft,
+  setActiveModel,
 } from "./chat-state.mjs";
 import { renderMarkdownFragment } from "./markdown.mjs";
 import { readEventStream } from "./chat-stream.mjs";
@@ -35,6 +41,8 @@ const templateTitle = document.querySelector("#template-title");
 const templatePrompt = document.querySelector("#template-prompt");
 const copyMarkdown = document.querySelector("#copy-markdown");
 const downloadJson = document.querySelector("#download-json");
+const importJson = document.querySelector("#import-json");
+const importJsonFile = document.querySelector("#import-json-file");
 const conversationTitle = document.querySelector("#conversation-title");
 const themeToggle = document.querySelector("#theme-toggle");
 const composer = document.querySelector("#composer");
@@ -51,6 +59,7 @@ const logout = document.querySelector("#logout");
 const status = document.querySelector("#status");
 const conversationLabel = document.querySelector("#conversation");
 const emptyState = document.querySelector("#empty-state");
+const loadOlder = document.querySelector("#load-older");
 
 const storage = window.localStorage;
 
@@ -59,6 +68,7 @@ let promptTemplates = loadPromptTemplates(storage);
 let themeMode = loadThemeMode(storage);
 let busy = false;
 let activeGeneration = null;
+let visibleMessageLimit = 100;
 const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
 function isAbortError(error) {
@@ -105,6 +115,7 @@ function setBusy(nextBusy) {
   newChat.disabled = nextBusy;
   copyMarkdown.disabled = nextBusy;
   downloadJson.disabled = nextBusy;
+  importJson.disabled = nextBusy;
   conversationTitle.disabled = nextBusy;
   themeToggle.disabled = nextBusy;
   prompt.disabled = nextBusy;
@@ -177,12 +188,43 @@ function renderMessage(message) {
     reuseButton.disabled = busy || !message.content;
     reuseButton.addEventListener("click", () => {
       if (busy) return;
+      state = setActiveDraft(state, message.content);
+      persistChatState(storage, state);
       prompt.value = message.content;
       prompt.focus();
       setStatus("Message loaded as draft", "ready");
     });
     actions.append(reuseButton);
   }
+  const branchButton = document.createElement("button");
+  branchButton.type = "button";
+  branchButton.textContent = "Branch";
+  branchButton.setAttribute("aria-label", "Branch conversation through this message");
+  branchButton.disabled = busy || message.pending;
+  branchButton.addEventListener("click", () => {
+    if (busy || message.pending) return;
+    state = forkActiveConversation(state, message.id);
+    visibleMessageLimit = 100;
+    persistChatState(storage, state);
+    render();
+    setStatus("Conversation branch created", "ready");
+  });
+  actions.append(branchButton);
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.textContent = "Delete";
+  deleteButton.className = "is-danger";
+  deleteButton.setAttribute("aria-label", `Delete ${formatRole(message.role)} message`);
+  deleteButton.disabled = busy || message.pending;
+  deleteButton.addEventListener("click", () => {
+    if (busy || message.pending || !window.confirm("Delete this message from browser history?")) return;
+    state = deleteMessage(state, message.id);
+    persistChatState(storage, state);
+    render();
+    setStatus("Message deleted", "ready");
+  });
+  actions.append(deleteButton);
   meta.append(role, stamp, actions);
 
   const body = document.createElement(message.role === "assistant" ? "div" : "pre");
@@ -231,7 +273,24 @@ function renderHistoryItem(summary) {
     setStatus(`Switched to ${summary.title}`, "ready");
   });
 
-  item.append(button);
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "history__delete";
+  deleteButton.textContent = "Delete";
+  deleteButton.setAttribute("aria-label", `Delete conversation ${summary.title}`);
+  deleteButton.addEventListener("click", () => {
+    if (busy || !window.confirm(`Delete ${summary.title} from this browser?`)) return;
+    state = deleteConversation(state, summary.id);
+    visibleMessageLimit = 100;
+    persistChatState(storage, state);
+    render();
+    setStatus("Conversation deleted", "ready");
+  });
+
+  const row = document.createElement("div");
+  row.className = "history__row";
+  row.append(button, deleteButton);
+  item.append(row);
   return item;
 }
 
@@ -341,12 +400,16 @@ function downloadActiveConversationJson() {
 
 function render() {
   const activeSummary = activeConversationSummary(state);
-  transcript.replaceChildren(...state.messages.map(renderMessage));
+  const firstVisibleIndex = Math.max(0, state.messages.length - visibleMessageLimit);
+  transcript.replaceChildren(...state.messages.slice(firstVisibleIndex).map(renderMessage));
+  loadOlder.hidden = firstVisibleIndex === 0;
+  loadOlder.textContent = firstVisibleIndex > 0 ? `Load ${Math.min(100, firstVisibleIndex)} older messages` : "Load older messages";
   emptyState.hidden = state.messages.length > 0;
   conversationLabel.textContent = activeSummary.title;
   conversationLabel.title = `${activeSummary.title} · ${activeSummary.messageCount} messages`;
   conversationTitle.value = activeSummary.title;
   systemPrompt.value = state.systemPrompt || "";
+  prompt.value = state.draft || "";
   model.value = state.model;
   retry.disabled = busy || !lastUserMessage(state.messages);
   clear.disabled = busy || state.messages.length === 0;
@@ -503,6 +566,7 @@ async function sendMessage(promptText, { retrying = false } = {}) {
   const assistantMessage = createMessage("assistant", "", { pending: true });
   const generation = new AbortController();
 
+  state = setActiveDraft(state, "");
   state = appendMessage(state, userMessage);
   state = appendMessage(state, assistantMessage);
   persistChatState(storage, state);
@@ -564,6 +628,11 @@ systemPrompt.addEventListener("input", () => {
   persistChatState(storage, state);
 });
 
+prompt.addEventListener("input", () => {
+  state = setActiveDraft(state, prompt.value);
+  persistChatState(storage, state);
+});
+
 conversationTitle.addEventListener("input", () => {
   state = setActiveConversationTitle(state, conversationTitle.value);
   persistChatState(storage, state);
@@ -620,6 +689,30 @@ downloadJson.addEventListener("click", () => {
   }
 });
 
+importJson.addEventListener("click", () => {
+  if (!busy) importJsonFile.click();
+});
+
+importJsonFile.addEventListener("change", async () => {
+  const [file] = importJsonFile.files || [];
+  importJsonFile.value = "";
+  if (!file) return;
+  if (file.size > 6_000_000) {
+    setStatus("Conversation import exceeds the 6 MB file limit", "error");
+    return;
+  }
+  try {
+    const imported = JSON.parse(await file.text());
+    state = importConversation(state, imported);
+    visibleMessageLimit = 100;
+    persistChatState(storage, state);
+    render();
+    setStatus("Conversation imported", "ready");
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Unable to import conversation", "error");
+  }
+});
+
 prompt.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
@@ -628,10 +721,7 @@ prompt.addEventListener("keydown", (event) => {
 });
 
 model.addEventListener("change", () => {
-  state = {
-    ...state,
-    model: model.value,
-  };
+  state = setActiveModel(state, model.value);
   persistChatState(storage, state);
 });
 
@@ -653,10 +743,18 @@ clear.addEventListener("click", () => {
 newChat.addEventListener("click", () => {
   if (busy) return;
   state = startNewConversation(state);
+  visibleMessageLimit = 100;
   persistChatState(storage, state);
   prompt.value = "";
   setStatus("New chat ready", "ready");
   render();
+});
+
+loadOlder.addEventListener("click", () => {
+  const previousHeight = transcript.scrollHeight;
+  visibleMessageLimit += 100;
+  render();
+  transcript.scrollTop = transcript.scrollHeight - previousHeight;
 });
 
 historySearch.addEventListener("input", () => {

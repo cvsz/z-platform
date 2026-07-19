@@ -78,6 +78,9 @@ test("chat shell exposes accessible history search and shortcut guidance", { con
   assert.match(html, /id="history-search"/);
   assert.match(html, /aria-keyshortcuts="Control\+K Meta\+K"/);
   assert.match(html, /Ctrl\/⌘\+K searches chats/);
+  assert.match(html, /id="import-json"/);
+  assert.match(html, /id="import-json-file"[^>]+accept="application\/json,\.json"/);
+  assert.match(html, /id="load-older"[^>]+hidden/);
 });
 
 test("platform status keeps api6 and zc as separate backend boundaries", { concurrency: false }, async () => {
