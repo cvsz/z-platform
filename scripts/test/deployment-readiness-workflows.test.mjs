@@ -32,3 +32,15 @@ test("validate-release-evidence workflow validates the staging decision record c
   assert.match(workflows[0], /validate-phase-6-operator-inputs\.mjs/);
   assert.match(workflows[0], /scripts\/phase-6-operator-inputs\.json/);
 });
+
+for (const [name, workflow] of [
+  ["phase6-external-suite", workflows[1]],
+  ["final-release-readiness", workflows[3]],
+]) {
+  test(`${name} captures sanitized browser evidence from the deployed release`, () => {
+    assert.match(workflow, /capture-zchat-browser-evidence\.mjs/);
+    assert.match(workflow, /phase6-browser-evidence-|final-browser-evidence-/);
+    assert.match(workflow, /runtimeReleaseVerified/);
+    assert.doesNotMatch(workflow, /BROWSER_BUNDLE_BASE64|BROWSER_HAR_BASE64/);
+  });
+}
