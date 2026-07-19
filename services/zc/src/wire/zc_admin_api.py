@@ -436,14 +436,17 @@ def cmd_zc_code_usage_report(admin_api_key: str, starting_at: str, limit: int = 
         else:
             actor_label = str(api_actor.get("api_key_name") or api_actor.get("type") or "actor")
         core = row.get("core_metrics", {})
-        num_sessions = core.get("num_sessions", "?")
+        def numeric_metric(value: Any, fallback: Any = "?") -> Any:
+            return value if isinstance(value, (int, float)) and not isinstance(value, bool) else fallback
+
+        num_sessions = numeric_metric(core.get("num_sessions"))
         loc = core.get("lines_of_code", {})
-        added = loc.get("added", "?")
-        removed = loc.get("removed", "?")
-        commits = core.get("commits_by_zc_code", "?")
-        prs = core.get("pull_requests_by_zc_code", "?")
+        added = numeric_metric(loc.get("added"))
+        removed = numeric_metric(loc.get("removed"))
+        commits = numeric_metric(core.get("commits_by_zc_code"))
+        prs = numeric_metric(core.get("pull_requests_by_zc_code"))
         cost_total = sum(
-            mb.get("estimated_cost", {}).get("amount", 0)
+            numeric_metric(mb.get("estimated_cost", {}).get("amount"), 0)
             for mb in row.get("model_breakdown", []) or []
         )
         print(f"  {actor_label:<32} sessions={num_sessions:<4} "

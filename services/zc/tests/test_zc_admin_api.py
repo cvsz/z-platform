@@ -494,6 +494,30 @@ def test_cmd_zc_code_usage_report_prints_named_user_and_metrics(monkeypatch, cap
     assert "cost=1025" in out
 
 
+def test_cmd_zc_code_usage_report_rejects_non_numeric_metric_values(monkeypatch, capsys):
+    from wire.zc_admin_api import cmd_zc_code_usage_report
+
+    sensitive = "secret-value-must-not-be-logged"
+    monkeypatch.setattr(AdminApiClient, "get_zc_code_usage_report",
+                        lambda self, *a, **k: {"data": [{
+                            "api_actor": {"api_key_name": "ci-key"},
+                            "core_metrics": {
+                                "num_sessions": sensitive,
+                                "lines_of_code": {"added": sensitive, "removed": sensitive},
+                                "commits_by_zc_code": sensitive,
+                                "pull_requests_by_zc_code": sensitive,
+                            },
+                            "model_breakdown": [{"estimated_cost": {"amount": sensitive}}],
+                        }]})
+
+    cmd_zc_code_usage_report("admin-k", "2026-07-08")
+
+    out = capsys.readouterr().out
+    assert sensitive not in out
+    assert "sessions=?" in out
+    assert "cost=0" in out
+
+
 # ── v1.24.0: API key expires_at surfaced ──────────────────────────────────
 
 
