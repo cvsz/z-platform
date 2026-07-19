@@ -44,7 +44,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${RELEASE_SHA}")"
           test "$status" = 200
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 1
@@ -108,7 +108,7 @@ jobs:
             cat "$response_file"
             exit 2
           fi
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 1
