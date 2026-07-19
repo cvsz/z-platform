@@ -8,6 +8,10 @@ This upgrade was informed by a full-source review of ChatGPTNextWeb/NextChat at 
 - Per-message copy and reuse-as-draft actions
 - Keyboard-first navigation for conversation search and new-chat creation
 - Responsive message action controls
+- Conversation branching and bounded transcript rendering
+- Per-conversation drafts and model selection
+- Strictly validated, size-limited JSON import
+- Message and conversation deletion with explicit confirmation
 
 The implementation is native to ZChat and does not copy NextChat source code.
 
@@ -23,6 +27,5 @@ ZChat remains a trust-minimized, gateway-only client. Provider credentials and p
 
 ## Follow-up candidates
 
-- Strictly validated conversation import with schema versioning and size limits
 - IndexedDB migration after measured local-storage pressure
-- Virtualized transcript rendering after measured long-conversation performance degradation
+- Full virtualized transcript rendering after bounded rendering is insufficient in measured workloads

@@ -54,6 +54,8 @@
           <div class="export-panel__actions">
             <button id="copy-markdown" type="button" aria-label="Copy active conversation as markdown">Copy markdown</button>
             <button id="download-json" type="button" aria-label="Download active conversation as JSON">Download JSON</button>
+            <button id="import-json" type="button" aria-label="Import a validated conversation JSON file">Import JSON</button>
+            <input id="import-json-file" class="visually-hidden" type="file" accept="application/json,.json">
           </div>
         </section>
 
@@ -95,6 +97,7 @@
         <p id="status" class="status" role="status" aria-live="polite" data-tone="ready">Loading models</p>
 
         <section class="transcript" aria-label="Conversation transcript">
+          <button id="load-older" class="load-older" type="button" hidden>Load older messages</button>
           <ol id="transcript" class="messages" role="log" aria-live="polite" aria-relevant="additions text"></ol>
           <div id="empty-state" class="empty-state">
             Start a conversation. Replies stream into the timeline and stay on the server gateway path.
