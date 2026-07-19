@@ -1,4 +1,4 @@
-import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -6,7 +6,6 @@ import os
 import re
 import time
 import uuid
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -19,11 +18,11 @@ from starlette.responses import Response
 
 TOKEN = os.environ["PHASE6_API_TOKEN"]
 REDIS_URL = os.environ["REDIS_URL"]
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
-PROVIDERS: dict[str, str] = json.loads(os.environ["AI_PROVIDER_ENDPOINTS"])
-KEYS: dict[str, str] = json.loads(os.environ["AI_PROVIDER_KEYS_JSON"])
 MODEL = os.getenv("AI_MODEL", "Qwen/Qwen2.5-Coder-32B-Instruct")
+RAW_PROVIDERS: dict[str, Any] = json.loads(os.environ["AI_PROVIDER_ENDPOINTS"])
+KEYS: dict[str, str] = json.loads(os.environ["AI_PROVIDER_KEYS_JSON"])
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30"))
+MAX_AI_UPLOAD_BYTES = int(os.getenv("MAX_AI_UPLOAD_BYTES", str(1024 * 1024)))
 GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
@@ -35,11 +34,42 @@ AGENT_ROUTES = {
     "verify": "/backup/verify",
 }
 
+def normalize_providers(raw: dict[str, Any]) -> dict[str, dict[str, str]]:
+    providers: dict[str, dict[str, str]] = {}
+    for name, value in raw.items():
+        if isinstance(value, str):
+            providers[name] = {"baseUrl": value, "model": MODEL}
+        elif isinstance(value, dict):
+            providers[name] = {
+                "baseUrl": str(value.get("baseUrl") or ""),
+                "model": str(value.get("model") or MODEL),
+            }
+        else:
+            raise ValueError(f"invalid provider configuration for {name}")
+        parsed = urlparse(providers[name]["baseUrl"])
+        if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+            raise ValueError(f"invalid provider URL for {name}")
+        if not providers[name]["model"].strip():
+            raise ValueError(f"invalid provider model for {name}")
+    if providers and set(providers) != set(KEYS):
+        raise ValueError("provider endpoint and key names must match")
+    return providers
+
+PROVIDERS = normalize_providers(RAW_PROVIDERS)
+
 r = redis.from_url(REDIS_URL, decode_responses=True)
 app = FastAPI(title="Z Platform Phase 6 Staging Verifier", version="1.0.0")
 
 REQUESTS = Counter("phase6_requests_total", "Requests", ["endpoint", "result"])
 LATENCY = Histogram("phase6_request_seconds", "Request latency", ["endpoint"])
+
+def upstream_request_id(response: httpx.Response, data: Any | None = None) -> str | None:
+    if isinstance(data, dict) and isinstance(data.get("id"), str):
+        return data["id"]
+    for name in ("x-request-id", "request-id", "x-groq-request-id"):
+        if response.headers.get(name):
+            return response.headers[name]
+    return None
 
 async def auth(authorization: str | None = Header(default=None)) -> None:
     if authorization != f"Bearer {TOKEN}":
@@ -107,24 +137,42 @@ async def alert_status(marker: str | None = Query(default=None), _: None = Depen
 
 @app.post("/ai/upload")
 async def ai_upload(file: UploadFile = File(...), _: None = Depends(auth)):
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     marker = str(uuid.uuid4())
-    destination = UPLOAD_DIR / f"{marker}-{Path(file.filename or 'upload.bin').name}"
-    size = 0
-    with destination.open("wb") as output:
-        while chunk := await file.read(1024 * 1024):
-            size += len(chunk)
-            if size > 50 * 1024 * 1024:
-                destination.unlink(missing_ok=True)
-                raise HTTPException(status_code=413, detail="file too large")
-            output.write(chunk)
+    content = bytearray()
+    while chunk := await file.read(64 * 1024):
+        content.extend(chunk)
+        if len(content) > MAX_AI_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="file too large for external AI verification")
+    if not content:
+        raise HTTPException(status_code=400, detail="file is empty")
+    digest = hashlib.sha256(content).hexdigest()
+    encoded = base64.b64encode(content).decode("ascii")
+    prompt = (
+        "Verify that you received this uploaded file. Reply with a concise acknowledgement.\n"
+        f"Filename: {file.filename or 'upload.bin'}\nSHA-256: {digest}\nBase64 content: {encoded}"
+    )
+    try:
+        result = await call_any_provider(prompt)
+    except HTTPException:
+        REQUESTS.labels("ai_upload", "failure").inc()
+        raise
     REQUESTS.labels("ai_upload", "success").inc()
-    return {"status": "verified", "marker": marker, "filename": destination.name, "size": size}
+    return {
+        "status": "verified",
+        "marker": marker,
+        "filename": file.filename or "upload.bin",
+        "size": len(content),
+        "sha256": digest,
+        "provider": result["provider"],
+        "upstreamStatus": result["upstreamStatus"],
+        "requestId": result.get("requestId"),
+    }
 
-async def call_provider(name: str, base_url: str, prompt: str) -> dict[str, Any]:
+async def call_provider(name: str, prompt: str) -> dict[str, Any]:
+    config = PROVIDERS[name]
     key = KEYS[name]
-    url = base_url.rstrip("/") + "/chat/completions"
-    body = {"model": MODEL, "messages": [{"role": "user", "content": prompt}], "stream": False}
+    url = config["baseUrl"].rstrip("/") + "/chat/completions"
+    body = {"model": config["model"], "messages": [{"role": "user", "content": prompt}], "stream": False}
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     started = time.monotonic()
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
@@ -132,35 +180,104 @@ async def call_provider(name: str, base_url: str, prompt: str) -> dict[str, Any]
     response.raise_for_status()
     LATENCY.labels("provider").observe(time.monotonic() - started)
     data = response.json()
-    return {"provider": name, "status": response.status_code, "response": data}
+    return {
+        "provider": name,
+        "upstreamStatus": response.status_code,
+        "requestId": upstream_request_id(response, data),
+        "response": data,
+    }
+
+async def call_any_provider(prompt: str, skip_primary: bool = False) -> dict[str, Any]:
+    failures = []
+    for index, name in enumerate(PROVIDERS):
+        if index == 0 and skip_primary:
+            failures.append({"provider": name, "error": "forced primary failure"})
+            continue
+        try:
+            return {**await call_provider(name, prompt), "failures": failures, "failover": index > 0}
+        except Exception as exc:
+            failures.append({"provider": name, "error": type(exc).__name__})
+    raise HTTPException(status_code=502, detail={"message": "all providers failed", "failures": failures})
 
 @app.post("/ai/failover")
 async def ai_failover(payload: dict[str, Any] | None = None, _: None = Depends(auth)):
     prompt = str((payload or {}).get("prompt") or "Reply with the word verified.")
-    failures = []
-    names = list(PROVIDERS)
     force_primary = str((payload or {}).get("forcePrimaryFailure", "true")).lower() != "false"
-    for index, name in enumerate(names):
-        if index == 0 and force_primary:
-            failures.append({"provider": name, "error": "forced primary failure"})
-            continue
+    try:
+        result = await call_any_provider(prompt, skip_primary=force_primary)
+    except HTTPException:
+        REQUESTS.labels("ai_failover", "failure").inc()
+        raise
+    REQUESTS.labels("ai_failover", "success").inc()
+    return {"status": "verified", "selected": result["provider"], **result}
+
+@app.post("/ai/providers/verify")
+async def ai_providers_verify(payload: dict[str, Any] | None = None, _: None = Depends(auth)):
+    prompt = str((payload or {}).get("prompt") or "Reply with the word verified.")
+    results = []
+    failures = []
+    for name in PROVIDERS:
         try:
-            result = await call_provider(name, PROVIDERS[name], prompt)
-            REQUESTS.labels("ai_failover", "success").inc()
-            return {"status": "verified", "failover": index > 0, "selected": name, "failures": failures, **result}
+            result = await call_provider(name, prompt)
+            results.append({
+                "provider": name,
+                "upstreamStatus": result["upstreamStatus"],
+                "requestId": result.get("requestId"),
+            })
         except Exception as exc:
             failures.append({"provider": name, "error": type(exc).__name__})
-    REQUESTS.labels("ai_failover", "failure").inc()
-    raise HTTPException(status_code=502, detail={"message": "all providers failed", "failures": failures})
+    if failures or len(results) != len(PROVIDERS) or len(results) < 2:
+        REQUESTS.labels("ai_multi_provider", "failure").inc()
+        raise HTTPException(status_code=502, detail={"message": "provider verification failed", "results": results, "failures": failures})
+    REQUESTS.labels("ai_multi_provider", "success").inc()
+    return {"status": "verified", "providers": results}
+
+async def open_provider_stream(prompt: str):
+    failures = []
+    for name, config in PROVIDERS.items():
+        client = httpx.AsyncClient(timeout=TIMEOUT)
+        context = client.stream(
+            "POST",
+            config["baseUrl"].rstrip("/") + "/chat/completions",
+            headers={"Authorization": f"Bearer {KEYS[name]}", "Content-Type": "application/json"},
+            json={"model": config["model"], "messages": [{"role": "user", "content": prompt}], "stream": True},
+        )
+        entered = False
+        try:
+            response = await context.__aenter__()
+            entered = True
+            response.raise_for_status()
+            return name, failures, upstream_request_id(response), client, context, response
+        except Exception as exc:
+            failures.append({"provider": name, "error": type(exc).__name__})
+            if entered:
+                await context.__aexit__(type(exc), exc, exc.__traceback__)
+            await client.aclose()
+    raise HTTPException(status_code=502, detail={"message": "all streaming providers failed", "failures": failures})
 
 @app.get("/ai/stream")
 async def ai_stream(_: None = Depends(auth)):
+    marker = str(uuid.uuid4())
+    name, failures, request_id, client, context, response = await open_provider_stream("Stream a short acknowledgement ending with verified.")
+
     async def events():
-        marker = str(uuid.uuid4())
-        for index, token in enumerate(("phase", "6", "stream", "verified")):
-            yield f"event: token\ndata: {json.dumps({'marker': marker, 'index': index, 'token': token})}\n\n"
-            await asyncio.sleep(0.15)
-        yield f"event: done\ndata: {json.dumps({'marker': marker, 'status': 'verified'})}\n\n"
+        chunks = 0
+        try:
+            yield f"event: provider\ndata: {json.dumps({'marker': marker, 'provider': name, 'requestId': request_id, 'failures': failures})}\n\n"
+            async for line in response.aiter_lines():
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if not data or data == "[DONE]":
+                    continue
+                chunks += 1
+                yield f"event: upstream\ndata: {json.dumps({'marker': marker, 'provider': name, 'index': chunks - 1, 'chunk': data})}\n\n"
+            status = "verified" if chunks else "failed"
+            REQUESTS.labels("ai_stream", "success" if chunks else "failure").inc()
+            yield f"event: done\ndata: {json.dumps({'marker': marker, 'provider': name, 'status': status, 'chunks': chunks})}\n\n"
+        finally:
+            await context.__aexit__(None, None, None)
+            await client.aclose()
     return StreamingResponse(events(), media_type="text/event-stream")
 
 @app.get("/session/health")
