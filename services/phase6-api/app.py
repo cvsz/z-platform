@@ -23,6 +23,7 @@ RAW_PROVIDERS: dict[str, Any] = json.loads(os.environ["AI_PROVIDER_ENDPOINTS"])
 KEYS: dict[str, str] = json.loads(os.environ["AI_PROVIDER_KEYS_JSON"])
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30"))
 MAX_AI_UPLOAD_BYTES = int(os.getenv("MAX_AI_UPLOAD_BYTES", str(1024 * 1024)))
+RELEASE_SHA = os.getenv("Z_PLATFORM_RELEASE_SHA", "") if re.fullmatch(r"[0-9a-f]{40}", os.getenv("Z_PLATFORM_RELEASE_SHA", "")) else "unknown"
 GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
@@ -102,7 +103,7 @@ async def health(_: None = Depends(auth)):
 @app.get("/health/live")
 async def health_live():
     """Unauthenticated process liveness endpoint for Kubernetes probes."""
-    return {"status": "alive"}
+    return {"status": "alive", "service": "phase6-api", "release_sha": RELEASE_SHA}
 
 @app.get("/health/ready")
 async def health_ready():

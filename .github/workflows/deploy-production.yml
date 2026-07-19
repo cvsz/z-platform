@@ -96,6 +96,7 @@ jobs:
             --from-literal=REDIS_URL="${REDIS_URL:-redis://redis:6379/0}" \
             --from-literal=AI_PROVIDER_ENDPOINTS="$PHASE6_AI_PROVIDER_ENDPOINTS_JSON" \
             --from-literal=AI_PROVIDER_KEYS_JSON="$PHASE6_AI_PROVIDER_KEYS_JSON" \
+            --from-literal=Z_PLATFORM_RELEASE_SHA="$RELEASE_SHA" \
             --from-literal=JWT_SECRET="$JWT_SECRET" \
             --from-literal=ENCRYPTION_KEY="$ENCRYPTION_KEY" \
             --from-literal=AI_GATEWAY_PROVIDER_TOKEN="$AI_GATEWAY_PROVIDER_TOKEN" \
@@ -156,3 +157,23 @@ jobs:
           done
           kubectl -n argocd get application z-platform -o yaml
           exit 1
+
+      - name: Verify runtime release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A probes=(
+            [phase6-api]="health/live"
+            [zc-api]="v1/wire/health/live"
+            [ai-gateway]="health"
+            [zchat]="health/live"
+          )
+          for service in phase6-api zc-api ai-gateway zchat; do
+            payload="$(kubectl get --raw "/api/v1/namespaces/z-platform/services/${service}:http/proxy/${probes[$service]}")"
+            actual="$(jq -er '.release_sha' <<<"$payload")"
+            if [[ "$actual" != "$RELEASE_SHA" ]]; then
+              echo "Runtime release mismatch for $service" >&2
+              exit 1
+            fi
+            echo "$service release identity verified"
+          done

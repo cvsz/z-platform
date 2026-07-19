@@ -17,6 +17,7 @@ def load_app(monkeypatch):
         REGISTRY.unregister(collector)
     monkeypatch.setenv("PHASE6_API_TOKEN", "token")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("Z_PLATFORM_RELEASE_SHA", "a" * 40)
     monkeypatch.setenv(
         "AI_PROVIDER_ENDPOINTS",
         json.dumps({
@@ -30,6 +31,14 @@ def load_app(monkeypatch):
     assert spec and spec.loader
     spec.loader.exec_module(module)
     return module
+
+
+def test_liveness_exposes_the_immutable_release_identity(monkeypatch):
+    module = load_app(monkeypatch)
+    response = TestClient(module.app).get("/health/live")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "alive", "service": "phase6-api", "release_sha": "a" * 40}
 
 
 def test_upload_is_bounded_and_processed_by_an_external_provider(monkeypatch):

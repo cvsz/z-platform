@@ -7,6 +7,8 @@ High-performance endpoints optimized for wire CLI communication:
 - Connection pooling and keep-alive
 - Distributed tracing hooks
 """
+import os
+import re
 import time
 from typing import Any
 
@@ -26,6 +28,7 @@ async def liveness_probe() -> dict[str, Any]:
     return {
         "status": "alive",
         "version": get_config().version,
+        "release_sha": os.getenv("Z_PLATFORM_RELEASE_SHA", "unknown") if re.fullmatch(r"[0-9a-f]{40}", os.getenv("Z_PLATFORM_RELEASE_SHA", "")) else "unknown",
         "timestamp": time.time(),
     }
 

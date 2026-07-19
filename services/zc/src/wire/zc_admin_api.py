@@ -428,8 +428,13 @@ def cmd_zc_code_usage_report(admin_api_key: str, starting_at: str, limit: int = 
     if not rows:
         print("  (no zAICoder activity for this date)")
     for row in rows:
-        actor = row.get("user_actor") or row.get("api_actor") or {}
-        actor_label = str(actor.get("type") or "actor")
+        user_actor = row.get("user_actor") or {}
+        api_actor = row.get("api_actor") or {}
+        if user_actor:
+            identity = str(user_actor.get("email_address") or user_actor.get("type") or "user")
+            actor_label = f"{identity[:3]}***{identity[-3:]}" if len(identity) > 6 else "***"
+        else:
+            actor_label = str(api_actor.get("api_key_name") or api_actor.get("type") or "actor")
         core = row.get("core_metrics", {})
         num_sessions = core.get("num_sessions", "?")
         loc = core.get("lines_of_code", {})

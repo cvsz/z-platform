@@ -150,6 +150,7 @@ export function zchatHealthSnapshot(env = process.env) {
   return {
     status: "ok",
     service: "zchat",
+    release_sha: /^[0-9a-f]{40}$/.test(env.Z_PLATFORM_RELEASE_SHA || "") ? env.Z_PLATFORM_RELEASE_SHA : "unknown",
     gateway_configured: Boolean(env.Z_PLATFORM_AI_GATEWAY_URL && env.Z_PLATFORM_SERVICE_TOKEN),
     session_ttl_seconds: Number(env.ZCHAT_SESSION_TTL_SECONDS || 0),
   };
@@ -238,7 +239,11 @@ export function createZChatRequestHandler({ env = process.env, fetchImpl = fetch
         return send(response, 200, JSON.stringify({ ...zchatHealthSnapshot(env), backends: await platformStatus(env, fetchImpl) }));
       }
       if (request.method === "GET" && request.url === "/health/live") {
-        return send(response, 200, JSON.stringify({ status: "ok", service: "zchat" }));
+        return send(response, 200, JSON.stringify({
+          status: "ok",
+          service: "zchat",
+          release_sha: zchatHealthSnapshot(env).release_sha,
+        }));
       }
       if (request.method === "GET" && request.url === "/api/platform/status") {
         return send(response, 200, JSON.stringify(await platformStatus(env, fetchImpl)));
