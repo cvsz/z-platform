@@ -67,6 +67,7 @@ CLI flags: see main.py --code-agent-*
 
 import json
 import os
+import shlex
 import subprocess
 import time
 import uuid
@@ -322,7 +323,6 @@ class HooksEngine:
             if not cmd:
                 continue
             try:
-                import shlex
                 cmd_args = shlex.split(cmd) if isinstance(cmd, str) else cmd
                 result = subprocess.run(
                     cmd_args, shell=False, input=stdin_data,

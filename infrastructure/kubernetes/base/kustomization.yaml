@@ -5,6 +5,7 @@ resources:
   - namespace.yaml
   - serviceaccount.yaml
   - services.yaml
+  - redis.yaml
   - deployments.yaml
   - networkpolicy.yaml
   - poddisruptionbudgets.yaml

@@ -49,9 +49,10 @@ async function invoke(handler, { method, url, headers = {}, body = "" }) {
 }
 
 test("health reports gateway configuration and session policy without auth", { concurrency: false }, async () => {
-  assert.deepEqual(zchatHealthSnapshot({ ...env, ZCHAT_SESSION_TTL_SECONDS: "3600" }), {
+  assert.deepEqual(zchatHealthSnapshot({ ...env, ZCHAT_SESSION_TTL_SECONDS: "3600", Z_PLATFORM_RELEASE_SHA: "a".repeat(40) }), {
     status: "ok",
     service: "zchat",
+    release_sha: "a".repeat(40),
     gateway_configured: true,
     session_ttl_seconds: 3600,
   });
@@ -64,7 +65,23 @@ test("liveness does not depend on configured upstream backends", { concurrency: 
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { status: "ok", service: "zchat" });
+  assert.deepEqual(await response.json(), { status: "ok", service: "zchat", release_sha: "unknown" });
+});
+
+test("chat shell exposes accessible history search and shortcut guidance", { concurrency: false }, async () => {
+  const response = await invoke(createZChatRequestHandler({ env: {} }), {
+    method: "GET",
+    url: "/",
+  });
+  const html = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(html, /id="history-search"/);
+  assert.match(html, /aria-keyshortcuts="Control\+K Meta\+K"/);
+  assert.match(html, /Ctrl\/⌘\+K searches chats/);
+  assert.match(html, /id="import-json"/);
+  assert.match(html, /id="import-json-file"[^>]+accept="application\/json,\.json"/);
+  assert.match(html, /id="load-older"[^>]+hidden/);
 });
 
 test("platform status keeps api6 and zc as separate backend boundaries", { concurrency: false }, async () => {

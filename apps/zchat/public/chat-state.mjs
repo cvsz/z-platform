@@ -10,6 +10,15 @@ const STORAGE_KEYS = {
   sessionStartedAt: "zchat.sessionStartedAt",
 };
 
+const IMPORT_LIMITS = Object.freeze({
+  maxMessages: 1000,
+  maxMessageCharacters: 1_000_000,
+  maxTotalCharacters: 5_000_000,
+  maxSystemPromptCharacters: 16_000,
+  maxTitleCharacters: 200,
+  maxModelCharacters: 200,
+});
+
 const DEFAULT_PROMPT_TEMPLATES = [
   {
     id: "summarize",
@@ -80,6 +89,7 @@ export function summarizeConversation(conversation) {
     preview,
     model: typeof conversation?.model === "string" ? conversation.model : "",
     systemPrompt: typeof conversation?.systemPrompt === "string" ? conversation.systemPrompt : "",
+    draft: typeof conversation?.draft === "string" ? conversation.draft : "",
     messageCount: messages.length,
     createdAt: toTimestamp(conversation?.createdAt),
     updatedAt: toTimestamp(conversation?.updatedAt),
@@ -105,6 +115,7 @@ export function createConversation(now = Date.now(), randomId = crypto.randomUUI
     title: typeof overrides.title === "string" && overrides.title.trim() ? overrides.title.trim() : "New chat",
     model: typeof overrides.model === "string" ? overrides.model : "",
     systemPrompt: typeof overrides.systemPrompt === "string" ? overrides.systemPrompt : "",
+    draft: typeof overrides.draft === "string" ? overrides.draft : "",
     messages: Array.isArray(overrides.messages) ? overrides.messages.map(normalizeMessage) : [],
     createdAt: toTimestamp(overrides.createdAt, now),
     updatedAt: toTimestamp(overrides.updatedAt, now),
@@ -147,6 +158,7 @@ function normalizeConversation(conversation, now = Date.now(), randomId = crypto
     title: conversation?.title,
     model: conversation?.model,
     systemPrompt: conversation?.systemPrompt,
+    draft: conversation?.draft,
     messages: conversation?.messages,
     createdAt: conversation?.createdAt,
     updatedAt: conversation?.updatedAt,
@@ -199,6 +211,7 @@ function materializeState(state, now = Date.now(), randomId = crypto.randomUUID)
   const activeSystemPrompt = typeof state?.systemPrompt === "string" && state.systemPrompt.trim()
     ? state.systemPrompt
     : activeConversation.systemPrompt;
+  const activeDraft = typeof state?.draft === "string" ? state.draft : activeConversation.draft;
   const activeMessages = !hadConversationRecords && Array.isArray(state?.messages) && state.messages.length
     ? legacyMessages
     : activeConversation.messages;
@@ -208,6 +221,7 @@ function materializeState(state, now = Date.now(), randomId = crypto.randomUUID)
       ...conversation,
       model: activeModel,
       systemPrompt: activeSystemPrompt,
+      draft: activeDraft,
       messages: activeMessages,
     };
   });
@@ -219,6 +233,7 @@ function materializeState(state, now = Date.now(), randomId = crypto.randomUUID)
     sessionStartedAt: typeof state?.sessionStartedAt === "string" && state.sessionStartedAt ? state.sessionStartedAt : String(now),
     model: activeModel,
     systemPrompt: activeSystemPrompt,
+    draft: activeDraft,
     messages: activeMessages,
     conversations: sortedConversations,
   };
@@ -286,13 +301,18 @@ export function updatePromptTemplate(templates, templateId, updates = {}, now = 
 
 function withActiveConversation(state, updater, now = Date.now(), randomId = crypto.randomUUID) {
   const normalized = materializeState(state, now, randomId);
+  let updatedActiveConversation;
   const nextConversations = normalized.conversations.map((conversation) => {
     if (conversation.id !== normalized.activeConversationId) return conversation;
-    return normalizeConversation(updater(conversation), now, randomId);
+    updatedActiveConversation = normalizeConversation(updater(conversation), now, randomId);
+    return updatedActiveConversation;
   });
 
   return materializeState({
     ...normalized,
+    model: updatedActiveConversation?.model ?? normalized.model,
+    systemPrompt: updatedActiveConversation?.systemPrompt ?? normalized.systemPrompt,
+    draft: updatedActiveConversation?.draft ?? normalized.draft,
     conversations: nextConversations,
   }, now, randomId);
 }
@@ -326,6 +346,7 @@ export function loadChatState(storage, now = Date.now(), randomId = crypto.rando
     return materializeState({
       activeConversationId: storage.getItem(STORAGE_KEYS.activeConversationId) || storage.getItem(STORAGE_KEYS.conversationId) || conversations[0]?.id,
       sessionStartedAt: storage.getItem(STORAGE_KEYS.sessionStartedAt) || String(now),
+      draft: undefined,
       conversations,
     }, now, randomId);
   }
@@ -363,7 +384,9 @@ export function selectConversation(state, conversationId, now = Date.now(), rand
   return materializeState({
     ...normalized,
     activeConversationId: selected.id,
+    model: selected.model,
     systemPrompt: selected.systemPrompt,
+    draft: selected.draft,
   }, now, randomId);
 }
 
@@ -407,6 +430,7 @@ export function clearActiveConversation(state, now = Date.now(), randomId = cryp
     ...conversation,
     title: "New chat",
     messages: [],
+    draft: "",
     updatedAt: now,
   }), now, randomId);
 }
@@ -435,6 +459,24 @@ export function setActiveSystemPrompt(state, systemPrompt, now = Date.now(), ran
   }), now, randomId);
 }
 
+export function setActiveDraft(state, draft, now = Date.now(), randomId = crypto.randomUUID) {
+  const normalizedDraft = typeof draft === "string" ? draft : "";
+  return withActiveConversation(state, (conversation) => ({
+    ...conversation,
+    draft: normalizedDraft,
+    updatedAt: now,
+  }), now, randomId);
+}
+
+export function setActiveModel(state, model, now = Date.now(), randomId = crypto.randomUUID) {
+  const normalizedModel = typeof model === "string" ? model : "";
+  return withActiveConversation(state, (conversation) => ({
+    ...conversation,
+    model: normalizedModel,
+    updatedAt: now,
+  }), now, randomId);
+}
+
 export function setActiveConversationTitle(state, title, now = Date.now(), randomId = crypto.randomUUID) {
   const normalizedTitle = normalizeText(title) || "New chat";
   return withActiveConversation(state, (conversation) => ({
@@ -458,6 +500,55 @@ export function replaceMessage(state, messageId, updates, now = Date.now(), rand
   }), now, randomId);
 }
 
+export function deleteMessage(state, messageId, now = Date.now(), randomId = crypto.randomUUID) {
+  return withActiveConversation(state, (conversation) => ({
+    ...conversation,
+    messages: conversation.messages.filter((message) => message.id !== messageId),
+    updatedAt: now,
+  }), now, randomId);
+}
+
+export function deleteConversation(state, conversationId, now = Date.now(), randomId = crypto.randomUUID) {
+  const normalized = materializeState(state, now, randomId);
+  const remaining = normalized.conversations.filter((conversation) => conversation.id !== conversationId);
+  if (remaining.length === normalized.conversations.length) return normalized;
+  if (!remaining.length) return createChatState(now, randomId);
+
+  const active = normalized.activeConversationId === conversationId ? remaining[0] : getActiveConversation(normalized);
+  return materializeState({
+    ...normalized,
+    activeConversationId: active.id,
+    model: active.model,
+    systemPrompt: active.systemPrompt,
+    draft: active.draft,
+    conversations: remaining,
+  }, now, randomId);
+}
+
+export function forkActiveConversation(state, throughMessageId, now = Date.now(), randomId = crypto.randomUUID) {
+  const normalized = materializeState(state, now, randomId);
+  const source = getActiveConversation(normalized);
+  const throughIndex = source.messages.findIndex((message) => message.id === throughMessageId);
+  if (throughIndex < 0) return normalized;
+
+  const branch = createConversation(now, randomId, {
+    title: `${source.title} (branch)`.slice(0, IMPORT_LIMITS.maxTitleCharacters),
+    model: source.model,
+    systemPrompt: source.systemPrompt,
+    messages: source.messages.slice(0, throughIndex + 1).map((message) => ({ ...message })),
+    createdAt: now,
+    updatedAt: now,
+  });
+  return materializeState({
+    ...normalized,
+    activeConversationId: branch.id,
+    model: branch.model,
+    systemPrompt: branch.systemPrompt,
+    draft: "",
+    conversations: [branch, ...normalized.conversations],
+  }, now, randomId);
+}
+
 export function lastUserMessage(messages) {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     if (messages[index]?.role === "user") {
@@ -475,6 +566,23 @@ export function conversationSummaries(state) {
   return materializeState(state).conversations.map((conversation) => summarizeConversation(conversation));
 }
 
+export function searchConversationSummaries(state, query) {
+  const summaries = conversationSummaries(state);
+  const terms = normalizeText(query).toLocaleLowerCase().split(" ").filter(Boolean);
+  if (!terms.length) return summaries;
+
+  return summaries.filter((summary) => {
+    const searchableText = [
+      summary.title,
+      summary.preview,
+      summary.model,
+      summary.systemPrompt,
+      ...summary.messages.map((message) => message?.content),
+    ].map(normalizeText).join(" ").toLocaleLowerCase();
+    return terms.every((term) => searchableText.includes(term));
+  });
+}
+
 function formatExportStamp(timestamp) {
   return new Date(timestamp).toISOString();
 }
@@ -482,6 +590,7 @@ function formatExportStamp(timestamp) {
 export function conversationToExportData(conversation) {
   const normalized = summarizeConversation(conversation);
   return {
+    schemaVersion: 1,
     id: normalized.id,
     title: normalized.title,
     model: normalized.model,
@@ -497,6 +606,70 @@ export function conversationToExportData(conversation) {
       error: Boolean(message.error),
     })),
   };
+}
+
+export function importConversation(state, input, now = Date.now(), randomId = crypto.randomUUID) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("Conversation import must be a JSON object");
+  }
+  if (input.schemaVersion !== undefined && input.schemaVersion !== 1) {
+    throw new Error("Unsupported conversation schema version");
+  }
+  if (!Array.isArray(input.messages) || input.messages.length > IMPORT_LIMITS.maxMessages) {
+    throw new Error(`Conversation import supports at most ${IMPORT_LIMITS.maxMessages} messages`);
+  }
+  const title = typeof input.title === "string" ? input.title.trim() : "";
+  const model = typeof input.model === "string" ? input.model.trim() : "";
+  const systemPrompt = typeof input.systemPrompt === "string" ? input.systemPrompt : "";
+  if (title.length > IMPORT_LIMITS.maxTitleCharacters) throw new Error("Conversation title is too long");
+  if (model.length > IMPORT_LIMITS.maxModelCharacters) throw new Error("Conversation model is too long");
+  if (systemPrompt.length > IMPORT_LIMITS.maxSystemPromptCharacters) throw new Error("System prompt is too long");
+
+  let totalCharacters = systemPrompt.length;
+  const messages = input.messages.map((message, index) => {
+    if (!message || typeof message !== "object" || Array.isArray(message)) {
+      throw new Error(`Message ${index + 1} must be an object`);
+    }
+    if (message.role !== "user" && message.role !== "assistant") {
+      throw new Error(`Message ${index + 1} has an unsupported role`);
+    }
+    if (typeof message.content !== "string") {
+      throw new Error(`Message ${index + 1} content must be a string`);
+    }
+    if (message.content.length > IMPORT_LIMITS.maxMessageCharacters) {
+      throw new Error(`Message ${index + 1} is too large`);
+    }
+    totalCharacters += message.content.length;
+    if (totalCharacters > IMPORT_LIMITS.maxTotalCharacters) {
+      throw new Error("Conversation import is too large");
+    }
+    return {
+      id: randomId(),
+      role: message.role,
+      content: message.content,
+      createdAt: toTimestamp(message.createdAt, now),
+      pending: false,
+      error: false,
+    };
+  });
+
+  const normalized = materializeState(state, now, randomId);
+  const imported = createConversation(now, randomId, {
+    title: title || "Imported chat",
+    model,
+    systemPrompt,
+    messages,
+    createdAt: toTimestamp(input.createdAt, now),
+    updatedAt: now,
+  });
+  return materializeState({
+    ...normalized,
+    activeConversationId: imported.id,
+    model: imported.model,
+    systemPrompt: imported.systemPrompt,
+    draft: "",
+    conversations: [imported, ...normalized.conversations],
+  }, now, randomId);
 }
 
 export function conversationToMarkdown(conversation) {
@@ -529,4 +702,4 @@ export function conversationToMarkdown(conversation) {
   return lines.join("\n").trimEnd() + "\n";
 }
 
-export { STORAGE_KEYS };
+export { IMPORT_LIMITS, STORAGE_KEYS };

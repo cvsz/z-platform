@@ -8,6 +8,7 @@ The `staging` environment must define:
 
 - Secret `PHASE6_EXTERNAL_SUITE_CONFIG_JSON`: completed configuration based on `docs/operations/phase6-external-suite.example.json`.
 - Optional secret `STAGING_BEARER_TOKEN`: bearer credential used by configured HTTPS probes and command verifiers.
+- Secrets `STAGING_CF_ACCESS_CLIENT_ID` and `STAGING_CF_ACCESS_CLIENT_SECRET`: Cloudflare Access service-token credentials used together for protected HTTPS probes.
 - Variable `STAGING_REVIEWER`: GitHub login of the accountable staging reviewer.
 - Secrets `ALERT_TEST_URL` and `ALERT_DELIVERY_STATUS_URL`.
 - Secrets `BACKUP_CREATE_COMMAND`, `BACKUP_RESTORE_COMMAND`, and `BACKUP_VERIFY_COMMAND`.

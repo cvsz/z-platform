@@ -44,7 +44,13 @@ async function runCommand(command, timeoutMs = 120000) {
   });
 }
 
-export async function httpProbe(check, token, origins = allowedOrigins()) {
+export async function httpProbe(
+  check,
+  token,
+  origins = allowedOrigins(),
+  accessClientId = process.env.STAGING_CF_ACCESS_CLIENT_ID,
+  accessClientSecret = process.env.STAGING_CF_ACCESS_CLIENT_SECRET,
+) {
   const url = new URL(check.url);
   assert(url.protocol === "https:", `${check.id} must use HTTPS`);
   assert(origins.has(url.origin), `${check.id} origin is not allowlisted`);
@@ -53,6 +59,10 @@ export async function httpProbe(check, token, origins = allowedOrigins()) {
   try {
     const headers = { Accept: check.accept ?? "application/json, text/plain, */*", ...(check.headers ?? {}) };
     if (token && check.useBearerToken !== false) headers.Authorization = `Bearer ${token}`;
+    if (accessClientId && accessClientSecret) {
+      headers["CF-Access-Client-Id"] = accessClientId;
+      headers["CF-Access-Client-Secret"] = accessClientSecret;
+    }
     const request = withJsonBody(headers, check.body);
     const response = await fetch(url, {
       method: check.method ?? "GET", headers: request.headers,
@@ -107,9 +117,12 @@ async function main() {
   const config = JSON.parse(await readFile(configPath, "utf8"));
   const releaseSha = process.env.RELEASE_SHA ?? "";
   const reviewer = process.env.STAGING_REVIEWER ?? "";
+  const accessClientId = process.env.STAGING_CF_ACCESS_CLIENT_ID ?? "";
+  const accessClientSecret = process.env.STAGING_CF_ACCESS_CLIENT_SECRET ?? "";
   assert(/^[0-9a-f]{40}$/.test(releaseSha), "RELEASE_SHA must be a full lowercase SHA");
   assert(config.releaseSha === releaseSha, "config releaseSha does not match RELEASE_SHA");
   assert(reviewer, "STAGING_REVIEWER is required");
+  assert(Boolean(accessClientId) === Boolean(accessClientSecret), "Cloudflare Access service-token credentials must be provided as a pair");
   assert(Array.isArray(config.checks), "checks must be an array");
   const ids = new Set(config.checks.map((check) => check.id));
   const missing = REQUIRED.filter((id) => !ids.has(id));
@@ -119,7 +132,13 @@ async function main() {
   for (const check of config.checks) {
     assert(REQUIRED.includes(check.id), `unknown check ${check.id}`);
     if (HUMAN.has(check.id)) results.push(humanCheck(check, reviewer));
-    else if (check.mode === "probe") results.push(await httpProbe(check, process.env.STAGING_BEARER_TOKEN));
+    else if (check.mode === "probe") results.push(await httpProbe(
+      check,
+      process.env.STAGING_BEARER_TOKEN,
+      allowedOrigins(),
+      accessClientId,
+      accessClientSecret,
+    ));
     else if (check.mode === "command") results.push(await commandCheck(check));
     else if (check.mode === "scan") results.push(await scanCheck(check));
     else if (check.mode === "attestation") {

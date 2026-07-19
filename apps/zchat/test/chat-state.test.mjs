@@ -13,6 +13,10 @@ import {
   createPromptTemplate,
   conversationToExportData,
   conversationToMarkdown,
+  deleteConversation,
+  deleteMessage,
+  forkActiveConversation,
+  importConversation,
   lastUserMessage,
   loadChatState,
   loadPromptTemplates,
@@ -21,10 +25,13 @@ import {
   loadThemeMode,
   removePromptTemplate,
   renameActiveConversation,
+  searchConversationSummaries,
   selectConversation,
   startNewConversation,
   setActiveSystemPrompt,
   setActiveConversationTitle,
+  setActiveDraft,
+  setActiveModel,
   persistThemeMode,
 } from "../public/chat-state.mjs";
 
@@ -112,10 +119,27 @@ test("conversation export helpers produce markdown and JSON-safe data", () => {
   assert.ok(markdown.includes("## Assistant"));
 
   const data = conversationToExportData(state);
+  assert.equal(data.schemaVersion, 1);
   assert.equal(data.id, "conversation-1");
   assert.equal(data.systemPrompt, "Be concise.");
   assert.equal(data.messages.length, 2);
   assert.equal(data.messages[0].role, "user");
+});
+
+test("conversation model and draft remain isolated when switching chats", () => {
+  let state = setActiveModel(createChatState(1700000000000, () => "conversation-1"), "gateway:model-a", 1700000000100);
+  state = setActiveDraft(state, "unfinished first prompt", 1700000000200);
+  state = startNewConversation(state, 1700000000300, () => "conversation-2");
+  state = setActiveModel(state, "gateway:model-b", 1700000000400);
+  state = setActiveDraft(state, "unfinished second prompt", 1700000000500);
+
+  const first = selectConversation(state, "conversation-1", 1700000000600);
+  assert.equal(first.model, "gateway:model-a");
+  assert.equal(first.draft, "unfinished first prompt");
+
+  const second = selectConversation(first, "conversation-2", 1700000000700);
+  assert.equal(second.model, "gateway:model-b");
+  assert.equal(second.draft, "unfinished second prompt");
 });
 
 test("createChatState seeds one conversation with matching active id", () => {
@@ -223,6 +247,82 @@ test("history helpers preserve selection and support new chat and clearing", () 
   assert.equal(cleared.activeConversationId, "conversation-1");
   assert.equal(cleared.messages.length, 0);
   assert.equal(activeConversationSummary(cleared).title, "New chat");
+});
+
+test("message deletion, conversation branching, and conversation deletion are immutable", () => {
+  const source = appendMessage(
+    appendMessage(
+      appendMessage(createChatState(1700000000000, () => "conversation-1"), { id: "m1", role: "user", content: "first" }, 1700000000100),
+      { id: "m2", role: "assistant", content: "second" },
+      1700000000200,
+    ),
+    { id: "m3", role: "user", content: "third" },
+    1700000000300,
+  );
+
+  const withoutMiddle = deleteMessage(source, "m2", 1700000000400);
+  assert.deepEqual(withoutMiddle.messages.map(({ id }) => id), ["m1", "m3"]);
+  assert.deepEqual(source.messages.map(({ id }) => id), ["m1", "m2", "m3"]);
+
+  const branched = forkActiveConversation(source, "m2", 1700000000500, () => "conversation-2");
+  assert.equal(branched.activeConversationId, "conversation-2");
+  assert.deepEqual(branched.messages.map(({ id }) => id), ["m1", "m2"]);
+  assert.equal(branched.conversations.length, 2);
+
+  const remaining = deleteConversation(branched, "conversation-2", 1700000000600, () => "unused");
+  assert.equal(remaining.activeConversationId, "conversation-1");
+  assert.equal(remaining.conversations.length, 1);
+
+  const reset = deleteConversation(remaining, "conversation-1", 1700000000700, () => "conversation-3");
+  assert.equal(reset.activeConversationId, "conversation-3");
+  assert.equal(reset.conversations.length, 1);
+});
+
+test("conversation import validates schema, limits, roles, and regenerates ids", () => {
+  let nextId = 0;
+  const randomId = () => `generated-${++nextId}`;
+  const initial = createChatState(1700000000000, randomId);
+  const imported = importConversation(initial, {
+    schemaVersion: 1,
+    id: "untrusted-conversation-id",
+    title: "Imported release review",
+    model: "gateway:safe-model",
+    systemPrompt: "Review release evidence.",
+    messages: [
+      { id: "untrusted-message-id", role: "user", content: "Check SHA", pending: true },
+      { role: "assistant", content: "Verified", error: true },
+    ],
+  }, 1700000000100, randomId);
+
+  assert.notEqual(imported.activeConversationId, "untrusted-conversation-id");
+  assert.deepEqual(imported.messages.map(({ role }) => role), ["user", "assistant"]);
+  assert.ok(imported.messages.every((message) => !message.pending && !message.error));
+  assert.ok(imported.messages.every((message) => message.id.startsWith("generated-")));
+  assert.equal(imported.model, "gateway:safe-model");
+
+  assert.throws(() => importConversation(initial, { schemaVersion: 2, messages: [] }), /Unsupported/);
+  assert.throws(() => importConversation(initial, { messages: [{ role: "system", content: "unsafe" }] }), /unsupported role/);
+  assert.throws(() => importConversation(initial, { messages: Array.from({ length: 1001 }, () => ({ role: "user", content: "x" })) }), /at most 1000/);
+  assert.throws(() => importConversation(initial, { messages: [{ role: "user", content: "x".repeat(1_000_001) }] }), /too large/);
+});
+
+test("conversation search matches all user-visible conversation fields", () => {
+  const first = appendMessage(
+    setActiveSystemPrompt(createChatState(1700000000000, () => "conversation-1"), "Act as a security reviewer."),
+    { id: "1", role: "user", content: "Inspect the payment gateway" },
+    1700000000100,
+  );
+  const second = startNewConversation(first, 1700000000200, () => "conversation-2");
+  const state = {
+    ...appendMessage(second, { id: "2", role: "assistant", content: "Deployment is healthy" }, 1700000000300),
+    model: "gemini:flash",
+  };
+
+  assert.deepEqual(searchConversationSummaries(state, "security payment").map(({ id }) => id), ["conversation-1"]);
+  assert.deepEqual(searchConversationSummaries(state, "deployment healthy").map(({ id }) => id), ["conversation-2"]);
+  assert.deepEqual(searchConversationSummaries(state, "GEMINI").map(({ id }) => id), ["conversation-2"]);
+  assert.deepEqual(searchConversationSummaries(state, "missing"), []);
+  assert.equal(searchConversationSummaries(state, "  ").length, 2);
 });
 
 test("setActiveSystemPrompt persists with the active conversation", () => {

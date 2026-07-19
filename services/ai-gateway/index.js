@@ -67,7 +67,10 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
 
   // Health & Metrics
   app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', service: 'ai-gateway' });
+    const releaseSha = /^[0-9a-f]{40}$/.test(process.env.Z_PLATFORM_RELEASE_SHA || '')
+      ? process.env.Z_PLATFORM_RELEASE_SHA
+      : 'unknown';
+    res.status(200).json({ status: 'ok', service: 'ai-gateway', release_sha: releaseSha });
   });
 
   app.get('/v1/models', requireAuth, (req, res) => {

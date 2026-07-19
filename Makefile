@@ -1,8 +1,10 @@
 .PHONY: all setup install build test lint typecheck clean start stop restart update upgrade updgrade status logs k8s-validate k3s-validate cilium-preflight cilium-prepare cilium-install \
-	phase6-start phase6-stop phase6-restart phase6-update gpg-commit gpg-push gpg-pull gpg-finalize
+	phase6-start phase6-stop phase6-restart phase6-update token-verify token-rotate-dry token-rotate token-clean-dry token-clean token-bootstrap-roll token-legacy-scrub gpg-commit gpg-push gpg-pull gpg-finalize
 
 STACK ?= compose.yml
 COMPOSE = docker compose -f $(STACK)
+TOKEN_ROTATE_TYPES ?= dns,zt,workers,pages,tunnel
+TOKEN_ROTATE_OUT ?= .env.cloudflare
 
 # Default to running the full validation pipeline
 all: install lint typecheck build test
@@ -107,6 +109,39 @@ phase6-restart:
 
 phase6-update:
 	$(MAKE) update STACK=docker-compose.phase6.yml
+
+# ==========================================
+# Cloudflare Scoped Token Lifecycle
+# ==========================================
+
+token-verify:
+	bash scripts/cloudflare/verify-token-env.sh
+
+token-rotate-dry:
+	bash scripts/cloudflare/rotate-tokens-with-permission-preflight.sh \
+		--regenerate --types "$(TOKEN_ROTATE_TYPES)" --write "$(TOKEN_ROTATE_OUT)" \
+		--backup --dry-run
+
+token-rotate:
+	@test "$(TOKEN_ROTATE_CONFIRM)" = "YES" || { echo "ERROR: set TOKEN_ROTATE_CONFIRM=YES after reviewing token-rotate-dry"; exit 2; }
+	bash scripts/cloudflare/rotate-tokens-with-permission-preflight.sh \
+		--regenerate --types "$(TOKEN_ROTATE_TYPES)" --write "$(TOKEN_ROTATE_OUT)" \
+		--backup --yes
+
+token-clean-dry:
+	bash scripts/cloudflare/run-token-rotation.sh --keep-most 1 --unused-days 30 --backup --dry-run
+
+token-clean:
+	@test "$(TOKEN_CLEAN_CONFIRM)" = "YES" || { echo "ERROR: set TOKEN_CLEAN_CONFIRM=YES after reviewing token-clean-dry"; exit 2; }
+	bash scripts/cloudflare/run-token-rotation.sh --keep-most 1 --unused-days 30 --backup --yes
+
+token-bootstrap-roll:
+	@test "$(TOKEN_BOOTSTRAP_ROLL_CONFIRM)" = "YES" || { echo "ERROR: set TOKEN_BOOTSTRAP_ROLL_CONFIRM=YES to roll the active bootstrap token"; exit 2; }
+	CONFIRM_BOOTSTRAP_ROLL=YES bash scripts/cloudflare/roll-bootstrap-token.sh
+
+token-legacy-scrub:
+	@test "$(TOKEN_LEGACY_SCRUB_CONFIRM)" = "YES" || { echo "ERROR: set TOKEN_LEGACY_SCRUB_CONFIRM=YES to remove deprecated local credentials"; exit 2; }
+	CONFIRM_LEGACY_SCRUB=YES bash scripts/cloudflare/scrub-legacy-credentials.sh
 
 # ==========================================
 # Git GPG Workflows

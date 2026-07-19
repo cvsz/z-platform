@@ -31,13 +31,14 @@ resource "cloudflare_zero_trust_access_application" "free_mode" {
         }]
       )
       mfa_config = {
-        mfa_disabled = !var.free_access_require_mfa
+        mfa_disabled     = !var.free_access_require_mfa
+        session_duration = var.free_access_session_duration
       }
     }],
-    [for token_id in var.free_access_service_token_ids : {
-      name       = "z-platform ${each.key} service auth"
+    [for index, token_id in var.free_access_service_token_ids : {
+      name       = index == 0 ? "z-platform ${each.key} service auth" : "z-platform ${each.key} service auth ${index + 1}"
       decision   = "non_identity"
-      precedence = 10
+      precedence = 10 + index
       include = [{
         service_token = { token_id = token_id }
       }]

@@ -19,14 +19,15 @@ test("CodeQL workflow loads the repository config file", () => {
 
 test("CodeQL workflow provisions language toolchains before init", () => {
   const initIndex = workflow.indexOf("github/codeql-action/init@v4");
+  const pnpmSetupIndex = workflow.indexOf("pnpm/action-setup@");
   assert.ok(initIndex > 0);
   assert.ok(workflow.indexOf("actions/setup-node@v5") < initIndex);
-  assert.ok(workflow.indexOf("pnpm/action-setup@v4") < initIndex);
+  assert.ok(pnpmSetupIndex > 0 && pnpmSetupIndex < initIndex);
   assert.ok(workflow.indexOf("actions/setup-go@v6") < initIndex);
   assert.ok(workflow.indexOf("actions/setup-python@v6") < initIndex);
   assert.match(workflow, /actions\/setup-node@v5/);
   assert.match(workflow, /node-version:\s*24/);
-  assert.match(workflow, /pnpm\/action-setup@v4/);
+  assert.match(workflow, /pnpm\/action-setup@[0-9a-f]{40}\s*# v4/);
   assert.match(workflow, /pnpm install --ignore-scripts --frozen-lockfile/);
   assert.match(workflow, /actions\/setup-go@v6/);
   assert.match(workflow, /go-version-file:\s*tools\/zctl\/go\.mod/);
