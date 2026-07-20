@@ -230,7 +230,7 @@ jobs:
           retention-days: 90
 
       - name: Attest evidence
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: phase6-external-evidence/phase6-external-evidence.json
 
