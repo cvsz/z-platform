@@ -79,7 +79,7 @@ jobs:
 
     - name: Setup Go for Go analysis
       if: matrix.language == 'go'
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version-file: tools/zctl/go.mod
 
