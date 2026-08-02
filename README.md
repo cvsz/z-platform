@@ -34,6 +34,20 @@ Provider and model allowlists are tracked explicitly. Secrets, payment credentia
 - [Migration manifest](docs/migration/manifest.md)
 - [Full execution plan](docs/migration/execution-plan.md)
 
+## Local realtime voice
+
+The optional voice stack adds a browser voice surface, short-lived WebSocket ticket gateway, and a local Hugging Face speech pipeline while preserving the AI Gateway as the single LLM policy boundary.
+
+```text
+Browser -> apps/zvoice -> services/voice-gateway -> services/voice-agent
+                                                  -> services/ai-gateway
+                                                     -> Ollama / llama.cpp / vLLM
+```
+
+- [Voice architecture](docs/architecture/voice-agent.md)
+- [Voice operations runbook](docs/operations/voice-agent.md)
+- [Voice Compose overlay](compose.voice.yml)
+
 ## Security
 
 No secrets, payment credentials, wallet keys, MPC shares, Cloudflare tokens, or provider API keys may be committed. See [SECURITY.md](SECURITY.md).

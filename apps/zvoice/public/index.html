@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>ZVoice — Local Realtime Voice Agent</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Z Platform · Local Voice</p>
+        <h1>Realtime voice agent</h1>
+        <p class="lede">Local VAD, speech recognition and speech synthesis, with LLM traffic governed by the Z Platform AI Gateway.</p>
+      </div>
+      <div class="privacy">Audio is streamed to your configured local runtime. Browser credentials never include provider or platform service keys.</div>
+    </header>
+
+    <section class="panel" aria-labelledby="session-heading">
+      <div class="panel__header">
+        <div>
+          <h2 id="session-heading">Voice session</h2>
+          <p>Use headphones for the best interruption and echo-cancellation behavior.</p>
+        </div>
+        <span id="voice-state" class="badge" data-tone="idle">Disconnected</span>
+      </div>
+
+      <div class="grid">
+        <label>
+          <span>Model</span>
+          <input id="model" value="Configured by the server" readonly aria-readonly="true">
+        </label>
+        <label class="grid__wide">
+          <span>Instructions</span>
+          <textarea id="instructions" rows="4">You are a concise, helpful voice assistant. Reply in the user's language.</textarea>
+        </label>
+      </div>
+
+      <div class="controls">
+        <button id="start" type="button">Start voice</button>
+        <button id="mute" type="button" disabled>Mute</button>
+        <button id="cancel" type="button" disabled>Cancel response</button>
+        <button id="stop" class="danger" type="button" disabled>Stop</button>
+      </div>
+
+      <p id="status" class="status" role="status" aria-live="polite">Ready to request microphone access.</p>
+    </section>
+
+    <section class="panel transcript-panel" aria-labelledby="transcript-heading">
+      <div class="panel__header">
+        <div>
+          <h2 id="transcript-heading">Live transcript</h2>
+          <p>Transcripts remain in this page and are cleared when it reloads.</p>
+        </div>
+        <button id="clear" class="secondary" type="button">Clear</button>
+      </div>
+      <ol id="transcript" class="transcript" aria-live="polite"></ol>
+      <div id="empty" class="empty">Start a session and speak naturally.</div>
+    </section>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
