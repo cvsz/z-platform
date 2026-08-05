@@ -17,7 +17,7 @@ WORKDIR /app
 
 COPY services/ai-gateway/package.json services/ai-gateway/package-lock.json ./
 RUN npm install --package-lock-only --ignore-scripts --no-audit --no-fund \
-    && npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+    && npm ci --omit=dev --no-audit --ignore-scripts --no-fund
 COPY services/ai-gateway/ ./
 
 RUN addgroup -S zplatform && adduser -S -G zplatform zplatform \
