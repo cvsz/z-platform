@@ -38,6 +38,8 @@ jobs:
         with: { node-version: "22.16.0" }
       - uses: pnpm/action-setup@v4
         with: { version: "11.4.0" }
+      - name: Assemble and validate website
+        run: pnpm --dir apps/zeaz-web build
       - name: Validate required secrets
         shell: bash
         run: |
