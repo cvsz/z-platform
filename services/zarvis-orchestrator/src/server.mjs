@@ -1,5 +1,5 @@
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
   UnsupportedIntentError,
@@ -8,7 +8,41 @@ import {
 import { GitHubStatusToolError } from './github-status-tool.mjs';
 import { AVAILABLE_TOOLS, ZarvisOrchestrator } from './orchestrator.mjs';
 
+export const ZARVIS_OWNER_GITHUB_ID = '4076926';
+
 const MAX_BODY_BYTES = 32 * 1024;
+const MIN_SECRET_BYTES = 32;
+
+class OwnerAccessError extends Error {
+  constructor() {
+    super('This private Z.A.R.V.I.S. instance is restricted to its owner.');
+    this.name = 'OwnerAccessError';
+    this.code = 'owner_access_denied';
+    this.status = 403;
+  }
+}
+
+function requireSecret(value, name) {
+  if (typeof value !== 'string' || Buffer.byteLength(value.trim()) < MIN_SECRET_BYTES) {
+    throw new Error(`${name} must contain at least ${MIN_SECRET_BYTES} bytes.`);
+  }
+  return value.trim();
+}
+
+function secretsMatch(actual, expected) {
+  if (typeof actual !== 'string') return false;
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function assertOwnerServiceRequest(request, serviceToken) {
+  const ownerId = request.headers['x-zarvis-owner-id']?.toString();
+  const presentedToken = request.headers['x-zarvis-service-token']?.toString();
+  if (ownerId !== ZARVIS_OWNER_GITHUB_ID || !secretsMatch(presentedToken, serviceToken)) {
+    throw new OwnerAccessError();
+  }
+}
 
 function writeJson(response, statusCode, payload) {
   const body = JSON.stringify(payload);
@@ -39,9 +73,7 @@ async function readJsonBody(request) {
     chunks.push(chunk);
   }
 
-  if (chunks.length === 0) {
-    throw new ValidationError('Request body is required.');
-  }
+  if (chunks.length === 0) throw new ValidationError('Request body is required.');
 
   try {
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -58,8 +90,14 @@ export function createStdoutAuditSink({ logger = console } = {}) {
 
 export function createZarvisServer({
   orchestrator = new ZarvisOrchestrator({ auditSink: createStdoutAuditSink() }),
+  serviceToken = process.env.ZARVIS_ORCHESTRATOR_SERVICE_TOKEN,
   logger = console,
 } = {}) {
+  const trustedServiceToken = requireSecret(
+    serviceToken,
+    'ZARVIS_ORCHESTRATOR_SERVICE_TOKEN',
+  );
+
   return createServer(async (request, response) => {
     const requestId = request.headers['x-request-id']?.toString().slice(0, 160) || randomUUID();
     response.setHeader('X-Request-Id', requestId);
@@ -76,6 +114,8 @@ export function createZarvisServer({
         return;
       }
 
+      assertOwnerServiceRequest(request, trustedServiceToken);
+
       if (request.method === 'GET' && url.pathname === '/v1/tools') {
         writeJson(response, 200, { tools: AVAILABLE_TOOLS });
         return;
@@ -85,8 +125,8 @@ export function createZarvisServer({
         const command = await readJsonBody(request);
         const result = await orchestrator.execute(command, {
           requestId,
-          tenantId: request.headers['x-tenant-id']?.toString() || 'anonymous',
-          userId: request.headers['x-user-id']?.toString() || 'anonymous',
+          tenantId: `owner-${ZARVIS_OWNER_GITHUB_ID}`,
+          userId: `github:${ZARVIS_OWNER_GITHUB_ID}`,
         });
         writeJson(response, 200, result);
         return;
@@ -105,7 +145,7 @@ export function createZarvisServer({
         statusCode = error.status ?? 400;
       } else if (error instanceof UnsupportedIntentError) {
         statusCode = 422;
-      } else if (error instanceof GitHubStatusToolError) {
+      } else if (error instanceof GitHubStatusToolError || error instanceof OwnerAccessError) {
         statusCode = error.status;
       }
 
