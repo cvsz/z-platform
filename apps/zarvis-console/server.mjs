@@ -1,18 +1,41 @@
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+
+export const ZARVIS_OWNER_GITHUB_ID = '4076926';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
 const MAX_BODY_BYTES = 32 * 1024;
+const MIN_SECRET_BYTES = 32;
 const STATIC_FILES = new Set(['/index.html', '/app.js', '/styles.css']);
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
 };
+
+function requireSecret(value, name) {
+  if (typeof value !== 'string' || Buffer.byteLength(value.trim()) < MIN_SECRET_BYTES) {
+    throw new Error(`${name} must contain at least ${MIN_SECRET_BYTES} bytes.`);
+  }
+  return value.trim();
+}
+
+function secretsMatch(actual, expected) {
+  if (typeof actual !== 'string') return false;
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function isOwnerRequest(request, edgeSharedSecret) {
+  const ownerId = request.headers['x-zarvis-owner-id']?.toString();
+  const edgeSecret = request.headers['x-zarvis-edge-secret']?.toString();
+  return ownerId === ZARVIS_OWNER_GITHUB_ID && secretsMatch(edgeSecret, edgeSharedSecret);
+}
 
 function writeJson(response, statusCode, payload) {
   const body = JSON.stringify(payload);
@@ -42,16 +65,14 @@ async function readBody(request) {
 
 async function serveStatic(pathname, response) {
   const normalized = pathname === '/' ? '/index.html' : pathname;
-  if (!STATIC_FILES.has(normalized)) {
-    return false;
-  }
+  if (!STATIC_FILES.has(normalized)) return false;
 
   const path = join(PUBLIC_DIR, normalized.slice(1));
   const fileStat = await stat(path);
   response.writeHead(200, {
     'Content-Type': CONTENT_TYPES[extname(path)] ?? 'application/octet-stream',
     'Content-Length': fileStat.size,
-    'Cache-Control': normalized === '/index.html' ? 'no-store' : 'public, max-age=300',
+    'Cache-Control': normalized === '/index.html' ? 'no-store' : 'private, max-age=300',
     'Content-Security-Policy': "default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
     'Referrer-Policy': 'no-referrer',
     'X-Content-Type-Options': 'nosniff',
@@ -63,9 +84,16 @@ async function serveStatic(pathname, response) {
 
 export function createZarvisConsoleServer({
   orchestratorUrl = process.env.ZARVIS_ORCHESTRATOR_URL ?? 'http://127.0.0.1:8094',
+  edgeSharedSecret = process.env.ZARVIS_EDGE_SHARED_SECRET,
+  orchestratorServiceToken = process.env.ZARVIS_ORCHESTRATOR_SERVICE_TOKEN,
   fetchImpl = globalThis.fetch,
   logger = console,
 } = {}) {
+  const edgeSecret = requireSecret(edgeSharedSecret, 'ZARVIS_EDGE_SHARED_SECRET');
+  const serviceToken = requireSecret(
+    orchestratorServiceToken,
+    'ZARVIS_ORCHESTRATOR_SERVICE_TOKEN',
+  );
   const upstream = new URL('/v1/commands', orchestratorUrl);
 
   if (!['http:', 'https:'].includes(upstream.protocol)) {
@@ -84,6 +112,17 @@ export function createZarvisConsoleServer({
         return;
       }
 
+      if (!isOwnerRequest(request, edgeSecret)) {
+        writeJson(response, 403, {
+          error: {
+            code: 'owner_access_denied',
+            message: 'This private Z.A.R.V.I.S. instance is restricted to its owner.',
+            request_id: requestId,
+          },
+        });
+        return;
+      }
+
       if (request.method === 'POST' && url.pathname === '/api/command') {
         const contentType = request.headers['content-type'] ?? '';
         if (!contentType.toLowerCase().startsWith('application/json')) {
@@ -99,8 +138,10 @@ export function createZarvisConsoleServer({
           headers: {
             'content-type': 'application/json',
             'x-request-id': requestId,
-            ...(request.headers['x-tenant-id'] ? { 'x-tenant-id': request.headers['x-tenant-id'] } : {}),
-            ...(request.headers['x-user-id'] ? { 'x-user-id': request.headers['x-user-id'] } : {}),
+            'x-zarvis-owner-id': ZARVIS_OWNER_GITHUB_ID,
+            'x-zarvis-service-token': serviceToken,
+            'x-tenant-id': `owner-${ZARVIS_OWNER_GITHUB_ID}`,
+            'x-user-id': `github:${ZARVIS_OWNER_GITHUB_ID}`,
           },
           body,
           redirect: 'error',
@@ -117,9 +158,7 @@ export function createZarvisConsoleServer({
         return;
       }
 
-      if (request.method === 'GET' && await serveStatic(url.pathname, response)) {
-        return;
-      }
+      if (request.method === 'GET' && await serveStatic(url.pathname, response)) return;
 
       writeJson(response, 404, {
         error: { code: 'route_not_found', message: 'Route not found.', request_id: requestId },
