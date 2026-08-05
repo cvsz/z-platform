@@ -15,7 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
-        with: { node-version: "22.16.0" }
+        with:
+          node-version: "22.16.0"
+          package-manager-cache: false
       - uses: pnpm/action-setup@v4
         with: { version: "11.4.0" }
       - run: pnpm --dir apps/zeaz-web build
@@ -35,7 +37,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
-        with: { node-version: "22.16.0" }
+        with:
+          node-version: "22.16.0"
+          package-manager-cache: false
       - uses: pnpm/action-setup@v4
         with: { version: "11.4.0" }
       - name: Assemble and validate website
