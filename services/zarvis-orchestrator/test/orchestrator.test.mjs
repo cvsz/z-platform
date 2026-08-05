@@ -11,7 +11,12 @@ import {
   GitHubStatusToolError,
 } from '../src/github-status-tool.mjs';
 import { ZarvisOrchestrator } from '../src/orchestrator.mjs';
-import { createZarvisServer } from '../src/server.mjs';
+import {
+  createZarvisServer,
+  ZARVIS_OWNER_GITHUB_ID,
+} from '../src/server.mjs';
+
+const SERVICE_TOKEN = 'service-token-0123456789-0123456789';
 
 const repositoryPayload = {
   full_name: 'cvsz/z-platform',
@@ -132,14 +137,41 @@ test('GitHub adapter maps not-found responses without leaking upstream bodies', 
   );
 });
 
-test('HTTP service executes the first vertical slice', async (t) => {
+test('HTTP service fails closed when the console service token is absent', () => {
+  assert.throws(
+    () => createZarvisServer({ serviceToken: undefined }),
+    /ZARVIS_ORCHESTRATOR_SERVICE_TOKEN/,
+  );
+});
+
+test('HTTP service rejects requests without the owner service identity', async (t) => {
+  const server = createZarvisServer({
+    serviceToken: SERVICE_TOKEN,
+    logger: { info() {}, error() {} },
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => server.close());
+
+  const address = server.address();
+  const response = await fetch(`http://127.0.0.1:${address.port}/v1/tools`);
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).error.code, 'owner_access_denied');
+});
+
+test('HTTP service executes the first vertical slice as the immutable owner', async (t) => {
+  const audits = [];
   const orchestrator = new ZarvisOrchestrator({
     githubStatusExecutor: async () => repositoryPayload,
-    auditSink: async () => {},
+    auditSink: async (event) => audits.push(event),
     now: () => new Date('2026-08-06T00:30:00Z'),
     idFactory: () => 'event-1',
   });
-  const server = createZarvisServer({ orchestrator, logger: { info() {}, error() {} } });
+  const server = createZarvisServer({
+    orchestrator,
+    serviceToken: SERVICE_TOKEN,
+    logger: { info() {}, error() {} },
+  });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => server.close());
@@ -149,8 +181,10 @@ test('HTTP service executes the first vertical slice', async (t) => {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-tenant-id': 'tenant-1',
-      'x-user-id': 'user-1',
+      'x-zarvis-owner-id': ZARVIS_OWNER_GITHUB_ID,
+      'x-zarvis-service-token': SERVICE_TOKEN,
+      'x-tenant-id': 'attacker',
+      'x-user-id': 'attacker',
     },
     body: JSON.stringify(command()),
   });
@@ -159,4 +193,6 @@ test('HTTP service executes the first vertical slice', async (t) => {
   const body = await response.json();
   assert.equal(body.schema_version, 'zarvis.command.completed.v1');
   assert.equal(body.result.default_branch, 'main');
+  assert.equal(audits[0].tenant_id, `owner-${ZARVIS_OWNER_GITHUB_ID}`);
+  assert.equal(audits[0].user_id, `github:${ZARVIS_OWNER_GITHUB_ID}`);
 });
