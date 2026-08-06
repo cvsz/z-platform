@@ -1,6 +1,6 @@
 # Z.A.R.V.I.S. Contracts
 
-Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session, task, and approval boundaries.
+Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session, task, approval, memory, and privacy boundaries.
 
 ## Schemas
 
@@ -11,6 +11,9 @@ Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session
 - `schemas/zarvis.task.requested.v1.schema.json`
 - `schemas/zarvis.task.approval.v1.schema.json`
 - `schemas/zarvis.task.snapshot.v1.schema.json`
+- `schemas/zarvis.memory.proposal.v1.schema.json`
+- `schemas/zarvis.memory.snapshot.v1.schema.json`
+- `schemas/zarvis.memory.export.v1.schema.json`
 
 ## Command and session rules
 
@@ -33,4 +36,18 @@ Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session
 - Approval requires the exact SHA-256 plan digest and one-time nonce before expiry.
 - The worker checks approval expiry again before any tool call.
 - Pause, resume, cancel, retry, checkpoint, and terminal state transitions are versioned and audited.
-- Mutating tools require later capability, preview, approval, execution, and rollback contracts; they cannot be enabled by reinterpreting these schemas.
+
+## Memory and privacy rules
+
+- Memory identity is permanently `github:4076926` in tenant `owner-4076926`.
+- A proposal is not retrievable memory and cannot affect assistant behavior before confirmation.
+- Proposal approval binds content, classification, reason, confidence, retention, expiry, provenance, memory ID, and revision.
+- Corrections create a higher revision through the same proposal and confirmation path.
+- Working, episodic, semantic, and procedural memories have bounded classification-specific retention.
+- Raw credentials, private keys, tokens, passwords, and payment-card-like data are rejected.
+- Active memory snapshots always include provenance and owner identity.
+- Export is versioned and contains active non-expired memories only.
+- Delete physically compacts every encrypted proposal and revision for the memory; the local adapter has no persisted plaintext search derivative.
+- Expired memories are excluded from retrieval immediately and physically purged by a separately authenticated worker.
+
+Mutating tools require later capability, preview, approval, execution, and rollback contracts; they cannot be enabled by reinterpreting any command, task, or memory schema.
