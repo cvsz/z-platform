@@ -52,7 +52,9 @@ zarvis-owner-domain-bundle/zarvis-owner-domain-windows.zip
 ```
 
 The setup script prefers the server's Tailscale IPv4 address when available.
-Use `--server-host` to override it.
+Use `--server-host` to override it. The live wrapper passes the actual Linux
+UID/GID into Compose so nginx runs as the owner and can read the private key
+without widening its `0600` permissions.
 
 ## Install on the owner's Windows 11 machine
 
@@ -77,6 +79,8 @@ The installer:
 ## Rotate the private CA
 
 ```bash
+ZARVIS_OWNER_UID="$(id -u)" \
+ZARVIS_OWNER_GID="$(id -g)" \
 bash scripts/zarvis-owner-domain-setup.sh --rotate-ca
 ```
 
