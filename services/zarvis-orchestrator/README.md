@@ -28,12 +28,15 @@ The browser never receives `GITHUB_TOKEN`, the edge secret, or the service token
 
 The default single-owner deployment uses `FileSessionStore`:
 
-- append-only JSONL session events under `${ZARVIS_DATA_DIR}/sessions`;
-- per-command result envelopes under `${ZARVIS_DATA_DIR}/commands`;
-- file and directory modes restricted to the service account;
-- `command_id` idempotency with SHA-256 payload fingerprinting;
-- `409 idempotency_conflict` when the same `command_id` is reused with different content;
-- session history view and explicit confirmation-gated deletion.
+- fixed `${ZARVIS_DATA_DIR}/session-events.jsonl` journal for append-only session transitions;
+- fixed `${ZARVIS_DATA_DIR}/command-results.jsonl` journal for idempotency result envelopes;
+- request/session/command identifiers never influence filesystem paths;
+- all writes and privacy compaction are serialized through one in-process lock;
+- file and directory modes are restricted to the service account;
+- `command_id` idempotency uses a SHA-256 payload fingerprint;
+- `409 idempotency_conflict` is returned when the same `command_id` is reused with different content;
+- session history view and explicit confirmation-gated deletion are available to the owner;
+- deletion atomically compacts both journals and removes all records associated with the session.
 
 The storage contract is an adapter boundary. A later PostgreSQL/outbox implementation can replace the file adapter without changing the HTTP or orchestrator contracts.
 
