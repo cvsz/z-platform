@@ -38,6 +38,23 @@ function safeResultEnvelope(value) {
   return value;
 }
 
+async function sessionFileExists(path) {
+  try {
+    await stat(path);
+    return true;
+  } catch (error) {
+    if (isNotFound(error)) return false;
+    throw error;
+  }
+}
+
+function createSessionReader(path) {
+  return createInterface({
+    input: createReadStream(path, { encoding: 'utf8' }),
+    crlfDelay: Infinity,
+  });
+}
+
 export class FileSessionStore {
   constructor({ rootDir = process.env.ZARVIS_DATA_DIR ?? './data/zarvis' } = {}) {
     this.rootDir = resolve(rootDir);
@@ -134,22 +151,12 @@ export class FileSessionStore {
     }
 
     const path = this.sessionPath(normalizedSessionId);
-    try {
-      await stat(path);
-    } catch (error) {
-      if (isNotFound(error)) {
-        return { session_id: normalizedSessionId, events: [] };
-      }
-      throw error;
+    if (!await sessionFileExists(path)) {
+      return { session_id: normalizedSessionId, events: [] };
     }
 
     const events = [];
-    const reader = createInterface({
-      input: createReadStream(path, { encoding: 'utf8' }),
-      crlfDelay: Infinity,
-    });
-
-    for await (const line of reader) {
+    for await (const line of createSessionReader(path)) {
       if (!line.trim()) continue;
       const event = JSON.parse(line);
       events.push(event);
@@ -159,10 +166,22 @@ export class FileSessionStore {
     return { session_id: normalizedSessionId, events };
   }
 
+  async collectCommandIds(sessionId) {
+    const path = this.sessionPath(sessionId);
+    if (!await sessionFileExists(path)) return new Set();
+
+    const commandIds = new Set();
+    for await (const line of createSessionReader(path)) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      if (event?.command_id) commandIds.add(normalizeCommandId(event.command_id));
+    }
+    return commandIds;
+  }
+
   async deleteSession(sessionId) {
     const normalizedSessionId = normalizeSessionId(sessionId);
-    const snapshot = await this.readSession(normalizedSessionId, { limit: 500 });
-    const commandIds = new Set(snapshot.events.map((event) => event.command_id).filter(Boolean));
+    const commandIds = await this.collectCommandIds(normalizedSessionId);
 
     let sessionDeleted = false;
     try {
@@ -212,13 +231,17 @@ export function createMemorySessionStore() {
     },
     async readSession(sessionId, { limit = 100 } = {}) {
       const id = normalizeSessionId(sessionId);
+      const normalizedLimit = Number(limit);
+      if (!Number.isInteger(normalizedLimit) || normalizedLimit < 1 || normalizedLimit > 500) {
+        throw new Error('Session event limit must be an integer between 1 and 500.');
+      }
       const events = sessions.get(id) ?? [];
-      return { session_id: id, events: structuredClone(events.slice(-limit)) };
+      return { session_id: id, events: structuredClone(events.slice(-normalizedLimit)) };
     },
     async deleteSession(sessionId) {
       const id = normalizeSessionId(sessionId);
       const events = sessions.get(id) ?? [];
-      const commandIds = new Set(events.map((event) => event.command_id));
+      const commandIds = new Set(events.map((event) => event.command_id).filter(Boolean));
       const deleted = sessions.delete(id);
       let commandResultsDeleted = 0;
       for (const commandId of commandIds) {
