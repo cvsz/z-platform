@@ -13,6 +13,10 @@ const schemaPaths = [
   new URL('../schemas/zarvis.memory.proposal.v1.schema.json', import.meta.url),
   new URL('../schemas/zarvis.memory.snapshot.v1.schema.json', import.meta.url),
   new URL('../schemas/zarvis.memory.export.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.action.preview.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.action.approval.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.action.result.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.action.rollback.v1.schema.json', import.meta.url),
 ];
 
 test('ZARVIS schemas are valid JSON Schema documents with unique identifiers', async () => {
@@ -82,4 +86,28 @@ test('memory snapshot and export schemas are permanently owner-bound', async () 
   assert.equal(snapshot.properties.tenant_id.const, 'owner-4076926');
   assert.equal(exported.properties.owner_user_id.const, 'github:4076926');
   assert.equal(exported.properties.tenant_id.const, 'owner-4076926');
+});
+
+test('local action preview is owner-bound, reversible, and allowlisted', async () => {
+  const preview = JSON.parse(await readFile(schemaPaths[10], 'utf8'));
+  assert.equal(preview.properties.capability.const, 'sandbox.preference.set');
+  assert.equal(preview.properties.owner_user_id.const, 'github:4076926');
+  assert.equal(preview.properties.tenant_id.const, 'owner-4076926');
+  assert.equal(preview.properties.status.const, 'pending_approval');
+});
+
+test('local action approval and rollback require SHA-256 proof plus nonce', async () => {
+  for (const index of [11, 13]) {
+    const schema = JSON.parse(await readFile(schemaPaths[index], 'utf8'));
+    const digestProperty = index === 11 ? 'approval_digest' : 'rollback_digest';
+    assert.equal(schema.properties[digestProperty].pattern, '^[a-f0-9]{64}$');
+  }
+});
+
+test('local action result exposes rollback proof and immutable owner identity', async () => {
+  const result = JSON.parse(await readFile(schemaPaths[12], 'utf8'));
+  assert.equal(result.properties.status.const, 'executed');
+  assert.equal(result.properties.owner_user_id.const, 'github:4076926');
+  assert.ok(result.required.includes('rollback_digest'));
+  assert.ok(result.required.includes('rollback_nonce'));
 });

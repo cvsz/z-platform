@@ -6,7 +6,7 @@ Epic: #148
 |---|---|---|---|
 | Typed text command | Implemented | `apps/zarvis-console/public/app.js` | Same-origin owner-only JSON proxy |
 | Browser push-to-start transcript | Implemented | `apps/zarvis-console/public/app.js` | No continuous listening |
-| Realtime ZVoice transcript bridge | Implemented | `apps/zvoice/server.mjs`, `apps/zvoice/public/app.js` | Edge assertion; fixed owner identity; no browser secret |
+| Realtime ZVoice transcript bridge | Implemented | `apps/zvoice/server.mjs`, `apps/zvoice/public/app.js` | Fixed owner identity; no provider secret in browser |
 | Intent routing for GitHub repository status | Implemented | `services/zarvis-orchestrator/src/contracts.mjs` | Deterministic constrained parser |
 | Read-only GitHub status tool | Implemented | `services/zarvis-orchestrator/src/github-status-tool.mjs` | GET-only fixed host; no redirects |
 | Speech-ready Thai/English response | Implemented | `services/zarvis-orchestrator/src/orchestrator.mjs` | Generated from normalized fields |
@@ -26,8 +26,17 @@ Epic: #148
 | Memory correction/export/delete | Implemented | Privacy console and memory APIs | Versioned correction; owner export; journal compaction deletion |
 | Secret-safe memory policy | Implemented | `assertMemorySafe` and tests | Raw credentials, private keys, tokens, and card-like data rejected |
 | Memory retention purge | Implemented | Authenticated memory worker | Expired hidden immediately and physically compacted |
-| Mutating tool execution | Blocked | Closed task tool registry | Phase 5 requires new capability contracts and security review |
-| Screen/camera perception | Not implemented | Issue #153 | No capture permissions requested |
-| Desktop/device control | Not implemented | Issue #154 | No action bridge |
+| Explicit multimodal consent | Implemented | `services/zarvis-perception` | Purpose/modality digest, nonce, expiry, stop/delete |
+| One-shot file/screen/camera perception | Implemented | Perception console and runtime | Immediate media-track stop; no continuous capture |
+| Raw-media retention | Blocked | Perception encrypted journal | Only redacted analysis and provenance persist |
+| Prompt-injection isolation for media | Implemented | Perception security result | Untrusted content cannot alter policy or grants |
+| Reversible local mutation | Implemented for one fixture | `services/zarvis-action-gateway` | Only `sandbox.preference.set`; no external side effect |
+| Dry-run action impact preview | Implemented | `zarvis.action.preview.v1` | Binds previous/next value, owner, scope, and expiry |
+| Exact local action approval | Implemented | `zarvis.action.approval.v1` | SHA-256 digest plus one-time nonce |
+| Isolated action worker | Implemented | `worker.mjs`, internal queue API | Worker has no owner token and sees only approved IDs |
+| Action rollback | Implemented | `zarvis.action.rollback.v1` | Execution-bound proof and compare-and-set restoration |
+| Emergency action stop | Implemented | Action runtime and owner console | Persist stop first; revoke pending/approved actions |
+| Local Ubuntu/Linux deployment | Implemented | `compose.zarvis-local.yml`, setup script | Loopback bind, host network, dropped capabilities, read-only root |
+| Arbitrary shell/browser/device control | Blocked | Default-deny action registry | Requires a new narrowly scoped reviewed capability |
 | Proactive automation | Not implemented | Issue #155 | No schedules or background monitoring |
-| Production deployment evidence | Not complete | Issue #156 | Edge, origin, rotation, backup, chaos, SLO evidence required |
+| Local production evidence | Not complete | Issue #156 | Loopback denial, rotation, backup/restore, SLO, chaos, owner acceptance required |
