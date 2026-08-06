@@ -8,6 +8,7 @@ This project follows a human-readable changelog style. Dates use `YYYY-MM-DD`.
 
 ### Added
 
+- Z.A.R.V.I.S. first vertical slice with a voice/text command console, constrained read-only GitHub repository status orchestration, speech-ready responses, versioned contracts, structured audit events, security threat model, operations runbook, and 12 focused tests.
 - Staging decision record validation now enforces the approved identity-provider and tenant-claim mapping snapshot in `scripts/staging-decision-record.json`, with a workflow check and repo-local tests guarding the contract.
 - Staging decision record schema coverage now records the approved operator decision contract in `schemas/operations/staging-decision-record.schema.json`, with repo-local tests checking the schema shape alongside the validator.
 - Phase 6 operator-input register now records the remaining Issue #1 `PENDING_OPERATOR` stack in `scripts/phase-6-operator-inputs.json`, with schema and validator coverage that keep the register explicit without inventing values.
