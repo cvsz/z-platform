@@ -45,5 +45,14 @@ Epic: #148
 | Proactive action handoff | Implemented without execution | `zarvis.proactive.action-handoff.v1` | Always requires owner approval and fixes `executed: false` |
 | Autonomous proactive mutation | Blocked | No action credential or execution client | Scheduler cannot approve or execute actions |
 | Local Ubuntu/Linux deployment | Implemented | `compose.zarvis-local.yml`, setup script | Loopback bind, host network, dropped capabilities, read-only root |
+| Container resource controls | Implemented | Hardened Compose and container evidence | CPU, memory, PID, file-descriptor, tmpfs, capability limits |
+| Bounded local SLO | Implemented as release gate | `zarvis-local-release-acceptance.mjs` | Zero errors and p95 ≤ 750 ms for bounded health/status sample |
+| Security red-team | Implemented as release gate | `zarvis-local-red-team.mjs` | Auth, capability, path, size, SSRF, secret, non-mutation checks |
+| Restart/worker interruption recovery | Implemented as release gate | `zarvis-local-restart-drill.mjs` | Durable state retained; recovery objective ≤ 60 seconds |
+| Backup and restore | Implemented as release gate | backup/restore/verification scripts | SHA-256 archives; secrets excluded; restored IDs verified |
+| Independent credential rotation | Implemented as release gate | `zarvis-local-verify-rotation.mjs` | Old credentials rejected; new scoped credentials accepted |
+| Immutable release manifest | Implemented | `zarvis-local-build-manifest.mjs` | SHA-256 evidence inventory, release SHA, assertions, no secrets |
+| Main-branch evidence provenance | Implemented | `ZARVIS Local Release` workflow | Manifest attestation on non-PR runs |
 | Arbitrary shell/browser/device control | Blocked | Default-deny action registry | Requires a new narrowly scoped reviewed capability |
-| Local production evidence | Not complete | Issue #156 | Rotation, backup/restore, restart/chaos, SLO, red-team, and owner-machine acceptance required |
+| Automated local production evidence | Complete after release workflow passes | Issue #156 and release artifact | CI proves ephemeral Ubuntu local deployment and drills |
+| Actual owner-host acceptance | Pending actual target host | `docs/releases/zarvis-local-owner-acceptance.md` | CI cannot prove physical host/browser/device configuration |
