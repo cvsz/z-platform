@@ -1,6 +1,6 @@
 # Z.A.R.V.I.S. Contracts
 
-Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session, task, approval, memory, and privacy boundaries.
+Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session, task, approval, memory, privacy, perception, and local action boundaries.
 
 ## Schemas
 
@@ -14,6 +14,10 @@ Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session
 - `schemas/zarvis.memory.proposal.v1.schema.json`
 - `schemas/zarvis.memory.snapshot.v1.schema.json`
 - `schemas/zarvis.memory.export.v1.schema.json`
+- `schemas/zarvis.action.preview.v1.schema.json`
+- `schemas/zarvis.action.approval.v1.schema.json`
+- `schemas/zarvis.action.result.v1.schema.json`
+- `schemas/zarvis.action.rollback.v1.schema.json`
 
 ## Command and session rules
 
@@ -50,4 +54,17 @@ Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session
 - Delete physically compacts every encrypted proposal and revision for the memory; the local adapter has no persisted plaintext search derivative.
 - Expired memories are excluded from retrieval immediately and physically purged by a separately authenticated worker.
 
-Mutating tools require later capability, preview, approval, execution, and rollback contracts; they cannot be enabled by reinterpreting any command, task, or memory schema.
+## Local action rules
+
+- Action identity is permanently `github:4076926` in tenant `owner-4076926`.
+- `sandbox.preference.set` is the only registered capability and has no external side effect.
+- Every mutation requires an impact preview containing the exact previous and next values.
+- Approval is bound to the action ID, capability, key, values, owner, tenant, and expiry by SHA-256 digest and one-time nonce.
+- The local worker has an independent token, never receives the owner token, and can list only approved action IDs.
+- Execution uses compare-and-set; state drift fails closed without mutation.
+- Successful execution emits an execution-bound rollback digest and nonce.
+- Rollback uses compare-and-set again and restores or deletes the previous preference value.
+- Emergency stop persists before revoking every pending or approved action.
+- Request-controlled values never determine filesystem paths.
+
+Additional mutating capabilities cannot be enabled by reinterpreting command, task, memory, perception, or action schemas. Each capability requires a new narrow contract, threat model, tests, and owner-visible impact preview.
