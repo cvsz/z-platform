@@ -303,7 +303,7 @@ export class ZarvisMemoryRuntime {
       event_id: this.idFactory(),
       event_type: "memory.confirmed.v1",
       occurred_at: now,
-      proposal_id,
+      proposal_id: proposalId,
       memory,
     });
     return { ...publicMemory(memory), replayed: false };
