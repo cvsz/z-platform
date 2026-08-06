@@ -10,7 +10,6 @@ const voiceTranscript = document.querySelector("#transcript");
 const systemPrompt = document.querySelector("#instructions");
 const modelField = document.querySelector("#model");
 
-// The upstream realtime pipeline accepts native mono PCM16 at 16 kHz.
 const PIPELINE_SAMPLE_RATE = 16000;
 let socket = null;
 let audioContext = null;
@@ -20,6 +19,9 @@ let muted = false;
 let sessionConfigured = false;
 let playhead = 0;
 let activeSources = new Set();
+let zarvisMode = false;
+let zarvisSessionId = null;
+let commandInFlight = false;
 
 function setVoiceStatus(message, tone = "idle") {
   voiceStatus.textContent = message;
@@ -32,7 +34,7 @@ function appendTranscript(role, text) {
   if (!text) return;
   const item = document.createElement("li");
   const label = document.createElement("strong");
-  label.textContent = role === "assistant" ? "AI: " : "You: ";
+  label.textContent = role === "assistant" ? "ZARVIS: " : "You: ";
   item.append(label, document.createTextNode(text));
   item.dataset.role = role;
   voiceTranscript.append(item);
@@ -98,7 +100,7 @@ function stopPlayback() {
 }
 
 function queueAudio(base64Audio) {
-  if (!audioContext || !base64Audio) return;
+  if (!audioContext || !base64Audio || zarvisMode) return;
   const samples = pcm16ToFloat32(base64ToBytes(base64Audio));
   if (!samples.length) return;
   const buffer = audioContext.createBuffer(1, samples.length, PIPELINE_SAMPLE_RATE);
@@ -114,15 +116,55 @@ function queueAudio(base64Audio) {
   source.addEventListener("ended", () => activeSources.delete(source), { once: true });
 }
 
+function speakWithBrowser(text, locale) {
+  if (!("speechSynthesis" in globalThis) || !text) return;
+  globalThis.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = locale || "th-TH";
+  globalThis.speechSynthesis.speak(utterance);
+}
+
 function sendSessionUpdate(instructions) {
+  const effectiveInstructions = zarvisMode
+    ? "Transcribe the owner's speech accurately. Do not answer the user; the ZARVIS orchestrator will produce the response."
+    : instructions;
   socket.send(JSON.stringify({
     type: "session.update",
     session: {
       type: "realtime",
-      instructions,
+      instructions: effectiveInstructions,
     },
   }));
   sessionConfigured = true;
+}
+
+async function dispatchZarvisTranscript(transcript) {
+  if (!zarvisMode || !zarvisSessionId || !transcript || commandInFlight) return;
+  commandInFlight = true;
+  setVoiceStatus("ZARVIS is reasoning…", "busy");
+  try {
+    const response = await fetch("/api/zarvis/command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        command_id: globalThis.crypto?.randomUUID?.() || `command-${Date.now()}`,
+        session_id: zarvisSessionId,
+        transcript,
+        locale: "th-TH",
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload?.error?.message || "ZARVIS command failed");
+    }
+    appendTranscript("assistant", payload.speech?.text || "Command completed");
+    speakWithBrowser(payload.speech?.text, payload.speech?.locale);
+    setVoiceStatus(payload.replayed ? "Replayed safely" : "Connected — speak naturally", "ready");
+  } catch (error) {
+    setVoiceStatus(error instanceof Error ? error.message : "ZARVIS command failed", "error");
+  } finally {
+    commandInFlight = false;
+  }
 }
 
 function handleRealtimeEvent(event) {
@@ -143,25 +185,33 @@ function handleRealtimeEvent(event) {
       setVoiceStatus("Listening…", "busy");
       break;
     case "input_audio_buffer.speech_stopped":
-      setVoiceStatus("Thinking…", "busy");
+      setVoiceStatus("Transcribing…", "busy");
       break;
-    case "conversation.item.input_audio_transcription.completed":
-      appendTranscript("user", payload.transcript || payload.text || "");
+    case "conversation.item.input_audio_transcription.completed": {
+      const transcript = payload.transcript || payload.text || "";
+      appendTranscript("user", transcript);
+      if (zarvisMode) {
+        if (socket?.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "response.cancel" }));
+        }
+        void dispatchZarvisTranscript(transcript);
+      }
       break;
+    }
     case "response.audio.delta":
     case "response.output_audio.delta":
       queueAudio(payload.delta);
-      setVoiceStatus("Speaking…", "busy");
+      if (!zarvisMode) setVoiceStatus("Speaking…", "busy");
       break;
     case "response.audio_transcript.done":
     case "response.output_audio_transcript.done":
-      appendTranscript("assistant", payload.transcript || payload.text || "");
+      if (!zarvisMode) appendTranscript("assistant", payload.transcript || payload.text || "");
       break;
     case "response.done":
-      setVoiceStatus("Connected — speak naturally", "ready");
+      if (!zarvisMode && !commandInFlight) setVoiceStatus("Connected — speak naturally", "ready");
       break;
     case "error":
-      setVoiceStatus(payload.error?.message || "Voice session error", "error");
+      if (!zarvisMode) setVoiceStatus(payload.error?.message || "Voice session error", "error");
       break;
     default:
       break;
@@ -174,6 +224,7 @@ async function requestVoiceSession() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       instructions: systemPrompt?.value || "You are a concise, helpful voice assistant.",
+      session_id: zarvisSessionId || undefined,
     }),
   });
   const payload = await response.json();
@@ -218,6 +269,8 @@ async function startVoice() {
   setVoiceStatus("Requesting secure voice ticket…", "busy");
   try {
     const session = await requestVoiceSession();
+    zarvisMode = Boolean(session.zarvis_mode);
+    zarvisSessionId = session.zarvis_session_id || zarvisSessionId;
     if (modelField) modelField.value = session.model || modelField.value;
     await startCapture();
 
@@ -254,6 +307,7 @@ async function stopVoice() {
   if (audioContext && audioContext.state !== "closed") await audioContext.close();
   audioContext = null;
   muted = false;
+  commandInFlight = false;
   startButton.disabled = false;
   muteButton.disabled = true;
   muteButton.textContent = "Mute";
@@ -273,6 +327,7 @@ cancelButton?.addEventListener("click", () => {
   if (socket?.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type: "response.cancel" }));
     stopPlayback();
+    globalThis.speechSynthesis?.cancel?.();
     setVoiceStatus("Response cancelled", "ready");
   }
 });
