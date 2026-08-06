@@ -57,4 +57,7 @@ git switch main
 git pull --ff-only origin main
 
 bash scripts/zarvis-live-complete.sh --confirm-live
+
+export ZARVIS_OWNER_UID="$(id -u)"
+export ZARVIS_OWNER_GID="$(id -g)"
 bash scripts/zarvis-owner-domain-setup.sh "${DOMAIN_ARGS[@]}"
