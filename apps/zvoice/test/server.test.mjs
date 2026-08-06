@@ -1,18 +1,46 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createVoiceSession, healthSnapshot } from "../server.mjs";
+import {
+  createVoiceSession,
+  createZarvisCommand,
+  healthSnapshot,
+  ZARVIS_OWNER_GITHUB_ID,
+} from "../server.mjs";
+
+const EDGE_SECRET = "edge-secret-0123456789-012345678901";
+const ORCHESTRATOR_TOKEN = "orchestrator-token-0123456789-012345";
+
+function ownerHeaders(extra = {}) {
+  return {
+    "x-zarvis-owner-id": ZARVIS_OWNER_GITHUB_ID,
+    "x-zarvis-edge-secret": EDGE_SECRET,
+    ...extra,
+  };
+}
+
+const ownerEnv = {
+  Z_PLATFORM_VOICE_GATEWAY_URL: "http://voice-gateway:8450",
+  Z_PLATFORM_SERVICE_TOKEN: "voice-service-token",
+  ZVOICE_ZARVIS_MODE: "true",
+  ZARVIS_EDGE_SHARED_SECRET: EDGE_SECRET,
+  ZARVIS_ORCHESTRATOR_URL: "http://zarvis-orchestrator:8094",
+  ZARVIS_ORCHESTRATOR_SERVICE_TOKEN: ORCHESTRATOR_TOKEN,
+};
 
 test("health snapshot does not disclose secrets", () => {
   const result = healthSnapshot({
-    Z_PLATFORM_VOICE_GATEWAY_URL: "http://voice-gateway:8450",
-    Z_PLATFORM_SERVICE_TOKEN: "secret",
+    ...ownerEnv,
     ZVOICE_ALLOW_ANONYMOUS: "true",
   });
   assert.equal(result.voice_gateway_configured, true);
-  assert.equal(JSON.stringify(result).includes("secret"), false);
+  assert.equal(result.zarvis_owner_mode, true);
+  assert.equal(result.zarvis_bridge_configured, true);
+  assert.equal(result.anonymous_access, false);
+  assert.equal(JSON.stringify(result).includes(EDGE_SECRET), false);
+  assert.equal(JSON.stringify(result).includes(ORCHESTRATOR_TOKEN), false);
 });
 
-test("session request proxies identity and returns browser-safe data", async () => {
+test("generic session request preserves backward-compatible identity proxying", async () => {
   let captured;
   const fetchImpl = async (url, options) => {
     captured = { url, options };
@@ -25,7 +53,7 @@ test("session request proxies identity and returns browser-safe data", async () 
   };
 
   const result = await createVoiceSession(
-    { model: "qwen3:8b", instructions: "Be helpful" },
+    { instructions: "Be helpful" },
     { headers: { "x-tenant-id": "tenant-1", "x-subject-id": "user-1" } },
     {
       Z_PLATFORM_VOICE_GATEWAY_URL: "http://voice-gateway:8450",
@@ -37,7 +65,73 @@ test("session request proxies identity and returns browser-safe data", async () 
 
   assert.equal(result.ticket, "signed-ticket");
   assert.equal(result.instructions, "Be helpful");
+  assert.equal(result.zarvis_mode, undefined);
   assert.equal(captured.options.headers.Authorization, "Bearer service-token");
   assert.equal(captured.options.headers["X-Tenant-Id"], "tenant-1");
   assert.equal(captured.options.headers["X-Subject-Id"], "user-1");
+});
+
+test("owner voice mode rejects a request that bypasses the trusted edge", async () => {
+  await assert.rejects(
+    createVoiceSession({}, { headers: {} }, ownerEnv, async () => {
+      throw new Error("must not reach gateway");
+    }),
+    (error) => error.status === 403 && error.code === "owner_access_denied",
+  );
+});
+
+test("owner voice mode replaces caller identity with immutable owner identity", async () => {
+  let captured;
+  const result = await createVoiceSession(
+    { session_id: "voice-session-1" },
+    { headers: ownerHeaders({ "x-tenant-id": "attacker", "x-subject-id": "attacker" }) },
+    ownerEnv,
+    async (url, options) => {
+      captured = { url, options };
+      return new Response(JSON.stringify({
+        ticket: "signed-ticket",
+        websocket_url: "ws://localhost:8450/v1/realtime",
+      }), { status: 201, headers: { "content-type": "application/json" } });
+    },
+  );
+
+  assert.equal(result.zarvis_mode, true);
+  assert.equal(result.zarvis_session_id, "voice-session-1");
+  assert.equal(captured.options.headers["X-Tenant-Id"], `owner-${ZARVIS_OWNER_GITHUB_ID}`);
+  assert.equal(captured.options.headers["X-Subject-Id"], `github:${ZARVIS_OWNER_GITHUB_ID}`);
+});
+
+test("voice transcript bridge forwards only the owner-bound command contract", async () => {
+  let captured;
+  const result = await createZarvisCommand(
+    {
+      command_id: "command-1",
+      session_id: "voice-session-1",
+      transcript: "ตรวจสถานะ GitHub cvsz/z-platform",
+      locale: "th-TH",
+    },
+    { headers: ownerHeaders({ "x-user-id": "attacker", "x-tenant-id": "attacker" }) },
+    ownerEnv,
+    async (url, options) => {
+      captured = { url, options, body: JSON.parse(options.body) };
+      return new Response(JSON.stringify({
+        schema_version: "zarvis.command.completed.v1",
+        command_id: "command-1",
+        session_id: "voice-session-1",
+        status: "completed",
+        replayed: false,
+        speech: { locale: "th-TH", text: "เรียบร้อย" },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  );
+
+  assert.equal(result.status, "completed");
+  assert.equal(captured.url, "http://zarvis-orchestrator:8094/v1/commands");
+  assert.equal(captured.options.headers["X-Zarvis-Owner-Id"], ZARVIS_OWNER_GITHUB_ID);
+  assert.equal(captured.options.headers["X-Zarvis-Service-Token"], ORCHESTRATOR_TOKEN);
+  assert.equal(captured.options.headers["X-Tenant-Id"], undefined);
+  assert.equal(captured.options.headers["X-User-Id"], undefined);
+  assert.equal(captured.body.input.modality, "voice");
+  assert.equal(captured.body.input.text, "ตรวจสถานะ GitHub cvsz/z-platform");
+  assert.equal(JSON.stringify(result).includes(ORCHESTRATOR_TOKEN), false);
 });
