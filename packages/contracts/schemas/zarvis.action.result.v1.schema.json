@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.zeaz.dev/zarvis/action-result.v1.schema.json",
+  "title": "ZARVIS Local Action Result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "action_id", "capability", "status", "owner_user_id", "tenant_id", "key", "previous_value", "next_value", "execution_id", "executed_at", "rollback_digest", "rollback_nonce"],
+  "properties": {
+    "schema_version": { "const": "zarvis.action.snapshot.v1" },
+    "action_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "capability": { "const": "sandbox.preference.set" },
+    "status": { "const": "executed" },
+    "owner_user_id": { "const": "github:4076926" },
+    "tenant_id": { "const": "owner-4076926" },
+    "key": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" },
+    "previous_value": { "type": ["string", "null"], "maxLength": 512 },
+    "next_value": { "type": "string", "maxLength": 512 },
+    "execution_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "executed_at": { "type": "string", "format": "date-time" },
+    "rollback_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "rollback_nonce": { "type": "string", "minLength": 1, "maxLength": 128 }
+  }
+}
