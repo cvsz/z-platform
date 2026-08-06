@@ -46,4 +46,6 @@ The Windows binaries contain no Owner Token, worker token, provider credential,
 or private SSH key. Server authorization remains permanently enforced by the
 owner-only local runtime.
 
-The initial supported release line is `0.1.x` for Windows 11 x64.
+The initial supported release line is `0.1.x` for Windows 11 x64. Every build
+must pass Windows runner tests, single-file publication, installer creation,
+SHA-256 manifest generation, and provenance artifact upload.
