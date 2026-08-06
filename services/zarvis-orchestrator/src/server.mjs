@@ -2,16 +2,19 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import {
+  IdempotencyConflictError,
   UnsupportedIntentError,
   ValidationError,
 } from './contracts.mjs';
 import { GitHubStatusToolError } from './github-status-tool.mjs';
 import { AVAILABLE_TOOLS, ZarvisOrchestrator } from './orchestrator.mjs';
+import { FileSessionStore } from './session-store.mjs';
 
 export const ZARVIS_OWNER_GITHUB_ID = '4076926';
 
 const MAX_BODY_BYTES = 32 * 1024;
 const MIN_SECRET_BYTES = 32;
+const SESSION_PATH_PATTERN = /^\/v1\/sessions\/([A-Za-z0-9._:-]{1,128})$/;
 
 class OwnerAccessError extends Error {
   constructor() {
@@ -19,6 +22,15 @@ class OwnerAccessError extends Error {
     this.name = 'OwnerAccessError';
     this.code = 'owner_access_denied';
     this.status = 403;
+  }
+}
+
+class ConfirmationRequiredError extends Error {
+  constructor(sessionId) {
+    super(`Set x-zarvis-confirm-delete to ${sessionId} to delete this session.`);
+    this.name = 'ConfirmationRequiredError';
+    this.code = 'confirmation_required';
+    this.status = 428;
   }
 }
 
@@ -89,7 +101,9 @@ export function createStdoutAuditSink({ logger = console } = {}) {
 }
 
 export function createZarvisServer({
-  orchestrator = new ZarvisOrchestrator({ auditSink: createStdoutAuditSink() }),
+  orchestrator,
+  sessionStore,
+  dataDir = process.env.ZARVIS_DATA_DIR ?? './data/zarvis',
   serviceToken = process.env.ZARVIS_ORCHESTRATOR_SERVICE_TOKEN,
   logger = console,
 } = {}) {
@@ -97,6 +111,11 @@ export function createZarvisServer({
     serviceToken,
     'ZARVIS_ORCHESTRATOR_SERVICE_TOKEN',
   );
+  const durableStore = sessionStore ?? new FileSessionStore({ rootDir: dataDir });
+  const runtime = orchestrator ?? new ZarvisOrchestrator({
+    auditSink: createStdoutAuditSink({ logger }),
+    sessionStore: durableStore,
+  });
 
   return createServer(async (request, response) => {
     const requestId = request.headers['x-request-id']?.toString().slice(0, 160) || randomUUID();
@@ -109,7 +128,8 @@ export function createZarvisServer({
         writeJson(response, 200, {
           status: 'ok',
           service: 'zarvis-orchestrator',
-          version: '0.1.0',
+          version: '0.2.0',
+          durable_sessions: true,
         });
         return;
       }
@@ -123,11 +143,29 @@ export function createZarvisServer({
 
       if (request.method === 'POST' && url.pathname === '/v1/commands') {
         const command = await readJsonBody(request);
-        const result = await orchestrator.execute(command, {
+        const result = await runtime.execute(command, {
           requestId,
           tenantId: `owner-${ZARVIS_OWNER_GITHUB_ID}`,
           userId: `github:${ZARVIS_OWNER_GITHUB_ID}`,
         });
+        writeJson(response, 200, result);
+        return;
+      }
+
+      const sessionMatch = url.pathname.match(SESSION_PATH_PATTERN);
+      if (sessionMatch && request.method === 'GET') {
+        const limit = url.searchParams.has('limit') ? Number(url.searchParams.get('limit')) : 100;
+        const snapshot = await runtime.getSession(sessionMatch[1], { limit });
+        writeJson(response, 200, snapshot);
+        return;
+      }
+
+      if (sessionMatch && request.method === 'DELETE') {
+        const sessionId = sessionMatch[1];
+        if (request.headers['x-zarvis-confirm-delete']?.toString() !== sessionId) {
+          throw new ConfirmationRequiredError(sessionId);
+        }
+        const result = await runtime.deleteSession(sessionId);
         writeJson(response, 200, result);
         return;
       }
@@ -145,7 +183,12 @@ export function createZarvisServer({
         statusCode = error.status ?? 400;
       } else if (error instanceof UnsupportedIntentError) {
         statusCode = 422;
-      } else if (error instanceof GitHubStatusToolError || error instanceof OwnerAccessError) {
+      } else if (
+        error instanceof GitHubStatusToolError
+        || error instanceof OwnerAccessError
+        || error instanceof ConfirmationRequiredError
+        || error instanceof IdempotencyConflictError
+      ) {
         statusCode = error.status;
       }
 
