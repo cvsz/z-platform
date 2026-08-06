@@ -1,0 +1,75 @@
+name: ZARVIS Local
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  local-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Run focused local action tests
+        run: npm test --prefix services/zarvis-action-gateway
+      - name: Create ephemeral local secrets
+        shell: bash
+        run: |
+          umask 077
+          cat > .env.zarvis.local <<'EOF'
+          ZARVIS_ACTION_PORT=8098
+          ZARVIS_ACTION_WORKER_INTERVAL_MS=250
+          ZARVIS_LOCAL_OWNER_TOKEN=oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+          ZARVIS_ACTION_WORKER_TOKEN=wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+          EOF
+      - name: Validate local Compose configuration
+        run: docker compose --env-file .env.zarvis.local -f compose.zarvis-local.yml config --quiet
+      - name: Start loopback-only local deployment
+        run: docker compose --env-file .env.zarvis.local -f compose.zarvis-local.yml up -d
+      - name: Wait for local health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 40); do
+            curl --fail --silent http://127.0.0.1:8098/healthz >/dev/null && exit 0
+            sleep 1
+          done
+          docker compose --env-file .env.zarvis.local -f compose.zarvis-local.yml logs --no-color
+          exit 1
+      - name: Verify loopback socket
+        shell: bash
+        run: |
+          set -euo pipefail
+          sockets="$(ss -ltnH 'sport = :8098')"
+          echo "$sockets"
+          echo "$sockets" | grep -E '127\.0\.0\.1:8098|\[::1\]:8098'
+          if echo "$sockets" | grep -E '0\.0\.0\.0:8098|\[::\]:8098'; then
+            echo 'Action gateway is exposed beyond loopback.'
+            exit 1
+          fi
+      - name: Run preview-approve-execute-rollback smoke
+        shell: bash
+        run: |
+          set -a
+          source .env.zarvis.local
+          set +a
+          node scripts/zarvis-local-smoke.mjs | tee zarvis-local-smoke.json
+      - name: Upload local evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: zarvis-local-action-evidence
+          path: zarvis-local-smoke.json
+          if-no-files-found: error
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose --env-file .env.zarvis.local -f compose.zarvis-local.yml logs --no-color
+      - name: Stop local deployment
+        if: always()
+        run: docker compose --env-file .env.zarvis.local -f compose.zarvis-local.yml down -v
