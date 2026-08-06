@@ -110,11 +110,26 @@ await request(proactiveBase, '/v1/policy', {
     timezone: 'Asia/Bangkok',
     quiet_hours_start: '00:00',
     quiet_hours_end: '00:00',
-    daily_notification_budget: 5,
-    default_cooldown_minutes: 60,
+    daily_notification_budget: 20,
+    default_cooldown_minutes: 1,
     confidence_threshold: 0.7,
   }),
 });
+
+const existingSubscriptions = await request(proactiveBase, '/v1/subscriptions');
+const staleAcceptanceSubscriptions = existingSubscriptions.subscriptions.filter(
+  (item) => item.status === 'active'
+    && item.check === 'local.service.health'
+    && item.target === 'zarvis-action-gateway',
+);
+for (const stale of staleAcceptanceSubscriptions) {
+  await request(
+    proactiveBase,
+    `/v1/subscriptions/${encodeURIComponent(stale.subscription_id)}/revoke`,
+    { method: 'POST' },
+  );
+}
+
 const subscription = await request(proactiveBase, '/v1/subscriptions', {
   method: 'POST',
   body: JSON.stringify({
@@ -122,16 +137,37 @@ const subscription = await request(proactiveBase, '/v1/subscriptions', {
     target: 'zarvis-action-gateway',
     interval_minutes: 1,
     notify_on: 'unhealthy',
+    cooldown_minutes: 1,
     missed_run_policy: 'run_once',
   }),
 });
+if (subscription.replayed === true) {
+  throw new Error(`Release acceptance unexpectedly replayed subscription ${subscription.subscription_id}`);
+}
+
 const tick = await request(proactiveBase, '/v1/internal/proactive/tick', {
   method: 'POST',
   auth: 'proactive-worker',
 });
-if (tick.results[0]?.decision !== 'delivered') throw new Error('Proactive delivery decision failed');
+const delivery = tick.results.find((item) => item.subscription_id === subscription.subscription_id);
+if (delivery?.decision !== 'delivered') {
+  throw new Error(`Proactive delivery decision failed: ${JSON.stringify({
+    subscription_id: subscription.subscription_id,
+    evaluated: tick.evaluated,
+    matching_result: delivery ?? null,
+    results: tick.results.map((item) => ({
+      subscription_id: item.subscription_id,
+      decision: item.decision,
+      notification_id: item.notification_id,
+    })),
+  })}`);
+}
+
 const notificationList = await request(proactiveBase, '/v1/notifications');
-const notification = notificationList.notifications.find((item) => item.subscription_id === subscription.subscription_id);
+const notification = notificationList.notifications.find(
+  (item) => item.notification_id === delivery.notification_id
+    && item.subscription_id === subscription.subscription_id,
+);
 if (!notification?.requires_owner_approval || !notification.proposed_action) throw new Error('Proactive action proposal missing');
 const handoff = await request(proactiveBase, `/v1/notifications/${encodeURIComponent(notification.notification_id)}/handoff`, { method: 'POST' });
 if (handoff.executed !== false || handoff.requires_owner_approval !== true) throw new Error('Proactive handoff crossed execution boundary');
@@ -171,6 +207,7 @@ process.stdout.write(`${JSON.stringify({
     handoff_id: handoff.handoff_id,
     handoff_requires_owner_approval: handoff.requires_owner_approval,
     handoff_executed: handoff.executed,
+    stale_acceptance_subscriptions_revoked: staleAcceptanceSubscriptions.length,
   },
   slo: {
     threshold_p95_ms: 750,
