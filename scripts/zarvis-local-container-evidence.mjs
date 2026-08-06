@@ -21,6 +21,7 @@ for (const service of services) {
   if (!containerId) throw new Error(`${service.name} container is not running`);
   const inspected = JSON.parse(run('docker', ['inspect', containerId]))[0];
   const host = inspected.HostConfig;
+  const securityOptions = Array.isArray(host.SecurityOpt) ? host.SecurityOpt : [];
   const checks = {
     network_mode_host: host.NetworkMode === 'host',
     readonly_rootfs: host.ReadonlyRootfs === true,
@@ -28,10 +29,10 @@ for (const service of services) {
     memory_limit: Number(host.Memory) >= service.minimumMemory,
     cpu_limit: Number(host.NanoCpus) > 0,
     cap_drop_all: Array.isArray(host.CapDrop) && host.CapDrop.includes('ALL'),
-    no_new_privileges: Array.isArray(host.SecurityOpt) && host.SecurityOpt.includes('no-new-privileges:true'),
+    no_new_privileges: securityOptions.some((value) => value === 'no-new-privileges' || value === 'no-new-privileges:true'),
   };
   if (Object.values(checks).some((passed) => !passed)) {
-    throw new Error(`${service.name} hardening failed: ${JSON.stringify(checks)}`);
+    throw new Error(`${service.name} hardening failed: ${JSON.stringify({ checks, securityOptions })}`);
   }
   evidence.push({
     service: service.name,
