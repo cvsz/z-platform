@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { ZarvisProactiveRuntime, ProactiveError, ZARVIS_OWNER_USER_ID } from '../runtime.mjs';
+import { ZarvisProactiveRuntime, ZARVIS_OWNER_USER_ID } from '../runtime.mjs';
 import { FileProactiveStore, MemoryProactiveStore } from '../store.mjs';
 import { createProactiveServer } from '../server.mjs';
 
