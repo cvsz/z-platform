@@ -37,3 +37,13 @@ GitHub Actions produces:
 Code signing is applied when the repository secrets
 `WINDOWS_SIGNING_CERT_PFX_BASE64` and `WINDOWS_SIGNING_CERT_PASSWORD` are set.
 Unsigned artifacts remain suitable for owner testing but Windows SmartScreen may warn.
+
+## Release visibility
+
+`cvsz/z-platform` is currently a public repository. Workflow artifacts require
+GitHub access, but a GitHub Release published from this repository is public.
+The Windows binaries contain no Owner Token, worker token, provider credential,
+or private SSH key. Server authorization remains permanently enforced by the
+owner-only local runtime.
+
+The initial supported release line is `0.1.x` for Windows 11 x64.
