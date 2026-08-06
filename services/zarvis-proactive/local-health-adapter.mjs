@@ -1,6 +1,7 @@
-const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+const TARGET_NAME_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
 
-function validateHealthUrl(value) {
+export function validateHealthUrl(value) {
   const url = new URL(value);
   if (url.protocol !== 'http:' || !LOOPBACK_HOSTS.has(url.hostname) || url.pathname !== '/healthz') {
     throw new Error('Local health URL must be an HTTP loopback /healthz endpoint');
@@ -18,9 +19,12 @@ export function createLocalHealthAdapter({
   },
   timeoutMs = Number(process.env.ZARVIS_PROACTIVE_CHECK_TIMEOUT_MS ?? 3000),
 } = {}) {
-  const registry = Object.fromEntries(
-    Object.entries(targets).map(([name, url]) => [name, validateHealthUrl(url)]),
-  );
+  const entries = Object.entries(targets);
+  if (entries.length < 1 || entries.length > 8) throw new Error('Local health target registry must contain 1 to 8 entries');
+  const registry = Object.fromEntries(entries.map(([name, url]) => {
+    if (!TARGET_NAME_PATTERN.test(name)) throw new Error('Local health target name is invalid');
+    return [name, validateHealthUrl(url)];
+  }));
   if (!Number.isInteger(timeoutMs) || timeoutMs < 250 || timeoutMs > 15000) {
     throw new Error('ZARVIS_PROACTIVE_CHECK_TIMEOUT_MS must be between 250 and 15000');
   }
@@ -39,7 +43,7 @@ export function createLocalHealthAdapter({
           signal: AbortSignal.timeout(timeoutMs),
           headers: { accept: 'application/json' },
         });
-      } catch (error) {
+      } catch {
         return {
           signal_key: `health:${subscription.target}`,
           status: 'unhealthy',
