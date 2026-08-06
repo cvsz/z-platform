@@ -123,7 +123,7 @@
                     IsEnabled="False" Click="OpenProactive_Click"/>
             <Button x:Name="CopyTokenButton" Content="Copy Owner Token (60 sec)"
                     IsEnabled="False" Click="CopyToken_Click"/>
-            <Button Content="Open GitHub Releases" Click="OpenReleases_Click"/>
+            <Button Content="Open GitHub Releases" Click="OpenReleasePage_Click"/>
           </WrapPanel>
           <TextBox Grid.Row="2" x:Name="LogBox" IsReadOnly="True"
                    TextWrapping="Wrap" AcceptsReturn="True"
