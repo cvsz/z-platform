@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import test from "node:test";
 import {
   createVoiceSession,
   createZarvisCommand,
+  createZVoiceServer,
   healthSnapshot,
   ZARVIS_OWNER_GITHUB_ID,
 } from "../server.mjs";
@@ -26,6 +28,13 @@ const ownerEnv = {
   ZARVIS_ORCHESTRATOR_URL: "http://zarvis-orchestrator:8094",
   ZARVIS_ORCHESTRATOR_SERVICE_TOKEN: ORCHESTRATOR_TOKEN,
 };
+
+async function listen(server) {
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  return `http://127.0.0.1:${address.port}`;
+}
 
 test("health snapshot does not disclose secrets", () => {
   const result = healthSnapshot({
@@ -71,6 +80,20 @@ test("generic session request preserves backward-compatible identity proxying", 
   assert.equal(captured.options.headers["X-Subject-Id"], "user-1");
 });
 
+test("owner mode protects static UI and APIs from direct-origin access", async (t) => {
+  const server = createZVoiceServer({ env: ownerEnv });
+  const baseUrl = await listen(server);
+  t.after(() => server.close());
+
+  const direct = await fetch(baseUrl);
+  assert.equal(direct.status, 403);
+  assert.equal((await direct.json()).error.code, "owner_access_denied");
+
+  const owner = await fetch(baseUrl, { headers: ownerHeaders() });
+  assert.equal(owner.status, 200);
+  assert.match(await owner.text(), /ZVoice/i);
+});
+
 test("owner voice mode rejects a request that bypasses the trusted edge", async () => {
   await assert.rejects(
     createVoiceSession({}, { headers: {} }, ownerEnv, async () => {
@@ -99,6 +122,20 @@ test("owner voice mode replaces caller identity with immutable owner identity", 
   assert.equal(result.zarvis_session_id, "voice-session-1");
   assert.equal(captured.options.headers["X-Tenant-Id"], `owner-${ZARVIS_OWNER_GITHUB_ID}`);
   assert.equal(captured.options.headers["X-Subject-Id"], `github:${ZARVIS_OWNER_GITHUB_ID}`);
+});
+
+test("voice transcript bridge rejects missing transcripts before calling upstream", async () => {
+  await assert.rejects(
+    createZarvisCommand(
+      { command_id: "command-1", session_id: "voice-session-1" },
+      { headers: ownerHeaders() },
+      ownerEnv,
+      async () => {
+        throw new Error("must not reach orchestrator");
+      },
+    ),
+    /transcript is required/,
+  );
 });
 
 test("voice transcript bridge forwards only the owner-bound command contract", async () => {
