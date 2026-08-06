@@ -33,10 +33,17 @@ Epic: #148
 | Reversible local mutation | Implemented for one fixture | `services/zarvis-action-gateway` | Only `sandbox.preference.set`; no external side effect |
 | Dry-run action impact preview | Implemented | `zarvis.action.preview.v1` | Binds previous/next value, owner, scope, and expiry |
 | Exact local action approval | Implemented | `zarvis.action.approval.v1` | SHA-256 digest plus one-time nonce |
-| Isolated action worker | Implemented | `worker.mjs`, internal queue API | Worker has no owner token and sees only approved IDs |
+| Isolated action worker | Implemented | Action `worker.mjs`, internal queue API | Worker has no owner token and sees only approved IDs |
 | Action rollback | Implemented | `zarvis.action.rollback.v1` | Execution-bound proof and compare-and-set restoration |
 | Emergency action stop | Implemented | Action runtime and owner console | Persist stop first; revoke pending/approved actions |
+| Owner-defined local schedules | Implemented | `services/zarvis-proactive` | Only allowlisted read-only local health checks |
+| Quiet hours and notification budgets | Implemented | `zarvis.proactive.policy.v1` | Enforced server-side in owner timezone |
+| Confidence, cooldown, and deduplication | Implemented | Proactive runtime and tests | Suppression reasons remain audited and visible |
+| Missed-run and restart recovery | Implemented | Durable subscription snapshots | Skip or run-once policy; fixed event journal |
+| Explainable suggestion inbox | Implemented | Proactive console and notification schema | Source, evidence, confidence, and decision exposed |
+| Suggestion feedback and revocation | Implemented | Feedback schema and owner APIs | Useful/irrelevant/false-positive; immediate schedule revoke |
+| Proactive action handoff | Implemented without execution | `zarvis.proactive.action-handoff.v1` | Always requires owner approval and fixes `executed: false` |
+| Autonomous proactive mutation | Blocked | No action credential or execution client | Scheduler cannot approve or execute actions |
 | Local Ubuntu/Linux deployment | Implemented | `compose.zarvis-local.yml`, setup script | Loopback bind, host network, dropped capabilities, read-only root |
 | Arbitrary shell/browser/device control | Blocked | Default-deny action registry | Requires a new narrowly scoped reviewed capability |
-| Proactive automation | Not implemented | Issue #155 | No schedules or background monitoring |
-| Local production evidence | Not complete | Issue #156 | Loopback denial, rotation, backup/restore, SLO, chaos, owner acceptance required |
+| Local production evidence | Not complete | Issue #156 | Rotation, backup/restore, restart/chaos, SLO, red-team, and owner-machine acceptance required |
