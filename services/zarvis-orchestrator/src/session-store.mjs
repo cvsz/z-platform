@@ -10,7 +10,7 @@ import {
 } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { resolve } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { normalizeCommandId, normalizeSessionId } from './contracts.mjs';
 
 const MAX_RESULT_BYTES = 1024 * 1024;
@@ -36,6 +36,10 @@ function safeResultEnvelope(value) {
     throw new Error('Stored command result envelope is invalid.');
   }
   return value;
+}
+
+function storageKey(value) {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
 }
 
 async function sessionFileExists(path) {
@@ -71,11 +75,13 @@ export class FileSessionStore {
   }
 
   sessionPath(sessionId) {
-    return resolve(this.sessionsDir, `${normalizeSessionId(sessionId)}.jsonl`);
+    const normalized = normalizeSessionId(sessionId);
+    return resolve(this.sessionsDir, `${storageKey(normalized)}.jsonl`);
   }
 
   commandPath(commandId) {
-    return resolve(this.commandsDir, `${normalizeCommandId(commandId)}.json`);
+    const normalized = normalizeCommandId(commandId);
+    return resolve(this.commandsDir, `${storageKey(normalized)}.json`);
   }
 
   async appendEvent(event) {
