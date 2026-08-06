@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createLocalHealthAdapter, validateHealthUrl } from '../local-health-adapter.mjs';
 
-test('health URL accepts only exact loopback HTTP health endpoints', () => {
+test('health URL accepts only exact literal-loopback HTTP health endpoints', () => {
   assert.equal(validateHealthUrl('http://127.0.0.1:8098/healthz'), 'http://127.0.0.1:8098/healthz');
-  assert.equal(validateHealthUrl('http://localhost:8098/healthz'), 'http://localhost:8098/healthz');
   assert.equal(validateHealthUrl('http://[::1]:8098/healthz'), 'http://[::1]:8098/healthz');
   for (const value of [
+    'http://localhost:8098/healthz',
     'https://127.0.0.1:8098/healthz',
     'http://10.0.0.5:8098/healthz',
     'http://example.com/healthz',
