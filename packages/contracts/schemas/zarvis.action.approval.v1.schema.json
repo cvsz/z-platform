@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.zeaz.dev/zarvis/action-approval.v1.schema.json",
-  "title": "ZARVIS Local Action Approval v1",
+  "title": "ZARVIS Local Action Approval Request v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "approval_digest", "approval_nonce"],
+  "required": ["approval_digest", "approval_nonce"],
   "properties": {
     "schema_version": { "const": "zarvis.action.approval.v1" },
     "approval_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
