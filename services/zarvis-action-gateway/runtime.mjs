@@ -21,11 +21,7 @@ export class ActionError extends Error {
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
   if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .map((key) => [key, stable(value[key])]),
-    );
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]));
   }
   return value;
 }
@@ -54,11 +50,7 @@ function validatePreferenceInput(input) {
   if (input.untrusted_content === true || input.policy_effect || input.tool_grants) {
     throw new ActionError('confused_deputy_denied', 'Untrusted content cannot request local capabilities.', 403);
   }
-  return {
-    capability: LOCAL_CAPABILITY,
-    key: input.key,
-    value: input.value,
-  };
+  return { capability: LOCAL_CAPABILITY, key: input.key, value: input.value };
 }
 
 function latestActions(events) {
@@ -70,18 +62,11 @@ function latestActions(events) {
 }
 
 function publicAction(action, replayed = false) {
-  return {
-    ...structuredClone(action),
-    replayed,
-  };
+  return { ...structuredClone(action), replayed };
 }
 
 export class ZarvisLocalActionRuntime {
-  constructor({
-    store,
-    now = () => new Date().toISOString(),
-    idFactory = () => randomUUID(),
-  }) {
+  constructor({ store, now = () => new Date().toISOString(), idFactory = () => randomUUID() }) {
     if (!store) throw new TypeError('store is required');
     this.store = store;
     this.now = now;
@@ -96,6 +81,22 @@ export class ZarvisLocalActionRuntime {
     return latestActions(await this.store.readEvents());
   }
 
+  async #record(eventType, action, occurredAt = this.now()) {
+    await this.store.appendEvent({
+      event_id: this.idFactory(),
+      event_type: eventType,
+      occurred_at: occurredAt,
+      action,
+    });
+    return action;
+  }
+
+  async #expire(current, now) {
+    const expired = { ...current, status: 'expired', failure_code: 'approval_expired', updated_at: now };
+    await this.#record('zarvis.action.expired.v1', expired, now);
+    return expired;
+  }
+
   async getAction(actionId) {
     const action = (await this.#actions()).get(actionId);
     if (!action) throw new ActionError('action_not_found', 'Action was not found.', 404);
@@ -103,8 +104,7 @@ export class ZarvisLocalActionRuntime {
   }
 
   async listActions() {
-    const actions = [...(await this.#actions()).values()];
-    return actions
+    return [...(await this.#actions()).values()]
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
       .map((action) => publicAction(action));
   }
@@ -117,13 +117,11 @@ export class ZarvisLocalActionRuntime {
     }
 
     const now = this.now();
-    const expiresAt = new Date(new Date(now).getTime() + APPROVAL_TTL_MS).toISOString();
     const actionId = this.idFactory();
     const approvalNonce = this.idFactory();
-    const previousValue = Object.hasOwn(state.preferences, request.key)
-      ? state.preferences[request.key]
-      : null;
-    const approvalPayload = {
+    const approvalExpiresAt = new Date(new Date(now).getTime() + APPROVAL_TTL_MS).toISOString();
+    const previousValue = Object.hasOwn(state.preferences, request.key) ? state.preferences[request.key] : null;
+    const approvalDigest = digest({
       schema_version: 'zarvis.action.approval-payload.v1',
       action_id: actionId,
       capability: request.capability,
@@ -132,8 +130,8 @@ export class ZarvisLocalActionRuntime {
       next_value: request.value,
       owner_user_id: ZARVIS_OWNER_USER_ID,
       tenant_id: ZARVIS_OWNER_TENANT_ID,
-      expires_at: expiresAt,
-    };
+      expires_at: approvalExpiresAt,
+    });
 
     const action = {
       schema_version: 'zarvis.action.snapshot.v1',
@@ -154,9 +152,9 @@ export class ZarvisLocalActionRuntime {
         network_access: false,
         filesystem_scope: 'operator-controlled fixed local state file',
       },
-      approval_digest: digest(approvalPayload),
+      approval_digest: approvalDigest,
       approval_nonce: approvalNonce,
-      approval_expires_at: expiresAt,
+      approval_expires_at: approvalExpiresAt,
       approval_consumed_at: null,
       execution_id: null,
       executed_at: null,
@@ -167,33 +165,21 @@ export class ZarvisLocalActionRuntime {
       created_at: now,
       updated_at: now,
     };
-
-    await this.store.appendEvent({
-      event_id: this.idFactory(),
-      event_type: 'zarvis.action.previewed.v1',
-      occurred_at: now,
-      action,
-    });
+    await this.#record('zarvis.action.previewed.v1', action, now);
     return publicAction(action);
   }
 
   async approve(actionId, { approval_digest: approvalDigest, approval_nonce: approvalNonce }) {
-    const actions = await this.#actions();
-    const current = actions.get(actionId);
+    const current = (await this.#actions()).get(actionId);
     if (!current) throw new ActionError('action_not_found', 'Action was not found.', 404);
     if (current.status === 'approved') return publicAction(current, true);
     if (current.status !== 'pending_approval') {
       throw new ActionError('invalid_action_state', 'Only pending actions can be approved.', 409);
     }
+
     const now = this.now();
     if (now > current.approval_expires_at) {
-      const expired = { ...current, status: 'expired', updated_at: now };
-      await this.store.appendEvent({
-        event_id: this.idFactory(),
-        event_type: 'zarvis.action.expired.v1',
-        occurred_at: now,
-        action: expired,
-      });
+      await this.#expire(current, now);
       throw new ActionError('approval_expired', 'Approval window has expired.', 410);
     }
     if (approvalDigest !== current.approval_digest || approvalNonce !== current.approval_nonce) {
@@ -207,46 +193,42 @@ export class ZarvisLocalActionRuntime {
       approval_nonce: null,
       updated_at: now,
     };
-    await this.store.appendEvent({
-      event_id: this.idFactory(),
-      event_type: 'zarvis.action.approved.v1',
-      occurred_at: now,
-      action: approved,
-    });
+    await this.#record('zarvis.action.approved.v1', approved, now);
     return publicAction(approved);
   }
 
   async execute(actionId) {
-    const actions = await this.#actions();
-    const current = actions.get(actionId);
+    const current = (await this.#actions()).get(actionId);
     if (!current) throw new ActionError('action_not_found', 'Action was not found.', 404);
     if (current.status === 'executed') return publicAction(current, true);
     if (current.status !== 'approved') {
       throw new ActionError('invalid_action_state', 'Action must be approved before execution.', 409);
     }
 
+    const now = this.now();
+    if (now > current.approval_expires_at) {
+      await this.#expire(current, now);
+      throw new ActionError('approval_expired', 'Approved action expired before worker execution.', 410);
+    }
+
     const state = await this.store.readState();
     if (state.emergency_stop) {
       throw new ActionError('emergency_stop_active', 'Local actions are disabled by emergency stop.', 423);
     }
-    const observed = Object.hasOwn(state.preferences, current.key)
-      ? state.preferences[current.key]
-      : null;
+    const observed = Object.hasOwn(state.preferences, current.key) ? state.preferences[current.key] : null;
     if (!sameValue(observed, current.previous_value)) {
       throw new ActionError('stale_preview', 'Local state changed after preview; create a new preview.', 409);
     }
 
-    const now = this.now();
     const executionId = this.idFactory();
     const rollbackNonce = this.idFactory();
-    const nextState = {
+    await this.store.writeState({
       ...state,
       preferences: { ...state.preferences, [current.key]: current.next_value },
       updated_at: now,
-    };
-    await this.store.writeState(nextState);
+    });
 
-    const rollbackPayload = {
+    const rollbackDigest = digest({
       schema_version: 'zarvis.action.rollback-payload.v1',
       action_id: current.action_id,
       execution_id: executionId,
@@ -255,28 +237,22 @@ export class ZarvisLocalActionRuntime {
       next_value: current.next_value,
       owner_user_id: ZARVIS_OWNER_USER_ID,
       tenant_id: ZARVIS_OWNER_TENANT_ID,
-    };
+    });
     const executed = {
       ...current,
       status: 'executed',
       execution_id: executionId,
       executed_at: now,
-      rollback_digest: digest(rollbackPayload),
+      rollback_digest: rollbackDigest,
       rollback_nonce: rollbackNonce,
       updated_at: now,
     };
-    await this.store.appendEvent({
-      event_id: this.idFactory(),
-      event_type: 'zarvis.action.executed.v1',
-      occurred_at: now,
-      action: executed,
-    });
+    await this.#record('zarvis.action.executed.v1', executed, now);
     return publicAction(executed);
   }
 
   async rollback(actionId, { rollback_digest: rollbackDigest, rollback_nonce: rollbackNonce }) {
-    const actions = await this.#actions();
-    const current = actions.get(actionId);
+    const current = (await this.#actions()).get(actionId);
     if (!current) throw new ActionError('action_not_found', 'Action was not found.', 404);
     if (current.status === 'rolled_back') return publicAction(current, true);
     if (current.status !== 'executed') {
@@ -287,9 +263,7 @@ export class ZarvisLocalActionRuntime {
     }
 
     const state = await this.store.readState();
-    const observed = Object.hasOwn(state.preferences, current.key)
-      ? state.preferences[current.key]
-      : null;
+    const observed = Object.hasOwn(state.preferences, current.key) ? state.preferences[current.key] : null;
     if (!sameValue(observed, current.next_value)) {
       throw new ActionError('rollback_state_conflict', 'Local state changed after execution.', 409);
     }
@@ -307,12 +281,7 @@ export class ZarvisLocalActionRuntime {
       rolled_back_at: now,
       updated_at: now,
     };
-    await this.store.appendEvent({
-      event_id: this.idFactory(),
-      event_type: 'zarvis.action.rolled-back.v1',
-      occurred_at: now,
-      action: rolledBack,
-    });
+    await this.#record('zarvis.action.rolled-back.v1', rolledBack, now);
     return publicAction(rolledBack);
   }
 
@@ -326,17 +295,10 @@ export class ZarvisLocalActionRuntime {
       updated_at: now,
     });
 
-    const actions = await this.#actions();
     let revoked = 0;
-    for (const current of actions.values()) {
+    for (const current of (await this.#actions()).values()) {
       if (TERMINAL_STATUSES.has(current.status)) continue;
-      const action = { ...current, status: 'revoked', updated_at: now };
-      await this.store.appendEvent({
-        event_id: this.idFactory(),
-        event_type: 'zarvis.action.revoked.v1',
-        occurred_at: now,
-        action,
-      });
+      await this.#record('zarvis.action.revoked.v1', { ...current, status: 'revoked', updated_at: now }, now);
       revoked += 1;
     }
     return { emergency_stop: true, revoked, occurred_at: now };
