@@ -2,6 +2,9 @@ services:
   zarvis-owner-domain:
     image: nginx:1.27-alpine
     network_mode: host
+    user: "${ZARVIS_OWNER_UID:-1000}:${ZARVIS_OWNER_GID:-1000}"
+    entrypoint: ["nginx"]
+    command: ["-g", "daemon off;"]
     restart: unless-stopped
     read_only: true
     cap_drop: ["ALL"]
@@ -10,8 +13,7 @@ services:
     mem_limit: 128m
     cpus: 0.5
     tmpfs:
-      - /var/cache/nginx:size=16m,mode=0755
-      - /var/run:size=4m,mode=0755
+      - /var/cache/nginx:size=16m,mode=0777
       - /tmp:size=8m,mode=1777
     volumes:
       - ./ops/zarvis-owner-domain/nginx.conf:/etc/nginx/nginx.conf:ro
