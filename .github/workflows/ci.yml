@@ -42,6 +42,7 @@ jobs:
             services/zarvis-task-gateway \
             services/zarvis-memory \
             services/zarvis-action-gateway \
+            services/zarvis-proactive \
             services/workspace-runtime \
             services/billing-ledger \
             apps/zchat \
