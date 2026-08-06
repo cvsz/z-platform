@@ -8,6 +8,7 @@ COMPOSE_FILE="${ROOT_DIR}/compose.zarvis-local.yml"
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 1; }
 docker compose version >/dev/null 2>&1 || { echo "docker compose plugin is required" >&2; exit 1; }
 command -v openssl >/dev/null 2>&1 || { echo "openssl is required" >&2; exit 1; }
+command -v curl >/dev/null 2>&1 || { echo "curl is required" >&2; exit 1; }
 
 if [[ "$(uname -s)" != "Linux" ]]; then
   echo "compose.zarvis-local.yml uses host networking and requires Linux/Ubuntu." >&2
@@ -30,11 +31,18 @@ else
   echo "Using existing ${ENV_FILE}."
 fi
 
+ACTION_PORT="$(sed -n 's/^ZARVIS_ACTION_PORT=//p' "${ENV_FILE}" | tail -n 1)"
+ACTION_PORT="${ACTION_PORT:-8098}"
+if [[ ! "${ACTION_PORT}" =~ ^[0-9]+$ ]] || (( ACTION_PORT < 1024 || ACTION_PORT > 65535 )); then
+  echo "ZARVIS_ACTION_PORT must be an integer between 1024 and 65535." >&2
+  exit 1
+fi
+
 docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d
 
 for _ in $(seq 1 30); do
-  if curl --fail --silent "http://127.0.0.1:8098/healthz" >/dev/null; then
-    echo "Z.A.R.V.I.S. Local Action Console is ready: http://127.0.0.1:8098"
+  if curl --fail --silent "http://127.0.0.1:${ACTION_PORT}/healthz" >/dev/null; then
+    echo "Z.A.R.V.I.S. Local Action Console is ready: http://127.0.0.1:${ACTION_PORT}"
     echo "Enter ZARVIS_LOCAL_OWNER_TOKEN from .env.zarvis.local in the unlock field."
     exit 0
   fi
