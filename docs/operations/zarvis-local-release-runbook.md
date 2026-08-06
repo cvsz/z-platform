@@ -51,7 +51,7 @@ Stop the stack before restoring:
 
 ```bash
 docker compose --env-file .env.zarvis.local -f compose.zarvis-local.yml down
-aash scripts/zarvis-local-restore.sh ./zarvis-local-backup
+bash scripts/zarvis-local-restore.sh ./zarvis-local-backup
 bash scripts/zarvis-local-setup.sh
 ```
 
