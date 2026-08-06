@@ -22,7 +22,7 @@ jobs:
     name: Validate release evidence is bound to current HEAD SHA
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
