@@ -17,25 +17,21 @@ const baseUrl = `http://${host}:${port}`;
 let stopping = false;
 
 async function request(path, options = {}) {
-  const response = await fetch(`${baseUrl}${path}`, options);
+  const headers = new Headers(options.headers ?? {});
+  headers.set('x-zarvis-action-worker-token', workerToken);
+  const response = await fetch(`${baseUrl}${path}`, { ...options, headers });
   if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
   return response.json();
 }
 
-async function runOnce() {
-  const ownerToken = process.env.ZARVIS_LOCAL_OWNER_TOKEN;
-  if (typeof ownerToken !== 'string' || Buffer.byteLength(ownerToken) < 32) {
-    throw new Error('ZARVIS_LOCAL_OWNER_TOKEN must contain at least 32 bytes');
-  }
-  const { actions } = await request('/v1/actions', {
-    headers: { authorization: `Bearer ${ownerToken}` },
-  });
-  for (const action of actions.filter((item) => item.status === 'approved')) {
-    await request(`/v1/internal/actions/${encodeURIComponent(action.action_id)}/execute`, {
+export async function runOnce() {
+  const { action_ids: actionIds } = await request('/v1/internal/actions/approved');
+  for (const actionId of actionIds) {
+    await request(`/v1/internal/actions/${encodeURIComponent(actionId)}/execute`, {
       method: 'POST',
-      headers: { 'x-zarvis-action-worker-token': workerToken },
     });
   }
+  return actionIds.length;
 }
 
 async function loop() {
@@ -52,7 +48,9 @@ async function loop() {
 process.on('SIGINT', () => { stopping = true; });
 process.on('SIGTERM', () => { stopping = true; });
 
-loop().catch((error) => {
-  process.stderr.write(`${error.message}\n`);
-  process.exitCode = 1;
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  loop().catch((error) => {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  });
+}
