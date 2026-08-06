@@ -19,11 +19,18 @@ The Ubuntu host remains owner-bound to GitHub numeric ID `4076926`.
 
 ## Prerequisites
 
+Server:
+
+- healthy Action and Proactive services on loopback
+- GitHub CLI authenticated as the repository owner
+- repository `main` synchronized and no tracked local changes
+
+Windows:
+
 - Windows 11 x64
 - Windows OpenSSH Client
 - SSH key or Windows `ssh-agent`
 - network reachability to the Ubuntu SSH port
-- completed Z.A.R.V.I.S. actual-host automated validation
 
 Install OpenSSH when absent:
 
@@ -31,29 +38,57 @@ Install OpenSSH when absent:
 Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
 ```
 
-## Build and release from the Ubuntu server
+## Build, verify, and stage on the Ubuntu server
 
-The server-side operator command dispatches the private Windows release
-workflow through authenticated GitHub CLI:
+Run one owner-authenticated command:
 
 ```bash
+cd "$HOME/z-platform"
 bash scripts/zarvis-windows-release.sh 0.1.0
 ```
 
-The workflow builds and tests the app on `windows-latest`, optionally signs it,
-creates the installer and SHA-256 manifest, attests the artifact, and publishes
-a private GitHub Release.
+Default behavior is intentionally non-public. The command:
 
-## Install on Windows
+1. verifies both local-only server health endpoints;
+2. dispatches `ZARVIS Windows Client` through authenticated GitHub CLI;
+3. waits for Windows tests, self-contained publish, and installer creation;
+4. downloads the Actions artifact to
+   `zarvis-windows-releases/0.1.0/`;
+5. verifies `SHA256SUMS.txt` and `release-manifest.json`;
+6. creates a checksum-enforcing `Install-ZARVIS.ps1`;
+7. prints the exact SCP and installation commands for Windows.
+
+`cvsz/z-platform` is currently public. Publishing a GitHub Release therefore
+makes the binaries public. Public publication is opt-in only:
+
+```bash
+bash scripts/zarvis-windows-release.sh 0.1.0 --publish-public-release
+```
+
+Require Authenticode signing as a hard release gate:
+
+```bash
+bash scripts/zarvis-windows-release.sh 0.1.0 --require-signed
+```
+
+## Install the staged artifact on Windows
+
+The server command prints exact values. The resulting pattern is:
+
+```powershell
+New-Item -ItemType Directory -Force "$env:USERPROFILE\Downloads\ZARVIS-0.1.0" | Out-Null
+scp -r cvsz@SERVER_IP:/home/cvsz/z-platform/zarvis-windows-releases/0.1.0/zarvis-windows-*/\* "$env:USERPROFILE\Downloads\ZARVIS-0.1.0\"
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\ZARVIS-0.1.0\Install-ZARVIS.ps1"
+```
+
+When a repository release exists, the authenticated updater selects only tags
+matching `zarvis-windows-v*`, verifies SHA-256, and runs the installer:
 
 ```powershell
 winget install GitHub.cli
 gh auth login
 pwsh .\apps\zarvis-windows\scripts\install-latest.ps1
 ```
-
-Or download the installer from the private GitHub Release and verify it against
-`SHA256SUMS.txt`.
 
 ## Credential handling
 
@@ -66,15 +101,17 @@ Or download the installer from the private GitHub Release and verify it against
 
 ## Code signing
 
-Production distribution requires a trusted Authenticode certificate. Configure:
+Trusted production distribution requires an Authenticode certificate. Configure:
 
 - `WINDOWS_SIGNING_CERT_PFX_BASE64`
 - `WINDOWS_SIGNING_CERT_PASSWORD`
 
 The workflow signs both `ZARVIS.exe` and the installer when these secrets are
-available. Without them, artifacts are explicitly marked unsigned.
+available. Without them, the release manifest records `signed: false` and the
+server command warns that Windows SmartScreen may display a warning.
 
 ## Rollback
 
-Install an earlier private GitHub Release. Client rollback does not modify
-server durable state. Stop the tunnel before replacing the client binary.
+Install a previously verified staged version or an earlier
+`zarvis-windows-v*` repository release. Client rollback does not modify server
+durable state. Stop the tunnel before replacing the client binary.
