@@ -1,10 +1,10 @@
-const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', '[::1]']);
 const TARGET_NAME_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
 
 export function validateHealthUrl(value) {
   const url = new URL(value);
   if (url.protocol !== 'http:' || !LOOPBACK_HOSTS.has(url.hostname) || url.pathname !== '/healthz') {
-    throw new Error('Local health URL must be an HTTP loopback /healthz endpoint');
+    throw new Error('Local health URL must be an HTTP literal-loopback /healthz endpoint');
   }
   if (url.username || url.password || url.search || url.hash) {
     throw new Error('Local health URL cannot contain credentials, query, or fragment');
