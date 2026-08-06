@@ -124,12 +124,20 @@ test('rollback requires exact proof and restores the previous value', async () =
   assert.equal((await store.readState()).preferences['assistant.response_style'], 'balanced');
 });
 
-test('expired approval never reaches execution', async () => {
-  const { runtime, setNow } = fixture();
-  const action = await preview(runtime);
-  setNow('2026-08-06T02:16:00.000Z');
-  await assert.rejects(approve(runtime, action), (error) => error.code === 'approval_expired');
-  await assert.rejects(runtime.execute(action.action_id), (error) => error.code === 'invalid_action_state');
+test('expired approval never reaches approval or execution', async () => {
+  const first = fixture();
+  const pending = await preview(first.runtime);
+  first.setNow('2026-08-06T02:16:00.000Z');
+  await assert.rejects(approve(first.runtime, pending), (error) => error.code === 'approval_expired');
+  await assert.rejects(first.runtime.execute(pending.action_id), (error) => error.code === 'invalid_action_state');
+
+  const second = fixture();
+  const approved = await preview(second.runtime);
+  await approve(second.runtime, approved);
+  second.setNow('2026-08-06T02:16:00.000Z');
+  await assert.rejects(second.runtime.execute(approved.action_id), (error) => error.code === 'approval_expired');
+  assert.equal((await second.runtime.getAction(approved.action_id)).status, 'expired');
+  assert.equal(Object.hasOwn((await second.store.readState()).preferences, approved.key), false);
 });
 
 test('emergency stop revokes pending and approved actions and blocks new previews', async () => {
@@ -162,7 +170,7 @@ test('fixed-path store reconstructs executed action and local state after restar
   }
 });
 
-test('HTTP service fails closed and separates owner approval from worker execution', async () => {
+test('HTTP service fails closed and separates owner approval from worker queue and execution', async () => {
   assert.throws(() => createActionServer(), /ZARVIS_LOCAL_OWNER_TOKEN/);
 
   const ownerToken = 'o'.repeat(32);
@@ -175,6 +183,7 @@ test('HTTP service fails closed and separates owner approval from worker executi
   try {
     assert.equal((await fetch(`${base}/healthz`)).status, 200);
     assert.equal((await fetch(`${base}/v1/actions`)).status, 403);
+    assert.equal((await fetch(`${base}/v1/internal/actions/approved`)).status, 403);
 
     const createdResponse = await fetch(`${base}/v1/actions/preview`, {
       method: 'POST',
@@ -190,6 +199,12 @@ test('HTTP service fails closed and separates owner approval from worker executi
       body: JSON.stringify({ approval_digest: created.approval_digest, approval_nonce: created.approval_nonce }),
     });
     assert.equal(approvedResponse.status, 200);
+
+    const queueResponse = await fetch(`${base}/v1/internal/actions/approved`, {
+      headers: { 'x-zarvis-action-worker-token': workerToken },
+    });
+    assert.equal(queueResponse.status, 200);
+    assert.deepEqual((await queueResponse.json()).action_ids, [created.action_id]);
 
     assert.equal((await fetch(`${base}/v1/internal/actions/${created.action_id}/execute`, { method: 'POST' })).status, 403);
     const executedResponse = await fetch(`${base}/v1/internal/actions/${created.action_id}/execute`, {
