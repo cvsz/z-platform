@@ -40,6 +40,8 @@ jobs:
       ARTIFACT_DIR: apps/zarvis-windows/artifacts
       PUBLISH_DIR: apps/zarvis-windows/artifacts/publish
       VERSION: ${{ inputs.version || format('0.1.{0}', github.run_number) }}
+      SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_PFX_BASE64 }}
+      SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v5
@@ -78,26 +80,22 @@ jobs:
 
       - name: Import optional signing certificate
         id: signing
-        if: ${{ secrets.WINDOWS_SIGNING_CERT_PFX_BASE64 != '' }}
+        if: ${{ env.SIGNING_CERTIFICATE_BASE64 != '' }}
         shell: pwsh
-        env:
-          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_PFX_BASE64 }}
         run: |
           $path = Join-Path $env:RUNNER_TEMP 'zarvis-signing.pfx'
-          [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
+          [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:SIGNING_CERTIFICATE_BASE64))
           "certificate=$path" >> $env:GITHUB_OUTPUT
           "enabled=true" >> $env:GITHUB_OUTPUT
 
       - name: Sign ZARVIS.exe
         if: ${{ steps.signing.outputs.enabled == 'true' }}
         shell: pwsh
-        env:
-          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
         run: |
           $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
             -Filter signtool.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1).FullName
           & $signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com `
-            /f "${{ steps.signing.outputs.certificate }}" /p $env:CERTIFICATE_PASSWORD `
+            /f "${{ steps.signing.outputs.certificate }}" /p $env:SIGNING_CERTIFICATE_PASSWORD `
             "$env:PUBLISH_DIR\ZARVIS.exe"
           if ($LASTEXITCODE -ne 0) { throw "Client signing failed." }
 
@@ -119,14 +117,12 @@ jobs:
       - name: Sign installer
         if: ${{ steps.signing.outputs.enabled == 'true' }}
         shell: pwsh
-        env:
-          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
         run: |
           $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
             -Filter signtool.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1).FullName
           $installer = Get-ChildItem $env:ARTIFACT_DIR -Filter 'ZARVIS-Setup-*-win-x64.exe' | Select-Object -First 1
           & $signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com `
-            /f "${{ steps.signing.outputs.certificate }}" /p $env:CERTIFICATE_PASSWORD `
+            /f "${{ steps.signing.outputs.certificate }}" /p $env:SIGNING_CERTIFICATE_PASSWORD `
             $installer.FullName
           if ($LASTEXITCODE -ne 0) { throw "Installer signing failed." }
 
