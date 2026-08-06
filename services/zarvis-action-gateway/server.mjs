@@ -158,6 +158,16 @@ export function createActionServer({
         json(res, 200, await runtime.resume(await readJson(req)));
         return;
       }
+      if (req.method === 'GET' && url.pathname === '/v1/internal/actions/approved') {
+        requireWorker(req, configuredWorkerToken);
+        const actions = await runtime.listActions();
+        json(res, 200, {
+          action_ids: actions
+            .filter((action) => action.status === 'approved')
+            .map((action) => action.action_id),
+        });
+        return;
+      }
 
       let match = routeMatch(url.pathname, /^\/v1\/actions\/([^/]+)$/);
       if (req.method === 'GET' && match) {
