@@ -28,21 +28,27 @@ jobs:
           npm test --prefix services/zarvis-action-gateway
           npm test --prefix services/zarvis-proactive
 
-      - name: Create ephemeral release secrets
+      - name: Create masked ephemeral release secrets
         shell: bash
         run: |
           set -euo pipefail
           umask 077
-          cat > .env.zarvis.local <<'EOF'
+          owner_token="$(openssl rand -hex 32)"
+          action_worker_token="$(openssl rand -hex 32)"
+          proactive_worker_token="$(openssl rand -hex 32)"
+          echo "::add-mask::${owner_token}"
+          echo "::add-mask::${action_worker_token}"
+          echo "::add-mask::${proactive_worker_token}"
+          cat > .env.zarvis.local <<EOF
           ZARVIS_ACTION_PORT=8098
           ZARVIS_ACTION_WORKER_INTERVAL_MS=300000
           ZARVIS_PROACTIVE_PORT=8099
           ZARVIS_PROACTIVE_WORKER_INTERVAL_MS=300000
           ZARVIS_PROACTIVE_CHECK_TIMEOUT_MS=500
           ZARVIS_ACTION_HEALTH_URL=http://127.0.0.1:65534/healthz
-          ZARVIS_LOCAL_OWNER_TOKEN=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-          ZARVIS_ACTION_WORKER_TOKEN=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-          ZARVIS_PROACTIVE_WORKER_TOKEN=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+          ZARVIS_LOCAL_OWNER_TOKEN=${owner_token}
+          ZARVIS_ACTION_WORKER_TOKEN=${action_worker_token}
+          ZARVIS_PROACTIVE_WORKER_TOKEN=${proactive_worker_token}
           EOF
           mkdir -p zarvis-local-release-evidence
 
@@ -120,6 +126,7 @@ jobs:
             fi
             sleep 1
           done
+          docker compose --env-file .env.zarvis.local -f compose.zarvis-local.yml logs --no-color
           exit 1
 
       - name: Verify restored lifecycle state
@@ -132,31 +139,43 @@ jobs:
           export OLD_ZARVIS_LOCAL_OWNER_TOKEN="$ZARVIS_LOCAL_OWNER_TOKEN"
           export OLD_ZARVIS_ACTION_WORKER_TOKEN="$ZARVIS_ACTION_WORKER_TOKEN"
           export OLD_ZARVIS_PROACTIVE_WORKER_TOKEN="$ZARVIS_PROACTIVE_WORKER_TOKEN"
+          new_owner_token="$(openssl rand -hex 32)"
+          new_action_worker_token="$(openssl rand -hex 32)"
+          new_proactive_worker_token="$(openssl rand -hex 32)"
+          echo "::add-mask::${new_owner_token}"
+          echo "::add-mask::${new_action_worker_token}"
+          echo "::add-mask::${new_proactive_worker_token}"
           umask 077
-          cat > .env.zarvis.local <<'EOF'
+          cat > .env.zarvis.local <<EOF
           ZARVIS_ACTION_PORT=8098
           ZARVIS_ACTION_WORKER_INTERVAL_MS=300000
           ZARVIS_PROACTIVE_PORT=8099
           ZARVIS_PROACTIVE_WORKER_INTERVAL_MS=300000
           ZARVIS_PROACTIVE_CHECK_TIMEOUT_MS=500
           ZARVIS_ACTION_HEALTH_URL=http://127.0.0.1:65534/healthz
-          ZARVIS_LOCAL_OWNER_TOKEN=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
-          ZARVIS_ACTION_WORKER_TOKEN=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-          ZARVIS_PROACTIVE_WORKER_TOKEN=ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+          ZARVIS_LOCAL_OWNER_TOKEN=${new_owner_token}
+          ZARVIS_ACTION_WORKER_TOKEN=${new_action_worker_token}
+          ZARVIS_PROACTIVE_WORKER_TOKEN=${new_proactive_worker_token}
           EOF
           set -a
           source .env.zarvis.local
           set +a
           docker compose --env-file .env.zarvis.local -f compose.zarvis-local.yml up -d --force-recreate
+          recovered=false
           for _ in $(seq 1 60); do
             if curl --fail --silent http://127.0.0.1:8098/healthz >/dev/null \
               && curl --fail --silent http://127.0.0.1:8099/healthz >/dev/null; then
+              recovered=true
               break
             fi
             sleep 1
           done
+          [[ "$recovered" == true ]] || { docker compose --env-file .env.zarvis.local -f compose.zarvis-local.yml logs --no-color; exit 1; }
           node scripts/zarvis-local-verify-rotation.mjs > zarvis-local-release-evidence/zarvis-local-rotation-verification.json
           {
+            echo "OLD_ZARVIS_LOCAL_OWNER_TOKEN=${OLD_ZARVIS_LOCAL_OWNER_TOKEN}"
+            echo "OLD_ZARVIS_ACTION_WORKER_TOKEN=${OLD_ZARVIS_ACTION_WORKER_TOKEN}"
+            echo "OLD_ZARVIS_PROACTIVE_WORKER_TOKEN=${OLD_ZARVIS_PROACTIVE_WORKER_TOKEN}"
             echo "ZARVIS_LOCAL_OWNER_TOKEN=${ZARVIS_LOCAL_OWNER_TOKEN}"
             echo "ZARVIS_ACTION_WORKER_TOKEN=${ZARVIS_ACTION_WORKER_TOKEN}"
             echo "ZARVIS_PROACTIVE_WORKER_TOKEN=${ZARVIS_PROACTIVE_WORKER_TOKEN}"
@@ -169,13 +188,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for secret in \
-            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
-            bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
-            cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc \
-            dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd \
-            eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee \
-            ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff; do
+          for variable in \
+            OLD_ZARVIS_LOCAL_OWNER_TOKEN \
+            OLD_ZARVIS_ACTION_WORKER_TOKEN \
+            OLD_ZARVIS_PROACTIVE_WORKER_TOKEN \
+            ZARVIS_LOCAL_OWNER_TOKEN \
+            ZARVIS_ACTION_WORKER_TOKEN \
+            ZARVIS_PROACTIVE_WORKER_TOKEN; do
+            secret="${!variable}"
             if grep -R --binary-files=without-match -F "$secret" zarvis-local-release-evidence; then
               echo "Release evidence contains a configured credential."
               exit 1
