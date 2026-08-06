@@ -17,6 +17,12 @@ const schemaPaths = [
   new URL('../schemas/zarvis.action.approval.v1.schema.json', import.meta.url),
   new URL('../schemas/zarvis.action.result.v1.schema.json', import.meta.url),
   new URL('../schemas/zarvis.action.rollback.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.proactive.policy.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.proactive.subscription.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.proactive.signal.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.proactive.notification.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.proactive.feedback.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.proactive.action-handoff.v1.schema.json', import.meta.url),
 ];
 
 test('ZARVIS schemas are valid JSON Schema documents with unique identifiers', async () => {
@@ -43,20 +49,13 @@ test('command completion schema supports explicit idempotent replay metadata', a
 
 test('session event schema is append-only and uses a closed event type set', async () => {
   const schema = JSON.parse(await readFile(schemaPaths[3], 'utf8'));
-  assert.deepEqual(schema.properties.event_type.enum, [
-    'command.accepted',
-    'command.completed',
-    'command.failed',
-  ]);
+  assert.deepEqual(schema.properties.event_type.enum, ['command.accepted', 'command.completed', 'command.failed']);
   assert.equal(schema.properties.actor.additionalProperties, false);
 });
 
 test('task request schema admits only registered read-only task tools', async () => {
   const schema = JSON.parse(await readFile(schemaPaths[4], 'utf8'));
-  assert.deepEqual(schema.properties.steps.items.properties.tool.enum, [
-    'github.repository.status',
-    'zarvis.repository.summary',
-  ]);
+  assert.deepEqual(schema.properties.steps.items.properties.tool.enum, ['github.repository.status', 'zarvis.repository.summary']);
   assert.equal(schema.properties.steps.items.properties.mutating.const, false);
 });
 
@@ -110,4 +109,36 @@ test('local action result exposes rollback proof and immutable owner identity', 
   assert.equal(result.properties.owner_user_id.const, 'github:4076926');
   assert.ok(result.required.includes('rollback_digest'));
   assert.ok(result.required.includes('rollback_nonce'));
+});
+
+test('proactive policy is owner-bound and contains server-enforced budgets and quiet hours', async () => {
+  const policy = JSON.parse(await readFile(schemaPaths[14], 'utf8'));
+  assert.equal(policy.properties.owner_user_id.const, 'github:4076926');
+  assert.equal(policy.properties.tenant_id.const, 'owner-4076926');
+  assert.equal(policy.properties.daily_notification_budget.maximum, 20);
+  assert.ok(policy.required.includes('quiet_hours_start'));
+});
+
+test('proactive subscription admits only the read-only local health check', async () => {
+  const subscription = JSON.parse(await readFile(schemaPaths[15], 'utf8'));
+  assert.equal(subscription.properties.check.const, 'local.service.health');
+  assert.equal(subscription.properties.target.const, 'zarvis-action-gateway');
+  assert.deepEqual(subscription.properties.missed_run_policy.enum, ['skip', 'run_once']);
+});
+
+test('proactive signals and notifications keep action proposals behind owner approval', async () => {
+  const signal = JSON.parse(await readFile(schemaPaths[16], 'utf8'));
+  const notification = JSON.parse(await readFile(schemaPaths[17], 'utf8'));
+  assert.equal(signal.properties.proposed_action.oneOf[1].properties.capability.const, 'sandbox.preference.set');
+  assert.ok(notification.required.includes('requires_owner_approval'));
+  assert.ok(notification.properties.delivery_state.enum.includes('suppressed_quiet_hours'));
+});
+
+test('proactive feedback is owner-bound and action handoff can never be executed', async () => {
+  const feedback = JSON.parse(await readFile(schemaPaths[18], 'utf8'));
+  const handoff = JSON.parse(await readFile(schemaPaths[19], 'utf8'));
+  assert.equal(feedback.properties.owner_user_id.const, 'github:4076926');
+  assert.equal(handoff.properties.requires_owner_approval.const, true);
+  assert.equal(handoff.properties.executed.const, false);
+  assert.equal(handoff.properties.destination.const, 'zarvis-action-gateway');
 });
