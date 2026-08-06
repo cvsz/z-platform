@@ -20,9 +20,9 @@ on:
         default: "0.1.0"
         type: string
       publish_release:
-        description: Publish a private GitHub Release
+        description: Publish a public GitHub Release
         required: true
-        default: true
+        default: false
         type: boolean
 
 permissions:
@@ -179,7 +179,7 @@ jobs:
             apps/zarvis-windows/artifacts/SHA256SUMS.txt
             apps/zarvis-windows/artifacts/release-manifest.json
 
-      - name: Publish private release
+      - name: Publish public release
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
         shell: pwsh
         env:
