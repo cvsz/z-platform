@@ -1,7 +1,9 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   COMMAND_COMPLETED_SCHEMA,
+  createSessionEvent,
   createToolAuditEvent,
+  IdempotencyConflictError,
   normalizeActorContext,
   normalizeCommandRequest,
   resolveCommandIntent,
@@ -10,20 +12,27 @@ import {
   executeGitHubRepositoryStatus,
   GITHUB_REPOSITORY_STATUS_TOOL,
 } from './github-status-tool.mjs';
+import { createMemorySessionStore } from './session-store.mjs';
 
 export const AVAILABLE_TOOLS = Object.freeze([GITHUB_REPOSITORY_STATUS_TOOL]);
 
 function formatDate(value, locale) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone: 'UTC',
   }).format(date);
+}
+
+function commandFingerprint(command) {
+  return createHash('sha256').update(JSON.stringify(command)).digest('hex');
+}
+
+function assertMatchingFingerprint(envelope, fingerprint) {
+  if (envelope.fingerprint !== fingerprint) throw new IdempotencyConflictError();
 }
 
 export function createRepositoryStatusSpeech(repository, locale = 'th-TH') {
@@ -45,25 +54,68 @@ export class ZarvisOrchestrator {
   constructor({
     githubStatusExecutor = executeGitHubRepositoryStatus,
     auditSink = async () => {},
+    sessionStore = createMemorySessionStore(),
     now = () => new Date(),
     idFactory = randomUUID,
   } = {}) {
     this.githubStatusExecutor = githubStatusExecutor;
     this.auditSink = auditSink;
+    this.sessionStore = sessionStore;
     this.now = now;
     this.idFactory = idFactory;
+    this.inflight = new Map();
   }
 
   async execute(rawCommand, rawContext = {}) {
     const command = normalizeCommandRequest(rawCommand);
     const actor = normalizeActorContext(rawContext);
+    const fingerprint = commandFingerprint(command);
+
+    const cached = await this.sessionStore.getCommandResult(command.command_id);
+    if (cached) {
+      assertMatchingFingerprint(cached, fingerprint);
+      return { ...cached.result, replayed: true };
+    }
+
+    const pending = this.inflight.get(command.command_id);
+    if (pending) {
+      const envelope = await pending;
+      assertMatchingFingerprint(envelope, fingerprint);
+      return { ...envelope.result, replayed: true };
+    }
+
+    const execution = this.executeNew(command, actor, fingerprint);
+    this.inflight.set(command.command_id, execution);
+    try {
+      const envelope = await execution;
+      return envelope.result;
+    } finally {
+      if (this.inflight.get(command.command_id) === execution) {
+        this.inflight.delete(command.command_id);
+      }
+    }
+  }
+
+  async executeNew(command, actor, fingerprint) {
     const intent = resolveCommandIntent(command);
     const startedAt = performance.now();
 
+    await this.sessionStore.appendEvent(createSessionEvent({
+      eventType: 'command.accepted',
+      command,
+      actor,
+      payload: {
+        input: command.input,
+        ...(command.tool ? { tool: command.tool } : {}),
+      },
+      now: this.now,
+      eventId: this.idFactory(),
+    }));
+
     try {
-      let result;
+      let toolResult;
       if (intent.name === 'github.repository.status') {
-        result = await this.githubStatusExecutor(intent.arguments);
+        toolResult = await this.githubStatusExecutor(intent.arguments);
       } else {
         throw new Error(`Unregistered tool: ${intent.name}`);
       }
@@ -76,36 +128,57 @@ export class ZarvisOrchestrator {
         outcome: 'succeeded',
         durationMs,
         resultSummary: {
-          repository: result.full_name,
-          visibility: result.visibility,
-          default_branch: result.default_branch,
-          open_issues_count: result.open_issues_count,
+          repository: toolResult.full_name,
+          visibility: toolResult.visibility,
+          default_branch: toolResult.default_branch,
+          open_issues_count: toolResult.open_issues_count,
         },
         now: this.now,
         eventId: this.idFactory(),
       });
       await this.auditSink(audit);
 
-      return {
+      const result = {
         schema_version: COMMAND_COMPLETED_SCHEMA,
         command_id: command.command_id,
         session_id: command.session_id,
         completed_at: this.now().toISOString(),
         status: 'completed',
+        replayed: false,
         intent: {
           name: intent.name,
           source: intent.source,
         },
-        result,
+        result: toolResult,
         speech: {
           locale: command.input.locale,
-          text: createRepositoryStatusSpeech(result, command.input.locale),
+          text: createRepositoryStatusSpeech(toolResult, command.input.locale),
         },
         audit: {
           event_id: audit.event_id,
           schema_version: audit.schema_version,
         },
       };
+
+      await this.sessionStore.appendEvent(createSessionEvent({
+        eventType: 'command.completed',
+        command,
+        actor,
+        payload: {
+          status: result.status,
+          intent: result.intent,
+          speech: result.speech,
+          audit: result.audit,
+          result_summary: audit.result_summary,
+        },
+        now: this.now,
+        eventId: this.idFactory(),
+      }));
+
+      const envelope = { fingerprint, result };
+      const stored = await this.sessionStore.putCommandResult(command.command_id, envelope);
+      assertMatchingFingerprint(stored, fingerprint);
+      return stored;
     } catch (error) {
       const durationMs = performance.now() - startedAt;
       const audit = createToolAuditEvent({
@@ -124,7 +197,33 @@ export class ZarvisOrchestrator {
       } catch {
         // Preserve the original tool failure. Audit sink failures are reported by the sink itself.
       }
+
+      try {
+        await this.sessionStore.appendEvent(createSessionEvent({
+          eventType: 'command.failed',
+          command,
+          actor,
+          payload: {
+            status: 'failed',
+            intent: { name: intent.name, source: intent.source },
+            error: { code: error?.code ?? 'tool_execution_failed' },
+            audit: { event_id: audit.event_id, schema_version: audit.schema_version },
+          },
+          now: this.now,
+          eventId: this.idFactory(),
+        }));
+      } catch {
+        // Preserve the original tool failure.
+      }
       throw error;
     }
+  }
+
+  async getSession(sessionId, options = {}) {
+    return this.sessionStore.readSession(sessionId, options);
+  }
+
+  async deleteSession(sessionId) {
+    return this.sessionStore.deleteSession(sessionId);
   }
 }
