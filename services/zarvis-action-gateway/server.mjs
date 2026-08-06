@@ -27,6 +27,15 @@ function secureEqual(left, right) {
   return a.length === b.length && a.length > 0 && timingSafeEqual(a, b);
 }
 
+function createSerialExecutor() {
+  let tail = Promise.resolve();
+  return (operation) => {
+    const run = tail.then(operation, operation);
+    tail = run.then(() => undefined, () => undefined);
+    return run;
+  };
+}
+
 function json(res, status, payload) {
   const body = `${JSON.stringify(payload)}\n`;
   res.writeHead(status, {
@@ -113,6 +122,7 @@ export function createActionServer({
 } = {}) {
   const configuredOwnerToken = requireSecret('ZARVIS_LOCAL_OWNER_TOKEN', ownerToken);
   const configuredWorkerToken = requireSecret('ZARVIS_ACTION_WORKER_TOKEN', workerToken);
+  const mutate = createSerialExecutor();
 
   return createServer(async (req, res) => {
     try {
@@ -144,18 +154,20 @@ export function createActionServer({
       }
       if (req.method === 'POST' && url.pathname === '/v1/actions/preview') {
         requireOwner(req, configuredOwnerToken);
-        json(res, 201, await runtime.preview(await readJson(req)));
+        const body = await readJson(req);
+        json(res, 201, await mutate(() => runtime.preview(body)));
         return;
       }
       if (req.method === 'POST' && url.pathname === '/v1/emergency-stop') {
         requireOwner(req, configuredOwnerToken);
         const body = await readJson(req);
-        json(res, 200, await runtime.emergencyStop(body.reason));
+        json(res, 200, await mutate(() => runtime.emergencyStop(body.reason)));
         return;
       }
       if (req.method === 'POST' && url.pathname === '/v1/emergency-resume') {
         requireOwner(req, configuredOwnerToken);
-        json(res, 200, await runtime.resume(await readJson(req)));
+        const body = await readJson(req);
+        json(res, 200, await mutate(() => runtime.resume(body)));
         return;
       }
       if (req.method === 'GET' && url.pathname === '/v1/internal/actions/approved') {
@@ -178,19 +190,21 @@ export function createActionServer({
       match = routeMatch(url.pathname, /^\/v1\/actions\/([^/]+)\/approve$/);
       if (req.method === 'POST' && match) {
         requireOwner(req, configuredOwnerToken);
-        json(res, 200, await runtime.approve(match[0], await readJson(req)));
+        const body = await readJson(req);
+        json(res, 200, await mutate(() => runtime.approve(match[0], body)));
         return;
       }
       match = routeMatch(url.pathname, /^\/v1\/actions\/([^/]+)\/rollback$/);
       if (req.method === 'POST' && match) {
         requireOwner(req, configuredOwnerToken);
-        json(res, 200, await runtime.rollback(match[0], await readJson(req)));
+        const body = await readJson(req);
+        json(res, 200, await mutate(() => runtime.rollback(match[0], body)));
         return;
       }
       match = routeMatch(url.pathname, /^\/v1\/internal\/actions\/([^/]+)\/execute$/);
       if (req.method === 'POST' && match) {
         requireWorker(req, configuredWorkerToken);
-        json(res, 200, await runtime.execute(match[0]));
+        json(res, 200, await mutate(() => runtime.execute(match[0])));
         return;
       }
 
