@@ -74,17 +74,32 @@ if (!JSON.parse(actionHealth).local_only || JSON.parse(proactiveHealth).autonomo
   throw new Error('Health security invariants failed');
 }
 
-const actionListBefore = JSON.parse(await expectStatus('action list baseline', `${actionBase}/v1/actions`, 200, { headers: { authorization: `Bearer ${ownerToken}` } })).actions.length;
-const notificationPayload = JSON.parse(await expectStatus('proactive notification list', `${proactiveBase}/v1/notifications`, 200, { headers: { authorization: `Bearer ${ownerToken}` } }));
-const actionable = notificationPayload.notifications.find((item) => item.proposed_action && !item.handoff);
-if (actionable) {
-  await expectStatus('handoff creation allowed', `${proactiveBase}/v1/notifications/${encodeURIComponent(actionable.notification_id)}/handoff`, 200, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${ownerToken}` },
-  });
-  const actionListAfter = JSON.parse(await expectStatus('handoff did not create action', `${actionBase}/v1/actions`, 200, { headers: { authorization: `Bearer ${ownerToken}` } })).actions.length;
-  if (actionListAfter !== actionListBefore) throw new Error('Proactive handoff autonomously created an action');
+const actionListBefore = JSON.parse(await expectStatus('action list baseline', `${actionBase}/v1/actions`, 200, {
+  headers: { authorization: `Bearer ${ownerToken}` },
+})).actions.length;
+const notificationPayload = JSON.parse(await expectStatus('proactive notification list', `${proactiveBase}/v1/notifications`, 200, {
+  headers: { authorization: `Bearer ${ownerToken}` },
+}));
+const actionable = notificationPayload.notifications.find((item) => item.proposed_action);
+if (!actionable) throw new Error('Red-team requires one actionable proactive notification');
+const handoffBody = JSON.parse(await expectStatus('handoff creation or replay allowed', `${proactiveBase}/v1/notifications/${encodeURIComponent(actionable.notification_id)}/handoff`, 200, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${ownerToken}` },
+}));
+if (handoffBody.requires_owner_approval !== true || handoffBody.executed !== false) {
+  throw new Error('Proactive handoff crossed the owner-approval boundary');
 }
+const actionListAfter = JSON.parse(await expectStatus('handoff did not create action', `${actionBase}/v1/actions`, 200, {
+  headers: { authorization: `Bearer ${ownerToken}` },
+})).actions.length;
+const handoffIsolated = actionListAfter === actionListBefore;
+checks.push({
+  name: 'proactive handoff cannot autonomously mutate action state',
+  expected_status: 'unchanged_action_count',
+  actual_status: handoffIsolated ? 'unchanged_action_count' : 'changed_action_count',
+  passed: handoffIsolated,
+});
+if (!handoffIsolated) throw new Error('Proactive handoff autonomously created an action');
 
 process.stdout.write(`${JSON.stringify({
   schema_version: 'zarvis.local-red-team.v1',
