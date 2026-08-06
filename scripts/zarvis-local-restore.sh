@@ -10,7 +10,9 @@ manifest="${BACKUP_DIR}/zarvis-local-backup-manifest.json"
 [[ -f "${manifest}" ]] || { echo "backup manifest is missing" >&2; exit 1; }
 
 restore_volume() {
-  local volume="$1" archive="${volume}.tgz"
+  local volume="$1"
+  local archive="${volume}.tgz"
+  local expected actual
   [[ -f "${BACKUP_DIR}/${archive}" ]] || { echo "${archive} is missing" >&2; exit 1; }
   expected="$(node -e "const m=require(process.argv[1]);const a=m.archives.find(x=>x.file===process.argv[2]);if(!a)process.exit(2);process.stdout.write(a.sha256)" "${manifest}" "${archive}")"
   actual="$(sha256sum "${BACKUP_DIR}/${archive}" | awk '{print $1}')"
