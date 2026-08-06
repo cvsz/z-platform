@@ -1,8 +1,8 @@
 # Z.A.R.V.I.S. Orchestrator
 
-The first Z.A.R.V.I.S. vertical slice converts a text or voice transcript into a strictly read-only GitHub repository status query, returns a speech-ready summary, and emits a structured audit event.
+The Z.A.R.V.I.S. orchestrator converts owner text or voice transcripts into constrained tool calls, returns speech-ready results, records immutable audit events, and persists owner session history.
 
-This service is a single-user private assistant permanently bound to GitHub user ID `4076926` (`cvsz`). The owner ID is an immutable source-code invariant and cannot be replaced through environment variables.
+This service is permanently bound to GitHub user ID `4076926` (`cvsz`). The owner ID is a source-code invariant and cannot be replaced through environment variables.
 
 ## Boundary
 
@@ -11,26 +11,37 @@ Trusted identity edge
         |
         | fixed owner assertion + edge secret
         v
-ZARVIS Console
+ZARVIS Console / ZVoice
         |
         | fixed owner service identity + service token
         v
 ZARVIS Orchestrator
+        |                 |
+        |                 +--> append-only session events + idempotency results
         |
-        | fixed-host HTTPS GET
-        v
-GitHub REST API
-        |
-        v
-speech-ready result + audit event
+        +--> fixed-host HTTPS GET --> GitHub REST API
 ```
 
-The browser never receives `GITHUB_TOKEN`, the edge secret, or the console-to-orchestrator service token. The only registered tool is `github.repository.status`; unknown or mutating tool names fail closed.
+The browser never receives `GITHUB_TOKEN`, the edge secret, or the service token. The only registered tool remains `github.repository.status`; unknown or mutating tool names fail closed.
+
+## Durable session runtime
+
+The default single-owner deployment uses `FileSessionStore`:
+
+- append-only JSONL session events under `${ZARVIS_DATA_DIR}/sessions`;
+- per-command result envelopes under `${ZARVIS_DATA_DIR}/commands`;
+- file and directory modes restricted to the service account;
+- `command_id` idempotency with SHA-256 payload fingerprinting;
+- `409 idempotency_conflict` when the same `command_id` is reused with different content;
+- session history view and explicit confirmation-gated deletion.
+
+The storage contract is an adapter boundary. A later PostgreSQL/outbox implementation can replace the file adapter without changing the HTTP or orchestrator contracts.
 
 ## Run
 
 ```bash
 export ZARVIS_ORCHESTRATOR_SERVICE_TOKEN='<at-least-32-random-bytes>'
+export ZARVIS_DATA_DIR='/var/lib/zarvis'
 pnpm --filter @z-platform/zarvis-orchestrator start
 ```
 
@@ -42,26 +53,21 @@ Environment variables:
 | `HOST` | `0.0.0.0` | HTTP listen address |
 | `GITHUB_TOKEN` | unset | Optional server-side token for private repositories or higher rate limits |
 | `ZARVIS_GITHUB_TIMEOUT_MS` | `5000` | GitHub request timeout |
-| `ZARVIS_ORCHESTRATOR_SERVICE_TOKEN` | required | Authenticates the private console to the orchestrator; minimum 32 bytes |
+| `ZARVIS_ORCHESTRATOR_SERVICE_TOKEN` | required | Authenticates Console/ZVoice to the orchestrator; minimum 32 bytes |
+| `ZARVIS_DATA_DIR` | `./data/zarvis` | Durable session and idempotency storage root |
 
-There is intentionally no `ZARVIS_OWNER_GITHUB_ID` configuration variable. The owner is fixed to `4076926`.
+There is intentionally no `ZARVIS_OWNER_GITHUB_ID` configuration variable.
 
-## API
+## Protected API
 
-### `GET /healthz`
-
-Returns service health without exposing owner metadata.
-
-### Protected routes
-
-`GET /v1/tools` and `POST /v1/commands` require both:
+Every route except `GET /healthz` requires:
 
 ```text
 x-zarvis-owner-id: 4076926
 x-zarvis-service-token: <matching service token>
 ```
 
-Any missing or incorrect value returns `403 owner_access_denied`. Caller-supplied `x-user-id` and `x-tenant-id` values are ignored. Audit records always use:
+Caller-supplied user and tenant headers are ignored. Audit and session events always use:
 
 ```text
 user_id: github:4076926
@@ -73,6 +79,7 @@ tenant_id: owner-4076926
 ```json
 {
   "schema_version": "zarvis.command.requested.v1",
+  "command_id": "command-1",
   "session_id": "session-1",
   "input": {
     "modality": "voice",
@@ -82,4 +89,18 @@ tenant_id: owner-4076926
 }
 ```
 
-The response includes normalized repository metadata, `speech.text` for TTS, and the immutable audit event identifier.
+The response includes `replayed: false` for a new execution and `replayed: true` for a safe idempotent replay.
+
+### `GET /v1/sessions/{session_id}?limit=100`
+
+Returns the latest 1-500 append-only session events for the owner.
+
+### `DELETE /v1/sessions/{session_id}`
+
+Requires an explicit confirmation header:
+
+```text
+x-zarvis-confirm-delete: <same session_id>
+```
+
+Without the matching confirmation the service returns `428 confirmation_required`.
