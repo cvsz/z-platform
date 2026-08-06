@@ -12,12 +12,16 @@ Epic: #148
 | Speech-ready Thai/English response | Implemented | `services/zarvis-orchestrator/src/orchestrator.mjs` | Generated from normalized fields |
 | Browser speech output | Implemented | Console and ZVoice browser clients | Browser speech synthesis |
 | Tool audit event | Implemented | `zarvis.audit.tool-executed.v1` | Allowlisted fields; no secrets |
-| Append-only session transcript/events | Implemented | `zarvis.session.event.v1`, `FileSessionStore` | Owner-only storage; mode 0600 files |
+| Append-only session transcript/events | Implemented | `zarvis.session.event.v1`, `FileSessionStore` | Fixed-path journals; mode 0600 files |
 | Command idempotency | Implemented for read-only tools | `command_id` fingerprint/result envelope | Identical replay; conflicting reuse returns 409 |
 | Session history view/delete | Implemented | `GET/DELETE /v1/sessions/{id}` | Owner service auth; deletion confirmation required |
-| Mutating tool approval | Not implemented | Next vertical slice | Mutations remain blocked |
-| Durable multi-step task state | Not implemented | Next vertical slice | Current durability is command/session scoped |
-| Episodic/semantic memory | Not implemented | Future vertical slice | Only explicit session transcript storage exists |
-| Screen/camera perception | Not implemented | Future vertical slice | No capture permissions requested |
-| Desktop/device control | Not implemented | Future vertical slice | No action bridge |
-| Proactive automation | Not implemented | Future vertical slice | No schedules or background monitoring |
+| Durable multi-step task state | Implemented for read-only DAG | `services/zarvis-task-gateway`, durable agent adapters | Fixed owner; fixed-path job/queue/audit files |
+| Exact-plan owner approval | Implemented for task plans | `zarvis.task.approval.v1`, SHA-256 digest + nonce | Single-use, 15-minute expiry, worker recheck |
+| Pause/resume/cancel/retry | Implemented for task lifecycle | `ZarvisTaskRuntime` | Approved/pending pause only; retry limit enforced |
+| Step checkpoints and dependency order | Implemented | `ZarvisPlanWorkerRuntime` | Earlier-step dependency rule; read-only registry |
+| Mutating tool execution | Blocked | Closed task tool registry | Phase 5 requires new capability contracts and security review |
+| Episodic/semantic memory | Not implemented | Issue #152 | Only explicit session/task state exists |
+| Screen/camera perception | Not implemented | Issue #153 | No capture permissions requested |
+| Desktop/device control | Not implemented | Issue #154 | No action bridge |
+| Proactive automation | Not implemented | Issue #155 | No schedules or background monitoring |
+| Production deployment evidence | Not complete | Issue #156 | Edge, origin, rotation, backup, chaos, SLO evidence required |
