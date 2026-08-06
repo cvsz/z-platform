@@ -76,6 +76,12 @@ function cleanText(value, fallback, maxLength) {
   return text;
 }
 
+function requiredText(value, field, maxLength) {
+  const text = cleanText(value, undefined, maxLength);
+  if (!text) throw new HttpError(`${field} is required`);
+  return text;
+}
+
 function cleanId(value, fallback = randomUUID()) {
   const id = cleanText(value, fallback, 128);
   if (!ID_PATTERN.test(id)) throw new HttpError("Invalid identifier");
@@ -244,7 +250,7 @@ export async function createZarvisCommand(
     env.ZARVIS_ORCHESTRATOR_SERVICE_TOKEN,
     "ZARVIS_ORCHESTRATOR_SERVICE_TOKEN",
   );
-  const transcript = cleanText(body.transcript, undefined, 2000);
+  const transcript = requiredText(body.transcript, "transcript", 2000);
   const sessionId = cleanId(body.session_id);
   const commandId = cleanId(body.command_id);
   const locale = cleanText(body.locale, "th-TH", 32);
@@ -292,6 +298,9 @@ export function createZVoiceRequestHandler({ env = process.env, fetchImpl = fetc
       if (request.method === "GET" && url.pathname === "/health") {
         return send(response, 200, JSON.stringify(healthSnapshot(env)));
       }
+
+      if (ownerMode(env)) assertOwnerEdgeRequest(request, env);
+
       if (request.method === "POST" && url.pathname === "/api/voice/session") {
         const body = await json(request);
         const session = await createVoiceSession(body, request, env, fetchImpl);
