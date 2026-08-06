@@ -10,6 +10,9 @@ const schemaPaths = [
   new URL('../schemas/zarvis.task.requested.v1.schema.json', import.meta.url),
   new URL('../schemas/zarvis.task.approval.v1.schema.json', import.meta.url),
   new URL('../schemas/zarvis.task.snapshot.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.memory.proposal.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.memory.snapshot.v1.schema.json', import.meta.url),
+  new URL('../schemas/zarvis.memory.export.v1.schema.json', import.meta.url),
 ];
 
 test('ZARVIS schemas are valid JSON Schema documents with unique identifiers', async () => {
@@ -63,4 +66,20 @@ test('task snapshot schema is permanently owner-bound', async () => {
   const schema = JSON.parse(await readFile(schemaPaths[6], 'utf8'));
   assert.equal(schema.properties.tenant_id.const, 'owner-4076926');
   assert.equal(schema.properties.owner_user_id.const, 'github:4076926');
+});
+
+test('memory proposal schema requires provenance and exact approval proof', async () => {
+  const schema = JSON.parse(await readFile(schemaPaths[7], 'utf8'));
+  assert.ok(schema.required.includes('provenance'));
+  assert.equal(schema.properties.approval_digest.pattern, '^[a-f0-9]{64}$');
+  assert.equal(schema.$defs.provenance.additionalProperties, false);
+});
+
+test('memory snapshot and export schemas are permanently owner-bound', async () => {
+  const snapshot = JSON.parse(await readFile(schemaPaths[8], 'utf8'));
+  const exported = JSON.parse(await readFile(schemaPaths[9], 'utf8'));
+  assert.equal(snapshot.properties.owner_user_id.const, 'github:4076926');
+  assert.equal(snapshot.properties.tenant_id.const, 'owner-4076926');
+  assert.equal(exported.properties.owner_user_id.const, 'github:4076926');
+  assert.equal(exported.properties.tenant_id.const, 'owner-4076926');
 });

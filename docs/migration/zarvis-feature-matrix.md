@@ -19,8 +19,14 @@ Epic: #148
 | Exact-plan owner approval | Implemented for task plans | `zarvis.task.approval.v1`, SHA-256 digest + nonce | Single-use, 15-minute expiry, worker recheck |
 | Pause/resume/cancel/retry | Implemented for task lifecycle | `ZarvisTaskRuntime` | Approved/pending pause only; retry limit enforced |
 | Step checkpoints and dependency order | Implemented | `ZarvisPlanWorkerRuntime` | Earlier-step dependency rule; read-only registry |
+| Owner-confirmed memory writes | Implemented | `services/zarvis-memory`, `zarvis.memory.proposal.v1` | Proposal has no effect until exact digest+nonce confirmation |
+| Working/episodic/semantic/procedural memory | Implemented | `ZarvisMemoryRuntime` | Classification-specific retention limits |
+| Encrypted memory at rest | Implemented | `EncryptedMemoryStore` | AES-256-GCM; external 32-byte master key; fixed journal path |
+| Memory provenance and retrieval | Implemented | Memory snapshot schemas and lexical retriever | Owner-scoped, provenance returned, no persisted plaintext index |
+| Memory correction/export/delete | Implemented | Privacy console and memory APIs | Versioned correction; owner export; journal compaction deletion |
+| Secret-safe memory policy | Implemented | `assertMemorySafe` and tests | Raw credentials, private keys, tokens, and card-like data rejected |
+| Memory retention purge | Implemented | Authenticated memory worker | Expired hidden immediately and physically compacted |
 | Mutating tool execution | Blocked | Closed task tool registry | Phase 5 requires new capability contracts and security review |
-| Episodic/semantic memory | Not implemented | Issue #152 | Only explicit session/task state exists |
 | Screen/camera perception | Not implemented | Issue #153 | No capture permissions requested |
 | Desktop/device control | Not implemented | Issue #154 | No action bridge |
 | Proactive automation | Not implemented | Issue #155 | No schedules or background monitoring |
