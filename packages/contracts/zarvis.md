@@ -1,6 +1,6 @@
 # Z.A.R.V.I.S. Contracts
 
-Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session, task, approval, memory, privacy, perception, and local action boundaries.
+Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session, task, approval, memory, privacy, perception, local action, and proactive boundaries.
 
 ## Schemas
 
@@ -18,6 +18,12 @@ Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session
 - `schemas/zarvis.action.approval.v1.schema.json`
 - `schemas/zarvis.action.result.v1.schema.json`
 - `schemas/zarvis.action.rollback.v1.schema.json`
+- `schemas/zarvis.proactive.policy.v1.schema.json`
+- `schemas/zarvis.proactive.subscription.v1.schema.json`
+- `schemas/zarvis.proactive.signal.v1.schema.json`
+- `schemas/zarvis.proactive.notification.v1.schema.json`
+- `schemas/zarvis.proactive.feedback.v1.schema.json`
+- `schemas/zarvis.proactive.action-handoff.v1.schema.json`
 
 ## Command and session rules
 
@@ -67,4 +73,17 @@ Versioned contracts for the Z.A.R.V.I.S. command, result, audit, durable session
 - Emergency stop persists before revoking every pending or approved action.
 - Request-controlled values never determine filesystem paths.
 
-Additional mutating capabilities cannot be enabled by reinterpreting command, task, memory, perception, or action schemas. Each capability requires a new narrow contract, threat model, tests, and owner-visible impact preview.
+## Proactive intelligence rules
+
+- Policy, subscription, notification, feedback, and handoff identity is permanently `github:4076926` in tenant `owner-4076926`.
+- The initial scheduler admits only `local.service.health` for the allowlisted `zarvis-action-gateway` loopback target.
+- Arbitrary URLs, non-loopback hosts, credentials, queries, fragments, redirects, and alternate paths are rejected.
+- Quiet hours, daily delivered-notification budget, confidence threshold, cooldown, and fingerprint deduplication are enforced server-side.
+- Missed runs are explicitly `skip` or `run_once`; restart recovery uses durable `next_run_at` and last-signal snapshots.
+- Every evaluation, suppression, delivery, feedback, revocation, and handoff is append-only audited.
+- Suppressed decisions remain explainable and do not count as delivered budget.
+- External or untrusted content cannot create policy, schedules, subscriptions, or grants.
+- An action handoff is a data object only. It fixes `requires_owner_approval: true` and `executed: false` and cannot call the action gateway.
+- The proactive worker has an independent token and no owner or action credential.
+
+Additional mutating capabilities cannot be enabled by reinterpreting command, task, memory, perception, action, or proactive schemas. Each capability requires a new narrow contract, threat model, tests, and owner-visible impact preview.
