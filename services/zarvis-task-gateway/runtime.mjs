@@ -159,6 +159,23 @@ function taskEvent(type, job, now, extra = {}) {
   };
 }
 
+function expiredResult(job, now) {
+  return {
+    status: "expired",
+    result_refs: [],
+    step_results: [],
+    checkpoint: { completed_step_ids: [] },
+    usage: { input_tokens: 0, output_tokens: 0, runtime_ms: 0 },
+    audit: {
+      worker_id: "zarvis-plan-worker",
+      attempt: job.attempt,
+      tool_calls: [],
+      reason: "approval_expired",
+    },
+    completed_at: now,
+  };
+}
+
 export class ZarvisPlanWorkerRuntime {
   constructor({
     githubExecutor = executeGitHubRepositoryStatus,
@@ -169,6 +186,11 @@ export class ZarvisPlanWorkerRuntime {
   }
 
   async execute(job) {
+    const startedAt = this.now();
+    if (Date.parse(startedAt) > Date.parse(job.approval_expires_at)) {
+      return expiredResult(job, startedAt);
+    }
+
     const completed = new Map();
     const stepResults = [];
 
