@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SCRIPT_VERSION="2026.08.07.4"
+SCRIPT_VERSION="2026.08.07.5"
 ROOT_DIR="${ZARVIS_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ENV_FILE="${ROOT_DIR}/.env.zarvis.local"
 COMPOSE_FILE="${ROOT_DIR}/compose.zarvis-local.yml"
@@ -106,7 +106,11 @@ read_env_value() {
 }
 
 set_env_value() {
-  local key="$1" value="$2" file="${3:-$ENV_FILE}" tmp="${file}.tmp.$$"
+  local key="$1"
+  local value="$2"
+  local file="${3:-$ENV_FILE}"
+  local tmp="${file}.tmp.$$"
+
   awk -v key="$key" -v value="$value" '
     BEGIN { done=0 }
     index($0,key"=")==1 {
