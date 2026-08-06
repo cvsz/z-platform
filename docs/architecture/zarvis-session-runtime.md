@@ -42,7 +42,12 @@ The trusted edge authenticates the owner and injects an edge-only assertion. ZVo
 3. store/read one idempotent command result envelope;
 4. delete one session and its referenced command result envelopes.
 
-The store uses append-only JSONL for session history and exclusive hard-link publication for command result envelopes. This is suitable for a single-process, single-owner deployment. Horizontal multi-process production requires the planned PostgreSQL/outbox adapter.
+The single-owner adapter uses two fixed-path journals inside `ZARVIS_DATA_DIR`:
+
+- `session-events.jsonl` for append-only session transitions;
+- `command-results.jsonl` for idempotency result envelopes.
+
+Request, session, and command identifiers are data inside those journals and never influence filesystem paths. All writes are serialized through one in-process lock. Privacy deletion atomically compacts both fixed journals and removes every record associated with the selected session. This is suitable for a single-process, single-owner deployment. Horizontal multi-process production requires the planned PostgreSQL/outbox adapter.
 
 ## Failure semantics
 
