@@ -1,31 +1,29 @@
 import { createReadStream } from 'node:fs';
 import {
-  link,
   mkdir,
-  readFile,
+  rename,
   rm,
   stat,
-  unlink,
   writeFile,
 } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { resolve } from 'node:path';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { normalizeCommandId, normalizeSessionId } from './contracts.mjs';
 
 const MAX_RESULT_BYTES = 1024 * 1024;
 const MAX_EVENT_BYTES = 64 * 1024;
 
-function jsonLine(value) {
-  const serialized = JSON.stringify(value);
-  if (Buffer.byteLength(serialized) > MAX_EVENT_BYTES) {
-    throw new Error(`Session event exceeds ${MAX_EVENT_BYTES} bytes.`);
-  }
-  return `${serialized}\n`;
-}
-
 function isNotFound(error) {
   return error?.code === 'ENOENT';
+}
+
+function serializeLine(value, maxBytes, description) {
+  const serialized = JSON.stringify(value);
+  if (Buffer.byteLength(serialized) > maxBytes) {
+    throw new Error(`${description} exceeds ${maxBytes} bytes.`);
+  }
+  return `${serialized}\n`;
 }
 
 function safeResultEnvelope(value) {
@@ -38,11 +36,17 @@ function safeResultEnvelope(value) {
   return value;
 }
 
-function storageKey(value) {
-  return createHash('sha256').update(value, 'utf8').digest('hex');
+function safeCommandRecord(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Stored command record is invalid.');
+  }
+  return {
+    command_id: normalizeCommandId(value.command_id),
+    envelope: safeResultEnvelope(value.envelope),
+  };
 }
 
-async function sessionFileExists(path) {
+async function fileExists(path) {
   try {
     await stat(path);
     return true;
@@ -52,101 +56,108 @@ async function sessionFileExists(path) {
   }
 }
 
-function createSessionReader(path) {
-  return createInterface({
+async function* readJsonLines(path, maxBytes) {
+  if (!await fileExists(path)) return;
+
+  const reader = createInterface({
     input: createReadStream(path, { encoding: 'utf8' }),
     crlfDelay: Infinity,
   });
+
+  for await (const line of reader) {
+    if (!line.trim()) continue;
+    if (Buffer.byteLength(line) > maxBytes) {
+      throw new Error(`Stored journal record exceeds ${maxBytes} bytes.`);
+    }
+    yield JSON.parse(line);
+  }
+}
+
+async function atomicReplace(path, lines) {
+  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, lines.join(''), {
+      encoding: 'utf8',
+      flag: 'wx',
+      mode: 0o600,
+    });
+    await rename(temporary, path);
+  } finally {
+    await rm(temporary, { force: true });
+  }
 }
 
 export class FileSessionStore {
   constructor({ rootDir = process.env.ZARVIS_DATA_DIR ?? './data/zarvis' } = {}) {
     this.rootDir = resolve(rootDir);
-    this.sessionsDir = resolve(this.rootDir, 'sessions');
-    this.commandsDir = resolve(this.rootDir, 'commands');
-    this.writeChains = new Map();
+    this.sessionJournalPath = resolve(this.rootDir, 'session-events.jsonl');
+    this.commandJournalPath = resolve(this.rootDir, 'command-results.jsonl');
+    this.writeChain = Promise.resolve();
   }
 
-  async ensureDirectories() {
-    await Promise.all([
-      mkdir(this.sessionsDir, { recursive: true, mode: 0o700 }),
-      mkdir(this.commandsDir, { recursive: true, mode: 0o700 }),
-    ]);
+  async ensureDirectory() {
+    await mkdir(this.rootDir, { recursive: true, mode: 0o700 });
   }
 
-  sessionPath(sessionId) {
-    const normalized = normalizeSessionId(sessionId);
-    return resolve(this.sessionsDir, `${storageKey(normalized)}.jsonl`);
-  }
-
-  commandPath(commandId) {
-    const normalized = normalizeCommandId(commandId);
-    return resolve(this.commandsDir, `${storageKey(normalized)}.json`);
+  runExclusive(operation) {
+    const result = this.writeChain.then(operation);
+    this.writeChain = result.then(() => undefined, () => undefined);
+    return result;
   }
 
   async appendEvent(event) {
     const sessionId = normalizeSessionId(event?.session_id);
-    const line = jsonLine(event);
-    await this.ensureDirectories();
+    const commandId = normalizeCommandId(event?.command_id);
+    const normalizedEvent = {
+      ...event,
+      session_id: sessionId,
+      command_id: commandId,
+    };
+    const line = serializeLine(normalizedEvent, MAX_EVENT_BYTES, 'Session event');
 
-    const previous = this.writeChains.get(sessionId) ?? Promise.resolve();
-    const next = previous.then(async () => {
-      await writeFile(this.sessionPath(sessionId), line, {
+    return this.runExclusive(async () => {
+      await this.ensureDirectory();
+      await writeFile(this.sessionJournalPath, line, {
         encoding: 'utf8',
         flag: 'a',
         mode: 0o600,
       });
     });
-    const guarded = next.catch(() => {});
-    this.writeChains.set(sessionId, guarded);
-    try {
-      await next;
-    } finally {
-      if (this.writeChains.get(sessionId) === guarded) this.writeChains.delete(sessionId);
+  }
+
+  async findCommandResult(commandId) {
+    const normalizedCommandId = normalizeCommandId(commandId);
+    let found = null;
+    for await (const value of readJsonLines(this.commandJournalPath, MAX_RESULT_BYTES)) {
+      const record = safeCommandRecord(value);
+      if (record.command_id === normalizedCommandId) found = record.envelope;
     }
+    return found;
   }
 
   async getCommandResult(commandId) {
-    const path = this.commandPath(commandId);
-    try {
-      const file = await readFile(path, 'utf8');
-      if (Buffer.byteLength(file) > MAX_RESULT_BYTES) {
-        throw new Error('Stored command result exceeds the supported size.');
-      }
-      return safeResultEnvelope(JSON.parse(file));
-    } catch (error) {
-      if (isNotFound(error)) return null;
-      throw error;
-    }
+    await this.writeChain;
+    return this.findCommandResult(commandId);
   }
 
   async putCommandResult(commandId, envelope) {
-    normalizeCommandId(commandId);
+    const normalizedCommandId = normalizeCommandId(commandId);
     safeResultEnvelope(envelope);
-    await this.ensureDirectories();
 
-    const target = this.commandPath(commandId);
-    const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
-    const serialized = JSON.stringify(envelope);
-    if (Buffer.byteLength(serialized) > MAX_RESULT_BYTES) {
-      throw new Error(`Command result exceeds ${MAX_RESULT_BYTES} bytes.`);
-    }
+    return this.runExclusive(async () => {
+      await this.ensureDirectory();
+      const existing = await this.findCommandResult(normalizedCommandId);
+      if (existing) return existing;
 
-    await writeFile(temporary, serialized, {
-      encoding: 'utf8',
-      flag: 'wx',
-      mode: 0o600,
-    });
-
-    try {
-      await link(temporary, target);
+      const record = { command_id: normalizedCommandId, envelope };
+      const line = serializeLine(record, MAX_RESULT_BYTES, 'Command result');
+      await writeFile(this.commandJournalPath, line, {
+        encoding: 'utf8',
+        flag: 'a',
+        mode: 0o600,
+      });
       return envelope;
-    } catch (error) {
-      if (error?.code === 'EEXIST') return this.getCommandResult(commandId);
-      throw error;
-    } finally {
-      await rm(temporary, { force: true });
-    }
+    });
   }
 
   async readSession(sessionId, { limit = 100 } = {}) {
@@ -156,15 +167,10 @@ export class FileSessionStore {
       throw new Error('Session event limit must be an integer between 1 and 500.');
     }
 
-    const path = this.sessionPath(normalizedSessionId);
-    if (!await sessionFileExists(path)) {
-      return { session_id: normalizedSessionId, events: [] };
-    }
-
+    await this.writeChain;
     const events = [];
-    for await (const line of createSessionReader(path)) {
-      if (!line.trim()) continue;
-      const event = JSON.parse(line);
+    for await (const event of readJsonLines(this.sessionJournalPath, MAX_EVENT_BYTES)) {
+      if (normalizeSessionId(event?.session_id) !== normalizedSessionId) continue;
       events.push(event);
       if (events.length > normalizedLimit) events.shift();
     }
@@ -172,46 +178,52 @@ export class FileSessionStore {
     return { session_id: normalizedSessionId, events };
   }
 
-  async collectCommandIds(sessionId) {
-    const path = this.sessionPath(sessionId);
-    if (!await sessionFileExists(path)) return new Set();
-
-    const commandIds = new Set();
-    for await (const line of createSessionReader(path)) {
-      if (!line.trim()) continue;
-      const event = JSON.parse(line);
-      if (event?.command_id) commandIds.add(normalizeCommandId(event.command_id));
-    }
-    return commandIds;
-  }
-
   async deleteSession(sessionId) {
     const normalizedSessionId = normalizeSessionId(sessionId);
-    const commandIds = await this.collectCommandIds(normalizedSessionId);
 
-    let sessionDeleted = false;
-    try {
-      await unlink(this.sessionPath(normalizedSessionId));
-      sessionDeleted = true;
-    } catch (error) {
-      if (!isNotFound(error)) throw error;
-    }
+    return this.runExclusive(async () => {
+      await this.ensureDirectory();
+      const keptEvents = [];
+      const commandIds = new Set();
+      let sessionDeleted = false;
 
-    let commandResultsDeleted = 0;
-    for (const commandId of commandIds) {
-      try {
-        await unlink(this.commandPath(commandId));
-        commandResultsDeleted += 1;
-      } catch (error) {
-        if (!isNotFound(error)) throw error;
+      for await (const event of readJsonLines(this.sessionJournalPath, MAX_EVENT_BYTES)) {
+        if (normalizeSessionId(event?.session_id) === normalizedSessionId) {
+          sessionDeleted = true;
+          if (event?.command_id) commandIds.add(normalizeCommandId(event.command_id));
+          continue;
+        }
+        keptEvents.push(serializeLine(event, MAX_EVENT_BYTES, 'Session event'));
       }
-    }
 
-    return {
-      session_id: normalizedSessionId,
-      deleted: sessionDeleted,
-      command_results_deleted: commandResultsDeleted,
-    };
+      if (!sessionDeleted) {
+        return {
+          session_id: normalizedSessionId,
+          deleted: false,
+          command_results_deleted: 0,
+        };
+      }
+
+      const keptCommands = [];
+      let commandResultsDeleted = 0;
+      for await (const value of readJsonLines(this.commandJournalPath, MAX_RESULT_BYTES)) {
+        const record = safeCommandRecord(value);
+        if (commandIds.has(record.command_id)) {
+          commandResultsDeleted += 1;
+          continue;
+        }
+        keptCommands.push(serializeLine(record, MAX_RESULT_BYTES, 'Command result'));
+      }
+
+      await atomicReplace(this.sessionJournalPath, keptEvents);
+      await atomicReplace(this.commandJournalPath, keptCommands);
+
+      return {
+        session_id: normalizedSessionId,
+        deleted: true,
+        command_results_deleted: commandResultsDeleted,
+      };
+    });
   }
 }
 
