@@ -84,7 +84,10 @@ export class ZarvisOrchestrator {
       return { ...envelope.result, replayed: true };
     }
 
-    const execution = this.executeNew(command, actor, fingerprint);
+    const execution = this.executeNew(command, actor, fingerprint).then(
+      (envelope) => envelope,
+      (error) => { throw error; },
+    );
     this.inflight.set(command.command_id, execution);
     try {
       const envelope = await execution;
