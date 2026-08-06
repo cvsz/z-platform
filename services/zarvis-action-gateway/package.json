@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
+    "worker": "node worker.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "engines": {
