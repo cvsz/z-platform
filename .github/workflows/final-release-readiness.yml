@@ -152,7 +152,7 @@ jobs:
           path: final-release-evidence/phase6-external-evidence.json
           if-no-files-found: error
           retention-days: 365
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: final-release-evidence/phase6-external-evidence.json
       - name: Cleanup
@@ -185,7 +185,7 @@ jobs:
           path: production-approval.json
           if-no-files-found: error
           retention-days: 365
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: production-approval.json
 

@@ -97,7 +97,7 @@ jobs:
           retention-days: 90
 
       - name: Attest staging evidence
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: external-staging-evidence.json
 
@@ -150,6 +150,6 @@ jobs:
           retention-days: 365
 
       - name: Attest production approval evidence
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: production-approval-evidence.json
