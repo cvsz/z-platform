@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+SCRIPT_VERSION="2026.08.07.2"
 ROOT_DIR="${ZARVIS_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 VOICE_ENV="$ROOT_DIR/.env.zarvis.voice.local"
 VOICE_COMPOSE="$ROOT_DIR/compose.zarvis-owner-voice.yml"
@@ -12,6 +13,7 @@ STATE_DIR="$ROOT_DIR/.zarvis-owner-domain"
 BUNDLE_DIR="$ROOT_DIR/zarvis-owner-domain-bundle"
 VOICE_DOMAIN="voice.zarvis.zeaz.dev"
 MODEL="${VOICE_LLM_MODEL:-qwen3:8b}"
+VOICE_BOOTSTRAP_TIMEOUT_SECONDS="${VOICE_BOOTSTRAP_TIMEOUT_SECONDS:-3600}"
 BOOTSTRAP_CONTAINERS=()
 
 log(){ printf '[ZARVIS-VOICE] %s\n' "$*"; }
@@ -19,9 +21,17 @@ pass(){ printf '[ZARVIS-VOICE][PASS] %s\n' "$*"; }
 die(){ printf '[ZARVIS-VOICE][ERROR] %s\n' "$*" >&2; exit 1; }
 secret(){ openssl rand -base64 48 | tr -d '\n'; }
 
+compose(){
+  docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" "$@"
+}
+
+container_id(){
+  compose ps -a -q "$1" | head -n 1
+}
+
 attach_bootstrap_egress(){
   local service="$1" cid
-  cid="$(docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" ps -q "$service")"
+  cid="$(container_id "$service")"
   [[ -n "$cid" ]] || die "Could not resolve container for $service"
   docker network connect bridge "$cid" >/dev/null 2>&1 || true
   BOOTSTRAP_CONTAINERS+=("$cid")
@@ -34,11 +44,40 @@ seal_runtime_egress(){
   done
   BOOTSTRAP_CONTAINERS=()
 }
+
+wait_container_healthy(){
+  local service="$1" timeout="$2" cid state health elapsed=0
+  cid="$(container_id "$service")"
+  [[ -n "$cid" ]] || die "Could not resolve container for $service"
+
+  while (( elapsed < timeout )); do
+    state="$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null || true)"
+    health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid" 2>/dev/null || true)"
+
+    if [[ "$health" == healthy ]]; then
+      return 0
+    fi
+
+    if [[ "$state" == exited || "$state" == dead ]]; then
+      docker logs --tail 200 "$cid" >&2 || true
+      die "$service exited during local model bootstrap"
+    fi
+
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+
+  docker logs --tail 200 "$cid" >&2 || true
+  die "$service did not become healthy within bootstrap timeout"
+}
+
 trap seal_runtime_egress EXIT
 
 for tool in docker curl openssl node python3 stat; do command -v "$tool" >/dev/null || die "$tool is required"; done
 docker compose version >/dev/null 2>&1 || die 'Docker Compose plugin is required'
 docker info >/dev/null 2>&1 || die 'Docker daemon unavailable'
+[[ "$VOICE_BOOTSTRAP_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || die 'VOICE_BOOTSTRAP_TIMEOUT_SECONDS must be an integer'
+(( VOICE_BOOTSTRAP_TIMEOUT_SECONDS >= 300 )) || die 'VOICE_BOOTSTRAP_TIMEOUT_SECONDS must be at least 300 seconds'
 [[ -f "$VOICE_COMPOSE" ]] || die "Missing $VOICE_COMPOSE"
 [[ -f "$LOCAL_ENV" && -f "$LOCAL_COMPOSE" && -f "$DOMAIN_COMPOSE" ]] || die 'Run the owner-domain setup first'
 [[ -s "$CERT_DIR/owner-ca.key" && -s "$CERT_DIR/owner-ca.crt" ]] || die 'Private owner CA is missing; run zarvis-owner-domain-setup.sh first'
@@ -65,7 +104,7 @@ fi
 [[ "$(stat -c '%a' "$VOICE_ENV")" == 600 ]] || die "$VOICE_ENV must be mode 600"
 
 log "Starting local Ollama runtime"
-docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" up -d ollama
+compose up -d ollama
 attach_bootstrap_egress ollama
 for _ in $(seq 1 60); do
   curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break
@@ -74,11 +113,23 @@ done
 curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null || die 'Ollama did not become healthy'
 
 log "Ensuring local model $MODEL"
-docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" exec -T ollama ollama pull "$MODEL"
+compose exec -T ollama ollama pull "$MODEL"
 
-log "Building and starting local STT, orchestrator, TTS and owner edge"
-docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" up -d --build
+log "Building local voice runtime images"
+compose build
+
+log "Creating voice-agent before attaching temporary model-bootstrap egress"
+compose rm -sf voice-agent >/dev/null 2>&1 || true
+compose create voice-agent
 attach_bootstrap_egress voice-agent
+compose start voice-agent
+
+log "Bootstrapping local STT/TTS models"
+wait_container_healthy voice-agent "$VOICE_BOOTSTRAP_TIMEOUT_SECONDS"
+pass 'voice-agent healthy with local STT/TTS models cached'
+
+log "Starting owner orchestrator, voice gateway, ZVoice and owner edge"
+compose up -d zarvis-orchestrator voice-gateway zvoice zarvis-owner-voice-edge
 
 for endpoint in \
   http://127.0.0.1:8094/healthz \
@@ -173,6 +224,7 @@ cat <<EOF_SUMMARY
 ============================================================
  Z.A.R.V.I.S. LOCAL CONVERSATION MODE: READY
 ============================================================
+ Script:         $SCRIPT_VERSION
  Voice UI:       https://$VOICE_DOMAIN
  HTTPS gateway:  127.0.0.1:8443 only
  Voice edge:     127.0.0.1:3023 only
