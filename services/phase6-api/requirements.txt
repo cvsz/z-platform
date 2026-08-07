@@ -3,4 +3,4 @@ uvicorn[standard]==0.35.0
 redis==6.4.0
 httpx==0.28.1
 python-multipart==0.0.31
-prometheus-client==0.22.1
+prometheus-client==0.25.0
