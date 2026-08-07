@@ -12,11 +12,29 @@ STATE_DIR="$ROOT_DIR/.zarvis-owner-domain"
 BUNDLE_DIR="$ROOT_DIR/zarvis-owner-domain-bundle"
 VOICE_DOMAIN="voice.zarvis.zeaz.dev"
 MODEL="${VOICE_LLM_MODEL:-qwen3:8b}"
+BOOTSTRAP_CONTAINERS=()
 
 log(){ printf '[ZARVIS-VOICE] %s\n' "$*"; }
 pass(){ printf '[ZARVIS-VOICE][PASS] %s\n' "$*"; }
 die(){ printf '[ZARVIS-VOICE][ERROR] %s\n' "$*" >&2; exit 1; }
 secret(){ openssl rand -base64 48 | tr -d '\n'; }
+
+attach_bootstrap_egress(){
+  local service="$1" cid
+  cid="$(docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" ps -q "$service")"
+  [[ -n "$cid" ]] || die "Could not resolve container for $service"
+  docker network connect bridge "$cid" >/dev/null 2>&1 || true
+  BOOTSTRAP_CONTAINERS+=("$cid")
+}
+
+seal_runtime_egress(){
+  local cid
+  for cid in "${BOOTSTRAP_CONTAINERS[@]}"; do
+    docker network disconnect bridge "$cid" >/dev/null 2>&1 || true
+  done
+  BOOTSTRAP_CONTAINERS=()
+}
+trap seal_runtime_egress EXIT
 
 for tool in docker curl openssl node python3 stat; do command -v "$tool" >/dev/null || die "$tool is required"; done
 docker compose version >/dev/null 2>&1 || die 'Docker Compose plugin is required'
@@ -48,6 +66,7 @@ fi
 
 log "Starting local Ollama runtime"
 docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" up -d ollama
+attach_bootstrap_egress ollama
 for _ in $(seq 1 60); do
   curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break
   sleep 1
@@ -59,18 +78,20 @@ docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" exec -T ollama ollama
 
 log "Building and starting local STT, orchestrator, TTS and owner edge"
 docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" up -d --build
+attach_bootstrap_egress voice-agent
 
 for endpoint in \
   http://127.0.0.1:8094/healthz \
   http://127.0.0.1:8450/health \
   http://127.0.0.1:3023/edge-healthz; do
-  for _ in $(seq 1 120); do
+  for _ in $(seq 1 180); do
     curl -fsS --max-time 5 "$endpoint" >/dev/null 2>&1 && break
     sleep 2
   done
   curl -fsS --max-time 5 "$endpoint" >/dev/null || die "Health check failed: $endpoint"
 done
-pass 'Standalone local voice services healthy'
+seal_runtime_egress
+pass 'Standalone local voice services healthy; bootstrap egress detached'
 
 log "Issuing owner certificate with voice domain SAN"
 cat >"$STATE_DIR/server.ext" <<'EOF_EXT'
@@ -159,7 +180,8 @@ cat <<EOF_SUMMARY
  Orchestrator:   127.0.0.1:8094 only
  LLM:            Ollama $MODEL (local)
  STT:            Faster Whisper (local)
- TTS:            Qwen3 TTS (local)
+ TTS:            local device voice in owner mode
+ Runtime egress: detached after model bootstrap
  Public ingress: disabled
 
 On Windows, extract the refreshed bundle and run:
