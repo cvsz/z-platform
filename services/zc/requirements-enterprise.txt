@@ -47,7 +47,7 @@ psutil>=6.0.0
 nats-py>=2.9.0
 
 # === Database (Async PostgreSQL) ===
-asyncpg>=0.30.0
+asyncpg>=0.31.0
 sqlalchemy[asyncio]>=2.0.35
 
 # === Validation ===
