@@ -34,11 +34,18 @@ Start-ScheduledTask -TaskName 'ZARVIS Owner Domain' -ErrorAction SilentlyContinu
 Start-Sleep -Seconds 3
 
 $health = Invoke-RestMethod -Uri 'https://voice.zarvis.zeaz.dev/health' -TimeoutSec 15
-if ($health.status -ne 'ok' -or $health.zarvis_owner_mode -ne $true -or $health.anonymous_access -ne $false) {
+if (
+    $health.status -ne 'ok' -or
+    $health.zarvis_owner_mode -ne $true -or
+    $health.anonymous_access -ne $false -or
+    $health.local_conversation_configured -ne $true -or
+    $health.local_llm_only -ne $true
+) {
     throw 'Owner-local Z.A.R.V.I.S. voice health verification failed.'
 }
 
 Write-Host ''
 Write-Host 'Z.A.R.V.I.S. Local Conversation Mode is ready:'
 Write-Host '  https://voice.zarvis.zeaz.dev'
+Write-Host "  Local model: $($health.local_llm_model)"
 Start-Process 'https://voice.zarvis.zeaz.dev'
