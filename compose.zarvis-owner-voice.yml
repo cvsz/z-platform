@@ -85,6 +85,12 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "/app/healthcheck.py"]
+      interval: 15s
+      timeout: 5s
+      retries: 120
+      start_period: ${VOICE_AGENT_HEALTH_START_PERIOD:-30m}
 
   voice-gateway:
     <<: *hardened
@@ -134,16 +140,13 @@ services:
       ZARVIS_EDGE_SHARED_SECRET: ${ZARVIS_EDGE_SHARED_SECRET:?required}
       ZARVIS_ORCHESTRATOR_URL: http://zarvis-orchestrator:8094
       ZARVIS_ORCHESTRATOR_SERVICE_TOKEN: ${ZARVIS_ORCHESTRATOR_SERVICE_TOKEN:?required}
-      ZARVIS_LOCAL_LLM_BASE_URL: http://ollama:11434/v1
-      ZARVIS_LOCAL_LLM_MODEL: ${VOICE_LLM_MODEL:-qwen3:8b}
-      ZARVIS_LOCAL_LLM_API_KEY: ${Z_PLATFORM_SERVICE_TOKEN:?required}
-      ZARVIS_LOCAL_LLM_TIMEOUT_MS: ${ZARVIS_LOCAL_LLM_TIMEOUT_MS:-45000}
+      ZVOICE_LOCAL_LLM_BASE_URL: http://ollama:11434/v1
+      ZVOICE_LOCAL_LLM_MODEL: ${VOICE_LLM_MODEL:-qwen3:8b}
+      ZVOICE_LOCAL_LLM_API_KEY: ${Z_PLATFORM_SERVICE_TOKEN:?required}
     depends_on:
       voice-gateway:
         condition: service_healthy
       zarvis-orchestrator:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3022/health/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
