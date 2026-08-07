@@ -36,7 +36,7 @@ seal_runtime_egress(){
 }
 trap seal_runtime_egress EXIT
 
-for tool in docker curl openssl node python3 stat; do command -v "$tool" >/dev/null || die "$tool is required"; done
+for tool in docker curl openssl node python3 stat ss; do command -v "$tool" >/dev/null || die "$tool is required"; done
 docker compose version >/dev/null 2>&1 || die 'Docker Compose plugin is required'
 docker info >/dev/null 2>&1 || die 'Docker daemon unavailable'
 [[ -f "$VOICE_COMPOSE" ]] || die "Missing $VOICE_COMPOSE"
@@ -140,13 +140,23 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 voice_health="$(curl -fsS --max-time 8 --resolve "$VOICE_DOMAIN:8443:127.0.0.1" --cacert "$CERT_DIR/owner-ca.crt" "https://$VOICE_DOMAIN:8443/health")"
-node - "$voice_health" <<'NODE'
+node - "$voice_health" "$MODEL" <<'NODE'
 const health = JSON.parse(process.argv[2]);
-if (health.status !== 'ok' || health.zarvis_owner_mode !== true || health.anonymous_access !== false || health.zarvis_bridge_configured !== true) {
+const expectedModel = process.argv[3];
+if (
+  health.status !== 'ok'
+  || health.zarvis_owner_mode !== true
+  || health.anonymous_access !== false
+  || health.zarvis_bridge_configured !== true
+  || health.local_conversation_configured !== true
+  || health.local_llm_only !== true
+  || health.local_llm_model !== expectedModel
+) {
   throw new Error(`voice owner invariant failed: ${JSON.stringify(health)}`);
 }
 NODE
-pass 'TLS owner edge, local voice and orchestrator invariants'
+node "$ROOT_DIR/scripts/validate-zarvis-local-conversation.mjs" --runtime
+pass 'TLS owner edge, local voice, orchestrator and loopback binding invariants'
 
 mkdir -p "$BUNDLE_DIR/windows"
 cp "$CERT_DIR/owner-ca.crt" "$BUNDLE_DIR/windows/zarvis-owner-ca.crt"
@@ -183,6 +193,7 @@ cat <<EOF_SUMMARY
  TTS:            local device voice in owner mode
  Runtime egress: detached after model bootstrap
  Public ingress: disabled
+ Contract:       validated from Compose + nginx + live listeners
 
 On Windows, extract the refreshed bundle and run:
   Install-ZARVIS-VoiceDomain.cmd
