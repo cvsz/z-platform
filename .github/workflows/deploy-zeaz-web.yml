@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: "22.16.0"
           package-manager-cache: false
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with: { version: "11.4.0" }
       - run: pnpm --dir apps/zeaz-web build
       - run: pnpm --dir apps/zeaz-web lint
@@ -40,7 +40,7 @@ jobs:
         with:
           node-version: "22.16.0"
           package-manager-cache: false
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with: { version: "11.4.0" }
       - name: Assemble and validate website
         run: pnpm --dir apps/zeaz-web build

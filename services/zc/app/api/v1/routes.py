@@ -219,6 +219,7 @@ async def upload_chunk(
             })
 
         # JSON / Multipart fallback
+        data: Any = None
         session_id_val: Any = request.headers.get("x-upload-session")
         
         if not session_id_val:

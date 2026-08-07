@@ -106,7 +106,7 @@ def discover_custom_styles() -> dict:
             if style:
                 style["plugin"] = entry["plugin"]
                 out[style["name"]] = style
-    except ImportError:
+    except ImportError as _e:
         pass
     return out
 

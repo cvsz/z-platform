@@ -156,4 +156,4 @@ def cmd_rag_list():
         try:
             d = json.loads(p.read_text())
             print(f"  {d['name']:<24} {len(d.get('chunks',[]))} chunks")
-        except Exception: pass
+        except Exception as _e: pass

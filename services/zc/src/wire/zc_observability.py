@@ -36,7 +36,7 @@ def _read_logs(hours: int = 24) -> list[dict]:
             try:
                 r = json.loads(line)
                 if r.get("ts", "") >= cutoff: records.append(r)
-            except Exception: pass
+            except Exception as _e: pass
     return records
 
 

@@ -60,7 +60,7 @@ class HookManager:
     def _load(self):
         if HOOKS_FILE.exists():
             try: self.hooks = [Hook.from_dict(d) for d in json.loads(HOOKS_FILE.read_text())]
-            except Exception: pass
+            except Exception as _e: pass
 
     def save(self):
         HOOKS_FILE.parent.mkdir(parents=True, exist_ok=True)

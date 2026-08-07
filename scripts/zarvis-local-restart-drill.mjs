@@ -45,7 +45,13 @@ const [actionRecovery, proactiveRecovery] = await Promise.all([
   waitForHealth(`http://127.0.0.1:${proactivePort}/healthz`),
 ]);
 
-const action = await ownerGet(`http://127.0.0.1:${actionPort}`, `/v1/actions/${encodeURIComponent(acceptance.action.action_id)}`);
+function assertSafeId(id) {
+  if (typeof id !== 'string' || !/^[a-zA-Z0-9_.\-]+$/.test(id)) throw new Error('Invalid ID');
+  return id;
+}
+
+const actionId = assertSafeId(acceptance.action.action_id);
+const action = await ownerGet(`http://127.0.0.1:${actionPort}`, `/v1/actions/${encodeURIComponent(actionId)}`);
 const { subscriptions } = await ownerGet(`http://127.0.0.1:${proactivePort}`, '/v1/subscriptions');
 const subscription = subscriptions.find((item) => item.subscription_id === acceptance.proactive.subscription_id);
 const { notifications } = await ownerGet(`http://127.0.0.1:${proactivePort}`, '/v1/notifications');

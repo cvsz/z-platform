@@ -7,6 +7,11 @@ const proactivePort = Number(process.env.ZARVIS_PROACTIVE_PORT ?? 8099);
 const ownerToken = process.env.ZARVIS_LOCAL_OWNER_TOKEN;
 if (typeof ownerToken !== 'string' || Buffer.byteLength(ownerToken) < 32) throw new Error('Owner token is missing');
 
+function assertSafeId(id) {
+  if (typeof id !== 'string' || !/^[a-zA-Z0-9_.\-]+$/.test(id)) throw new Error('Invalid ID');
+  return id;
+}
+
 async function ownerGet(base, path) {
   const response = await fetch(`${base}${path}`, { headers: { authorization: `Bearer ${ownerToken}` } });
   const payload = await response.json().catch(() => ({}));
@@ -16,8 +21,10 @@ async function ownerGet(base, path) {
 
 const actionBase = `http://127.0.0.1:${actionPort}`;
 const proactiveBase = `http://127.0.0.1:${proactivePort}`;
-const action = await ownerGet(actionBase, `/v1/actions/${encodeURIComponent(evidence.action.action_id)}`);
-const emergencyAction = await ownerGet(actionBase, `/v1/actions/${encodeURIComponent(evidence.action.emergency_action_id)}`);
+const actionId = assertSafeId(evidence.action.action_id);
+const emergencyActionId = assertSafeId(evidence.action.emergency_action_id);
+const action = await ownerGet(actionBase, `/v1/actions/${encodeURIComponent(actionId)}`);
+const emergencyAction = await ownerGet(actionBase, `/v1/actions/${encodeURIComponent(emergencyActionId)}`);
 const { subscriptions } = await ownerGet(proactiveBase, '/v1/subscriptions');
 const subscription = subscriptions.find((item) => item.subscription_id === evidence.proactive.subscription_id);
 const { notifications } = await ownerGet(proactiveBase, '/v1/notifications');

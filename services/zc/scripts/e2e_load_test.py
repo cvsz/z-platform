@@ -37,7 +37,6 @@ def fetch_url(url: str, method: str = "GET", headers: Optional[dict] = None, dat
             req.add_header(k, v)
     
     status = 500
-    response = None
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
             status = response.getcode()
