@@ -1,5 +1,6 @@
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]', 'ollama']);
-const MUTATION_PATTERN = /\b(delete|remove|erase|drop|destroy|deploy|restart|reboot|shutdown|stop|start|install|uninstall|update|upgrade|push|merge|commit|send|publish|pay|transfer|ซื้อ|ขาย|ลบ|ถอน|ทำลาย|ติดตั้ง|ถอนการติดตั้ง|อัปเดต|อัปเกรด|รีสตาร์ต|รีบูต|ปิดเครื่อง|หยุดบริการ|เริ่มบริการ|ดีพลอย|พุช|เมิร์จ|คอมมิต|ส่ง|เผยแพร่|จ่าย|โอน)\b/iu;
+const ENGLISH_MUTATION_PATTERN = /\b(delete|remove|erase|drop|destroy|deploy|restart|reboot|shutdown|stop|start|install|uninstall|update|upgrade|push|merge|commit|send|publish|pay|transfer|buy|sell)\b/iu;
+const THAI_MUTATION_PATTERN = /(ลบ|ถอน|ทำลาย|ติดตั้ง|ถอนการติดตั้ง|อัปเดต|อัปเกรด|รีสตาร์ต|รีบูต|ปิดเครื่อง|หยุดบริการ|เริ่มบริการ|ดีพลอย|พุช|เมิร์จ|คอมมิต|ส่ง|เผยแพร่|จ่าย|โอน|ซื้อ|ขาย)/u;
 
 export class LocalConversationError extends Error {
   constructor(message, { code = 'local_conversation_failed', status = 502 } = {}) {
@@ -41,7 +42,8 @@ export function validateLocalLlmBaseUrl(value) {
 export function classifyLocalConversation(text) {
   const normalized = String(text || '').trim();
   return {
-    mutation_requested: MUTATION_PATTERN.test(normalized),
+    mutation_requested: ENGLISH_MUTATION_PATTERN.test(normalized)
+      || THAI_MUTATION_PATTERN.test(normalized),
     text: normalized,
   };
 }
