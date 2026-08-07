@@ -74,7 +74,12 @@ done
 curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null || die 'Ollama did not become healthy'
 
 log "Ensuring local model $MODEL"
-docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" exec -T ollama ollama pull "$MODEL"
+if docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" exec -T ollama ollama show "$MODEL" >/dev/null 2>&1; then
+  pass "Local model $MODEL already present; skipping registry pull"
+else
+  log "Local model $MODEL not present; pulling during temporary bootstrap egress"
+  docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" exec -T ollama ollama pull "$MODEL"
+fi
 
 log "Building and starting local STT, orchestrator, TTS and owner edge"
 docker compose --env-file "$VOICE_ENV" -f "$VOICE_COMPOSE" up -d --build
