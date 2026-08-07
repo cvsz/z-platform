@@ -2,6 +2,11 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import {
+  executeLocalConversation,
+  LocalConversationError,
+  validateLocalLlmBaseUrl,
+} from "./local-conversation.mjs";
 
 export const ZARVIS_OWNER_GITHUB_ID = "4076926";
 
@@ -148,8 +153,28 @@ function identity(request, env) {
   });
 }
 
+function localLlmSnapshot(env) {
+  try {
+    const endpoint = validateLocalLlmBaseUrl(env.ZARVIS_LOCAL_LLM_BASE_URL);
+    return {
+      configured: true,
+      local_only: true,
+      endpoint_host: endpoint.hostname,
+      model: env.ZARVIS_LOCAL_LLM_MODEL || "qwen3:8b",
+    };
+  } catch {
+    return {
+      configured: false,
+      local_only: false,
+      endpoint_host: null,
+      model: null,
+    };
+  }
+}
+
 export function healthSnapshot(env = process.env) {
   const isOwnerMode = ownerMode(env);
+  const localLlm = localLlmSnapshot(env);
   return {
     status: "ok",
     service: "zvoice",
@@ -165,6 +190,9 @@ export function healthSnapshot(env = process.env) {
       && env.ZARVIS_ORCHESTRATOR_SERVICE_TOKEN
       && env.ZARVIS_EDGE_SHARED_SECRET,
     ),
+    local_conversation_configured: localLlm.configured,
+    local_llm_only: localLlm.local_only,
+    local_llm_model: localLlm.model,
   };
 }
 
@@ -225,6 +253,35 @@ export async function createVoiceSession(
   };
 }
 
+async function localConversationFallback({
+  commandId,
+  sessionId,
+  transcript,
+  locale,
+  env,
+  fetchImpl,
+}) {
+  try {
+    return await executeLocalConversation({
+      commandId,
+      sessionId,
+      text: transcript,
+      locale,
+    }, {
+      baseUrl: env.ZARVIS_LOCAL_LLM_BASE_URL,
+      model: env.ZARVIS_LOCAL_LLM_MODEL || env.VOICE_LLM_MODEL || "qwen3:8b",
+      apiKey: env.ZARVIS_LOCAL_LLM_API_KEY || "",
+      fetchImpl,
+      timeoutMs: Number(env.ZARVIS_LOCAL_LLM_TIMEOUT_MS || 45_000),
+    });
+  } catch (error) {
+    if (error instanceof LocalConversationError) {
+      throw new HttpError(error.message, { status: error.status, code: error.code });
+    }
+    throw error;
+  }
+}
+
 export async function createZarvisCommand(
   body,
   request,
@@ -279,13 +336,26 @@ export async function createZarvisCommand(
   });
 
   const payload = await upstream.json().catch(() => ({}));
-  if (!upstream.ok) {
-    throw new HttpError(payload?.error?.message || "ZARVIS command failed", {
-      status: upstream.status >= 400 && upstream.status < 500 ? upstream.status : 502,
-      code: payload?.error?.code || "zarvis_command_failed",
+  if (upstream.ok) return payload;
+
+  if (
+    payload?.error?.code === "unsupported_intent"
+    && env.ZARVIS_LOCAL_LLM_BASE_URL
+  ) {
+    return localConversationFallback({
+      commandId,
+      sessionId,
+      transcript,
+      locale,
+      env,
+      fetchImpl,
     });
   }
-  return payload;
+
+  throw new HttpError(payload?.error?.message || "ZARVIS command failed", {
+    status: upstream.status >= 400 && upstream.status < 500 ? upstream.status : 502,
+    code: payload?.error?.code || "zarvis_command_failed",
+  });
 }
 
 export function createZVoiceRequestHandler({ env = process.env, fetchImpl = fetch } = {}) {

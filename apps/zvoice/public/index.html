@@ -1,64 +1,86 @@
 <!doctype html>
-<html lang="en">
+<html lang="th">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark light">
-  <title>ZVoice — Local Realtime Voice Agent</title>
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#02070d">
+  <meta name="application-name" content="ZVoice">
+  <title>Z.A.R.V.I.S. — Local Conversation Mode</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
-  <main class="shell">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Z Platform · Local Voice</p>
-        <h1>Realtime voice agent</h1>
-        <p class="lede">Local VAD, speech recognition and speech synthesis, with LLM traffic governed by the Z Platform AI Gateway.</p>
+<body data-session-state="idle">
+  <div class="ambient ambient--one" aria-hidden="true"></div>
+  <div class="ambient ambient--two" aria-hidden="true"></div>
+  <div class="grid-field" aria-hidden="true"></div>
+
+  <main class="console-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Z.A.R.V.I.S. home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span><strong>Z.A.R.V.I.S.</strong><small>OWNER CONVERSATION CONSOLE</small></span>
+      </a>
+      <div class="topbar-status" aria-label="Local system status">
+        <span class="security-pill"><i></i> OWNER ONLY</span>
+        <span class="local-pill">100% LOCAL INFERENCE</span>
+        <span id="clock" class="clock">--:--:--</span>
       </div>
-      <div class="privacy">Audio is streamed to your configured local runtime. Browser credentials never include provider or platform service keys.</div>
     </header>
 
-    <section class="panel" aria-labelledby="session-heading">
-      <div class="panel__header">
-        <div>
-          <h2 id="session-heading">Voice session</h2>
-          <p>Use headphones for the best interruption and echo-cancellation behavior.</p>
+    <section class="conversation-layout">
+      <aside class="telemetry-card" aria-label="Local voice pipeline">
+        <div class="card-heading"><span>LOCAL PIPELINE</span><span class="live-dot">LIVE</span></div>
+        <div class="pipeline-list">
+          <article class="pipeline-item" data-component="microphone"><span class="pipeline-icon">MIC</span><div><strong>Microphone</strong><small>Browser · echo cancelled</small></div><i class="component-state" data-state="standby"></i></article>
+          <article class="pipeline-item" data-component="stt"><span class="pipeline-icon">STT</span><div><strong>Faster Whisper</strong><small>Thai · local CPU/GPU</small></div><i class="component-state" data-state="ready"></i></article>
+          <article class="pipeline-item" data-component="llm"><span class="pipeline-icon">LLM</span><div><strong id="model-label">Qwen3 8B</strong><small>Ollama · localhost</small></div><i class="component-state" data-state="ready"></i></article>
+          <article class="pipeline-item" data-component="tts"><span class="pipeline-icon">TTS</span><div><strong>Local Device Voice</strong><small>On-device speech synthesis</small></div><i class="component-state" data-state="ready"></i></article>
         </div>
-        <span id="voice-state" class="badge" data-tone="idle">Disconnected</span>
-      </div>
+        <div class="privacy-seal">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4.5 5v5.7c0 4.8 3.2 9.2 7.5 10.8 4.3-1.6 7.5-6 7.5-10.8V5L12 2Zm0 4.1a2.6 2.6 0 0 1 2.6 2.6v1h.7v5.6H8.7V9.7h.7v-1A2.6 2.6 0 0 1 12 6.1Zm0 1.4c-.7 0-1.2.5-1.2 1.2v1h2.4v-1c0-.7-.5-1.2-1.2-1.2Z"/></svg>
+          <div><strong>Audio never leaves this machine</strong><small>No cloud provider keys in the browser</small></div>
+        </div>
+      </aside>
 
-      <div class="grid">
-        <label>
-          <span>Model</span>
-          <input id="model" value="Configured by the server" readonly aria-readonly="true">
-        </label>
-        <label class="grid__wide">
-          <span>Instructions</span>
-          <textarea id="instructions" rows="4">You are a concise, helpful voice assistant. Reply in the user's language.</textarea>
-        </label>
-      </div>
+      <section class="voice-stage" aria-labelledby="conversation-title">
+        <div class="stage-heading">
+          <p class="eyebrow">PRIVATE VOICE CHANNEL · GITHUB OWNER 4076926</p>
+          <h1 id="conversation-title">คุยกับ Z.A.R.V.I.S.</h1>
+          <p>พูดตามธรรมชาติ ระบบจะฟัง คิด และตอบกลับด้วยเสียงบนเครื่องของคุณ</p>
+        </div>
+        <div class="orb-zone">
+          <div class="radar-ring radar-ring--outer" aria-hidden="true"></div><div class="radar-ring radar-ring--middle" aria-hidden="true"></div><div class="radar-ring radar-ring--inner" aria-hidden="true"></div>
+          <div id="voice-orb" class="voice-orb" aria-hidden="true"><span class="orb-noise"></span><span class="orb-core"></span><span class="orb-scan"></span></div>
+          <div class="orbit-particle orbit-particle--a" aria-hidden="true"></div><div class="orbit-particle orbit-particle--b" aria-hidden="true"></div>
+        </div>
+        <div class="voice-state-block"><span id="voice-state" class="state-badge" data-tone="idle">พร้อมเริ่มสนทนา</span><p id="status" class="state-copy" role="status" aria-live="polite">กดเริ่มสนทนาเพื่ออนุญาตไมโครโฟน</p></div>
+        <div id="waveform" class="waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="primary-controls">
+          <button id="mute" class="round-control" type="button" disabled><span>MIC</span><small>ปิดไมค์</small></button>
+          <button id="start" class="start-control" type="button"><span class="start-control__pulse"></span><strong>เริ่มสนทนา</strong><small>LOCAL SECURE SESSION</small></button>
+          <button id="cancel" class="round-control" type="button" disabled><span>STOP</span><small>หยุดพูด</small></button>
+          <button id="stop" class="round-control danger-control" type="button" disabled><span>END</span><small>จบเซสชัน</small></button>
+        </div>
+      </section>
 
-      <div class="controls">
-        <button id="start" type="button">Start voice</button>
-        <button id="mute" type="button" disabled>Mute</button>
-        <button id="cancel" type="button" disabled>Cancel response</button>
-        <button id="stop" class="danger" type="button" disabled>Stop</button>
-      </div>
-
-      <p id="status" class="status" role="status" aria-live="polite">Ready to request microphone access.</p>
+      <aside class="conversation-card" aria-labelledby="transcript-heading">
+        <div class="card-heading"><span id="transcript-heading">LIVE TRANSCRIPT</span><button id="clear" class="text-button" type="button">CLEAR</button></div>
+        <ol id="transcript" class="transcript" aria-live="polite"></ol>
+        <div id="empty" class="empty">เริ่มเซสชันแล้วพูดได้ทันที</div>
+        <section id="approval-card" class="approval-card" aria-live="polite">
+          <div class="approval-heading"><span>OWNER APPROVAL</span><i>SAFE MODE</i></div>
+          <p>คำสั่งที่เปลี่ยนแปลงระบบจะสร้าง preview ก่อนเสมอ และจะไม่ execute จนกว่าคุณจะยืนยัน</p>
+          <div class="approval-example"><code>mutation boundary</code><span>ต้องยืนยัน</span></div>
+        </section>
+      </aside>
     </section>
 
-    <section class="panel transcript-panel" aria-labelledby="transcript-heading">
-      <div class="panel__header">
-        <div>
-          <h2 id="transcript-heading">Live transcript</h2>
-          <p>Transcripts remain in this page and are cleared when it reloads.</p>
-        </div>
-        <button id="clear" class="secondary" type="button">Clear</button>
-      </div>
-      <ol id="transcript" class="transcript" aria-live="polite"></ol>
-      <div id="empty" class="empty">Start a session and speak naturally.</div>
+    <section class="settings-strip" aria-label="Conversation settings">
+      <label><span>LOCAL MODEL</span><input id="model" value="Configured by local runtime" readonly aria-readonly="true"></label>
+      <label class="instruction-field"><span>PERSONALITY</span><textarea id="instructions" rows="2">คุณคือ Z.A.R.V.I.S. ผู้ช่วยส่วนตัวของคุณพิพัฒน์ ตอบภาษาเดียวกับผู้ใช้ กระชับ สุภาพ และต้องขออนุมัติก่อนทำคำสั่งที่เปลี่ยนแปลงระบบ</textarea></label>
+      <div class="shortcut-list"><span><kbd>SPACE</kbd> พูด/หยุด</span><span><kbd>ESC</kbd> ยกเลิกเสียง</span></div>
     </section>
+    <footer class="footer-bar"><span><i></i> voice.zarvis.zeaz.dev · SSH LOOPBACK ONLY</span><span>STT 16 kHz · TLS 1.3 · NO CLOUD INFERENCE</span></footer>
   </main>
   <script type="module" src="/app.js"></script>
 </body>
