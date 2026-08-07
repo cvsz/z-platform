@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#02070d">
+  <meta name="application-name" content="ZVoice">
   <title>Z.A.R.V.I.S. — Local Conversation Mode</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
@@ -33,7 +34,7 @@
           <article class="pipeline-item" data-component="microphone"><span class="pipeline-icon">MIC</span><div><strong>Microphone</strong><small>Browser · echo cancelled</small></div><i class="component-state" data-state="standby"></i></article>
           <article class="pipeline-item" data-component="stt"><span class="pipeline-icon">STT</span><div><strong>Faster Whisper</strong><small>Thai · local CPU/GPU</small></div><i class="component-state" data-state="ready"></i></article>
           <article class="pipeline-item" data-component="llm"><span class="pipeline-icon">LLM</span><div><strong id="model-label">Qwen3 8B</strong><small>Ollama · localhost</small></div><i class="component-state" data-state="ready"></i></article>
-          <article class="pipeline-item" data-component="tts"><span class="pipeline-icon">TTS</span><div><strong>Qwen3 Voice</strong><small>Local speech synthesis</small></div><i class="component-state" data-state="ready"></i></article>
+          <article class="pipeline-item" data-component="tts"><span class="pipeline-icon">TTS</span><div><strong>Local Device Voice</strong><small>On-device speech synthesis</small></div><i class="component-state" data-state="ready"></i></article>
         </div>
         <div class="privacy-seal">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4.5 5v5.7c0 4.8 3.2 9.2 7.5 10.8 4.3-1.6 7.5-6 7.5-10.8V5L12 2Zm0 4.1a2.6 2.6 0 0 1 2.6 2.6v1h.7v5.6H8.7V9.7h.7v-1A2.6 2.6 0 0 1 12 6.1Zm0 1.4c-.7 0-1.2.5-1.2 1.2v1h2.4v-1c0-.7-.5-1.2-1.2-1.2Z"/></svg>
@@ -79,7 +80,7 @@
       <label class="instruction-field"><span>PERSONALITY</span><textarea id="instructions" rows="2">คุณคือ Z.A.R.V.I.S. ผู้ช่วยส่วนตัวของคุณพิพัฒน์ ตอบภาษาเดียวกับผู้ใช้ กระชับ สุภาพ และต้องขออนุมัติก่อนทำคำสั่งที่เปลี่ยนแปลงระบบ</textarea></label>
       <div class="shortcut-list"><span><kbd>SPACE</kbd> พูด/หยุด</span><span><kbd>ESC</kbd> ยกเลิกเสียง</span></div>
     </section>
-    <footer class="footer-bar"><span><i></i> voice.zarvis.zeaz.dev · SSH LOOPBACK ONLY</span><span>STT 16 kHz · TLS 1.3 · NO CLOUD EGRESS</span></footer>
+    <footer class="footer-bar"><span><i></i> voice.zarvis.zeaz.dev · SSH LOOPBACK ONLY</span><span>STT 16 kHz · TLS 1.3 · NO CLOUD INFERENCE</span></footer>
   </main>
   <script type="module" src="/app.js"></script>
 </body>
