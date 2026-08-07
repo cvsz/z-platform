@@ -66,7 +66,7 @@ def _read_file(path):
             return f.read()
     except Exception as e:
         print(f"[ERROR] Cannot read {path}: {e}", file=sys.stderr)
-        sys.exit(1)
+        raise SystemExit(1) from e
 
 
 def build_parser():

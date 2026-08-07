@@ -253,7 +253,7 @@ def _discover_plugins_in_marketplace(mp_dir: Path) -> list:
                 cand = mp_dir / rel
                 if cand.exists():
                     found.append(cand)
-        except Exception:
+        except Exception as _e:
             pass
     if found:
         return found

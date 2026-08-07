@@ -862,7 +862,7 @@ class CodeAgent:
                         for i, line in enumerate(f.read_text().splitlines(), 1):
                             if re.search(pattern, line):
                                 results.append(f"{f.relative_to(cwd)}:{i}: {line.strip()}")
-                    except Exception:
+                    except Exception as _e:
                         pass
                 return "\n".join(results[:200]) or "(no matches)"
 
@@ -1423,7 +1423,7 @@ def cmd_code_cost(api_key: str):
             t = len(d.get("turns", [])) // 2
             total_in += i; total_out += o; total_cost += c
             print(f"{d['id'][:16]:<18}{t:<8}{i:,<12}{o:,<12}${c:.4f}")
-        except Exception:
+        except Exception as _e:
             pass
     print("─" * 60)
     print(f"{'TOTAL':<18}{'':8}{total_in:,<12}{total_out:,<12}${total_cost:.4f}")
@@ -1441,7 +1441,7 @@ def cmd_code_list_sessions():
             d = json.loads(sf.read_text())
             t = len(d.get("turns", [])) // 2
             print(f"{d['id'][:16]:<18}{t:<8}{d.get('model','')[:24]:<25}{d.get('updated_at','')[:10]}")
-        except Exception:
+        except Exception as _e:
             pass
 
 

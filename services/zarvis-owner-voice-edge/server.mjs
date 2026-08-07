@@ -22,7 +22,8 @@ function filteredHeaders(headers) {
 }
 
 function proxy(request, response) {
-  const target = new URL(request.url || '/', UPSTREAM);
+  const reqUrl = new URL(request.url || '/', 'http://dummy.local');
+  const target = new URL(`${reqUrl.pathname}${reqUrl.search}`, UPSTREAM.origin);
   const headers = {
     ...filteredHeaders(request.headers),
     host: UPSTREAM.host,

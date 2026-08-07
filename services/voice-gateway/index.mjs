@@ -55,8 +55,10 @@ function boundedInteger(value, fallback, minimum, maximum) {
 
 export function parseBearer(header) {
   if (typeof header !== "string") return null;
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-  return match?.[1] || null;
+  const trimmed = header.trim();
+  if (!trimmed.toLowerCase().startsWith("bearer ")) return null;
+  const token = trimmed.slice(7).trim();
+  return token || null;
 }
 
 export function createTicketCodec(secret, { now = () => Date.now(), usedNonces = new Map() } = {}) {

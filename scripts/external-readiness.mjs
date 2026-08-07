@@ -50,6 +50,7 @@ function allowedOrigins(value = process.env.STAGING_ALLOWED_ORIGINS) {
 
 function assertAllowedOrigin(url, origins) {
   if (!origins.has(url.origin)) throw new Error(`probe origin is not allowlisted: ${url.origin}`);
+  return url;
 }
 
 export function validateManifest(manifest, releaseSha) {
@@ -104,9 +105,8 @@ async function runProbe(check, token, accessClientId, accessClientSecret, origin
       headers["CF-Access-Client-Secret"] = accessClientSecret;
     }
     const request = withJsonBody(headers, check.body);
-    const url = new URL(check.url);
-    assertAllowedOrigin(url, origins);
-    const response = await fetch(url, {
+    const safeUrl = assertAllowedOrigin(new URL(check.url), origins);
+    const response = await fetch(safeUrl.href, {
       method: check.method ?? "GET",
       headers: request.headers,
       body: request.body,
