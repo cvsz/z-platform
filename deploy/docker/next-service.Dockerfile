@@ -18,12 +18,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
 COPY ${SERVICE_PATH}/package.json ./package.json
-RUN npm install --no-audit --no-fund
+# The monorepo is resolved by pnpm, whose peer resolution accepts the
+# currently pinned React/ReactDOM graph. Match that behavior in this
+# isolated npm build instead of failing before the Next.js build starts.
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 COPY ${SERVICE_PATH}/ ./
 
 RUN npm run build \
-    && npm prune --omit=dev \
+    && npm prune --omit=dev --legacy-peer-deps \
     && addgroup -S zplatform \
     && adduser -S -G zplatform zplatform \
     && chown -R zplatform:zplatform /app
