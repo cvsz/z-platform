@@ -37,4 +37,4 @@ python-pptx>=0.6.23
 # Optional — --tui full-screen Textual interface (v1.29.0)
 # Not required for any other flag; tui.py raises a clear error and exits
 # if this isn't installed and --tui is used.
-textual>=0.80.0
+textual>=8.2.8
