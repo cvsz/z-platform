@@ -17,7 +17,7 @@ for (const [name, workflow] of [
 ]) {
   test(`${name} validates release SHA existence before checkout`, () => {
     const verifyIndex = workflow.indexOf("Verify release SHA exists in repository");
-    const checkoutIndex = workflow.indexOf("actions/checkout@v5");
+    const checkoutIndex = workflow.indexOf("actions/checkout@v7");
     assert.ok(verifyIndex >= 0);
     assert.ok(checkoutIndex > verifyIndex);
     assert.match(workflow, /https:\/\/api\.github\.com\/repos\/\$\{GITHUB_REPOSITORY\}\/commits\/\$\{RELEASE_SHA\}/);

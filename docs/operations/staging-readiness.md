@@ -50,6 +50,14 @@ Remote `origin/main` SHA: `0633655cf1f1c2a83a0eb154d5bafe59fd26fdce` (merge PR #
 
 Prior evidence remains valid only for its recorded immutable SHAs. It must not be assigned to this branch or a later release candidate.
 
+## GitHub-hosted validation runner slice
+
+`readiness-tooling` and `zctl` run deterministic repository-only tests with
+`contents: read` and no environment secrets. They use `ubuntu-latest` so these
+checks do not depend on the availability of the protected self-hosted runner.
+Deployment, external-readiness, release-evidence, and production workflows
+remain on their explicit protected runner and approval paths.
+
 ## Prior immutable evidence
 
 | Evidence | Status | Release SHA | Command or workflow | Artifact | Environment | Limitation |
