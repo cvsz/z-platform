@@ -15,8 +15,10 @@ const ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const staticAssets = {
   "/": { file: "index.html", type: "text/html; charset=utf-8" },
   "/app.js": { file: "app.js", type: "text/javascript; charset=utf-8" },
+  "/humanoid-view.js": { file: "humanoid-view.js", type: "text/javascript; charset=utf-8" },
   "/voice-worklet.js": { file: "voice-worklet.js", type: "text/javascript; charset=utf-8" },
   "/styles.css": { file: "styles.css", type: "text/css; charset=utf-8" },
+  "/humanoid.css": { file: "humanoid.css", type: "text/css; charset=utf-8" },
 };
 
 const SECURITY_HEADERS = {
