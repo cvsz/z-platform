@@ -18,10 +18,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
 COPY ${SERVICE_PATH}/package.json ./package.json
-# The monorepo is resolved by pnpm, whose peer resolution accepts the
-# currently pinned React/ReactDOM graph. Match that behavior in this
-# isolated npm build instead of failing before the Next.js build starts.
-RUN npm install --legacy-peer-deps --no-audit --no-fund
+# Next.js production builds still require TypeScript/types and other
+# devDependencies. NODE_ENV is already production, so opt them in for the
+# build stage, then prune them after `next build` completes.
+# The monorepo is resolved by pnpm; match its accepted peer graph here.
+RUN npm install --include=dev --legacy-peer-deps --no-audit --no-fund
 
 COPY ${SERVICE_PATH}/ ./
 
