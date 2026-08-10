@@ -89,7 +89,7 @@ jobs:
         run: node scripts/external-readiness.mjs /tmp/staging-readiness-manifest.json external-staging-evidence.json
 
       - name: Upload sanitized staging evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: external-staging-evidence-${{ inputs.release_sha }}
           path: external-staging-evidence.json
@@ -142,7 +142,7 @@ jobs:
           EOF
 
       - name: Upload production approval evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: production-approval-${{ inputs.release_sha }}
           path: production-approval-evidence.json
