@@ -81,7 +81,7 @@ jobs:
           set +a
           node scripts/zarvis-proactive-smoke.mjs | tee zarvis-local-proactive-smoke.json
       - name: Upload local evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: zarvis-local-stack-evidence
           path: |

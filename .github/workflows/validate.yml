@@ -155,7 +155,7 @@ jobs:
       - name: Run deployed readiness contracts
         run: node scripts/staging-smoke.mjs | tee staging-smoke-result.json
       - name: Upload deployed smoke evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: staging-smoke-evidence
           path: staging-smoke-result.json
@@ -178,7 +178,7 @@ jobs:
           format: spdx-json
           output-file: z-platform.spdx.json
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: z-platform-sbom
           path: z-platform.spdx.json
