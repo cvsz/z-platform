@@ -203,7 +203,7 @@ jobs:
           done
 
       - name: Upload local release evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: zarvis-local-release-evidence-${{ github.sha }}
           path: |

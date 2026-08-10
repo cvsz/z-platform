@@ -146,7 +146,7 @@ jobs:
           test "$(jq -r '.result' final-release-evidence/phase6-external-evidence.json)" = VERIFIED
           test "$(jq '.checks | length' final-release-evidence/phase6-external-evidence.json)" -eq 14
           test "$(jq -r '.releaseSha' final-release-evidence/phase6-external-evidence.json)" = "$RELEASE_SHA"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: final-staging-evidence-${{ inputs.release_sha }}
           path: final-release-evidence/phase6-external-evidence.json
@@ -179,7 +179,7 @@ jobs:
             --arg run "$GITHUB_RUN_ID" \
             '{schemaVersion:"1.0.0",releaseSha:$sha,approver:$approver,approvedAt:$at,workflowRunId:$run,result:"APPROVED"}' \
             > production-approval.json
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: final-production-approval-${{ inputs.release_sha }}
           path: production-approval.json
