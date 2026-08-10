@@ -12,8 +12,8 @@ test("agent-control-panel uses a dedicated Next.js Dockerfile in compose", () =>
 });
 
 test("next service image installs, builds, and prunes dependencies before start", () => {
-  assert.match(dockerfile, /npm install --no-audit --no-fund/);
+  assert.match(dockerfile, /npm install --include=dev --legacy-peer-deps --no-audit --no-fund/);
   assert.match(dockerfile, /npm run build/);
-  assert.match(dockerfile, /npm prune --omit=dev/);
+  assert.match(dockerfile, /npm prune --omit=dev --legacy-peer-deps/);
   assert.match(dockerfile, /NEXT_TELEMETRY_DISABLED=1/);
 });

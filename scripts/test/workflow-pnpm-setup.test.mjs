@@ -11,13 +11,13 @@ const [ciWorkflow, validateWorkflow] = await Promise.all([
   readFile(validateWorkflowPath, "utf8"),
 ]);
 
-for (const [name, workflow] of [
-  ["ci", ciWorkflow],
-  ["validate", validateWorkflow],
+for (const [name, workflow, checkoutMajor] of [
+  ["ci", ciWorkflow, 7],
+  ["validate", validateWorkflow, 5],
 ]) {
   test(`${name} workflow installs pnpm before running package-manager commands`, () => {
-    assert.match(workflow, /uses:\s*actions\/checkout@v5/);
-    assert.match(workflow, /uses:\s*actions\/setup-node@v5/);
+    assert.match(workflow, new RegExp(`uses:\\s*actions/checkout@v${checkoutMajor}`));
+    assert.match(workflow, /uses:\s*actions\/setup-node@v7/);
     assert.match(workflow, /uses:\s*pnpm\/action-setup@[0-9a-f]{40}\s*# v4/);
     assert.match(workflow, /version:\s*11\.4\.0/);
     assert.match(workflow, /node-version:\s*24/);

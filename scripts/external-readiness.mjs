@@ -120,7 +120,7 @@ async function runProbe(check, token, accessClientId, accessClientSecret, origin
       status: response.status === expected ? "verified" : "failed",
       observedStatus: response.status,
       expectedStatus: expected,
-      endpointFingerprint: hash(url.origin),
+      endpointFingerprint: hash(safeUrl.origin),
       checkedAt: new Date().toISOString(),
     };
   } catch (error) {
