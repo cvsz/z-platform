@@ -18,12 +18,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
 COPY ${SERVICE_PATH}/package.json ./package.json
-RUN npm install --no-audit --no-fund
+# Next.js production builds still require TypeScript/types and other
+# devDependencies. NODE_ENV is already production, so opt them in for the
+# build stage, then prune them after `next build` completes.
+# The monorepo is resolved by pnpm; match its accepted peer graph here.
+RUN npm install --include=dev --legacy-peer-deps --no-audit --no-fund
 
 COPY ${SERVICE_PATH}/ ./
 
 RUN npm run build \
-    && npm prune --omit=dev \
+    && npm prune --omit=dev --legacy-peer-deps \
     && addgroup -S zplatform \
     && adduser -S -G zplatform zplatform \
     && chown -R zplatform:zplatform /app
