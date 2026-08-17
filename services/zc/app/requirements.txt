@@ -2,7 +2,7 @@
 
 ## Core Dependencies
 fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
+uvicorn[standard]>=0.52.3
 aiohttp>=3.9.0
 aiofiles>=24.1.0
 redis>=5.0.0
