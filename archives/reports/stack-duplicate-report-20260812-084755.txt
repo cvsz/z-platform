@@ -1,0 +1,52 @@
+
+============================================================
+Duplicate Stack Scanner v1.0.0
+============================================================
+Host: zeaz-platform
+Date: 2026-08-12T08:47:56+00:00
+Roots: /home/cvsz /opt /srv /mnt
+Report: ./stack-duplicate-report-20260812-084755.txt
+
+============================================================
+Docker overview
+============================================================
+Client=29.7.2 Server=29.7.2
+Containers=0 Images=2 Driver=overlayfs DockerRootDir=/var/lib/docker
+
+============================================================
+Containers
+============================================================
+
+--- Container name prefixes ---
+
+--- Exact duplicate container names ---
+
+============================================================
+Port collisions
+============================================================
+No duplicate published host ports detected.
+
+============================================================
+Images
+============================================================
+docker.litellm.ai/berriai/litellm	latest	sha256:154e23bb5f31b1f10e16392a8ef299bd2cde08de3a64a6849002cfcc25ce3c63	154e23bb5f31	1.61GB
+yidadaa/chatgpt-next-web	latest	sha256:eaaa469ddeeb5fa58fb35f8767e9e096a2f1c8468c54b6703323624bf3071c5a	eaaa469ddeeb	280MB
+
+--- Repositories with multiple tags/images ---
+
+--- Duplicate image IDs referenced by multiple tags ---
+
+============================================================
+Volumes
+============================================================
+
+--- Likely duplicate project volume prefixes ---
+
+============================================================
+Networks
+============================================================
+bridge	bridge	413888988a47
+host	host	c7000382f0c9
+none	null	905d5f5a245f
+
+--- Likely duplicate project network prefixes ---
