@@ -19,7 +19,7 @@ msgspec>=0.18.0
 
 # === Delta Sync & Compression ===
 bsdiff4>=1.2.0
-zstandard>=0.23.0
+zstandard>=0.25.0
 
 # === Redis Client (Async) ===
 redis>=5.2.0
