@@ -213,7 +213,7 @@ jobs:
 
       - name: Attest release evidence manifest
         if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: zarvis-local-release-evidence/zarvis-local-release-manifest.json
 
