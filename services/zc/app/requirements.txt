@@ -21,7 +21,7 @@ opentelemetry-exporter-otlp>=1.25.0
 prometheus-client>=0.20.0
 
 ## Security
-pyjwt>=2.8.0
+pyjwt>=2.13.0
 cryptography>=42.0.0
 python-multipart>=0.0.9
 
