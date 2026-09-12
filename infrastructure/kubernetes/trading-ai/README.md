@@ -7,8 +7,9 @@ It is intentionally **disabled by default**. The placeholder workload is not a p
 Canonical ownership:
 - intelligence / agents: `cvsz/zworkforce`
 - deterministic execution / paper / risk: `cvsz/zksato`
-- on-chain / wallet / DEX: `cvsz/zwallet`
-- AI gateway: `cvsz/zaiman`
+- financial ledger boundary: platform `services/billing-ledger` only
+- AI gateway: platform `services/ai-gateway` (provider access remains behind the platform gateway)
+- external zWallet signing/swap surfaces are **not deployed or reachable** from this namespace
 - dashboard: `cvsz/zdash`
 - LINE operator adapter: `cvsz/zLinebot-automos`
 
@@ -35,10 +36,19 @@ Expected flows:
 
 ```text
 ztrader-intelligence -> zksato
-ztrader-intelligence -> zwallet
-ztrader-intelligence -> zaiman
-zdash              -> ztrader-intelligence / zksato / zaiman
+ztrader-intelligence -> services/ai-gateway (z-platform namespace)
+ztrader-intelligence -> approved public market-data HTTPS endpoints
+zdash              -> ztrader-intelligence / zksato / services/ai-gateway
 zlinebot-operator   -> ztrader-intelligence / zksato
 ```
+
+On-chain/wallet evidence is intentionally not wired directly to `cvsz/zwallet` in this
+platform bundle. The z-platform trust boundary permits only the audited billing-ledger
+adapter for financial operations. A future on-chain evidence source must be a separate
+read-only adapter approved by platform security; it must not expose signing, swaps,
+cards, KYC, MPC, or private keys.
+
+Production overlays should replace the generic public-HTTPS egress rule with Cilium
+FQDN/egress-gateway policy for the exact approved market-data domains.
 
 `cvsz/zsme` is explicitly excluded from this deployment program.
