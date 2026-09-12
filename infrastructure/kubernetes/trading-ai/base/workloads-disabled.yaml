@@ -23,6 +23,21 @@ spec:
           env:
             - name: ZTRADER_LIVE_EXECUTION
               value: "false"
+            - name: ZAIMAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: z-trading-runtime-secrets
+                  key: Z_PLATFORM_SERVICE_TOKEN
+            - name: ZTRADER_INTEL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: z-trading-runtime-secrets
+                  key: ZTRADER_INTEL_SERVICE_TOKEN
+            - name: ZKSATO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: z-trading-runtime-secrets
+                  key: ZKSATO_API_KEY
           readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 1, memory: 512Mi}}
@@ -55,50 +70,3 @@ spec:
           livenessProbe: {httpGet: {path: /livez, port: http}, periodSeconds: 20}
           resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 1, memory: 512Mi}}
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: zwallet-api
-spec:
-  replicas: 0
-  selector:
-    matchLabels: {app.kubernetes.io/name: zwallet-api}
-  template:
-    metadata:
-      labels: {app.kubernetes.io/name: zwallet-api, app.kubernetes.io/part-of: zeaz-trading}
-    spec:
-      serviceAccountName: z-trading-runtime
-      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
-      containers:
-        - name: app
-          image: example.invalid/replace-with-zwallet-image@sha256:0000000000000000000000000000000000000000000000000000000000000000
-          ports: [{name: http, containerPort: 8000}]
-          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 1, memory: 512Mi}}
-          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: zaiman
-spec:
-  replicas: 0
-  selector:
-    matchLabels: {app.kubernetes.io/name: zaiman}
-  template:
-    metadata:
-      labels: {app.kubernetes.io/name: zaiman, app.kubernetes.io/part-of: zeaz-trading}
-    spec:
-      serviceAccountName: z-trading-runtime
-      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
-      containers:
-        - name: app
-          image: example.invalid/replace-with-zaiman-image@sha256:0000000000000000000000000000000000000000000000000000000000000000
-          ports: [{name: http, containerPort: 20128}]
-          env:
-            - name: REQUIRE_API_KEY
-              value: "true"
-            - name: AUTH_COOKIE_SECURE
-              value: "true"
-          resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: 2, memory: 1Gi}}
-          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
