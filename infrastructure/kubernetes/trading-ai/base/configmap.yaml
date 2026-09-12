@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: z-trading-contract
+data:
+  ZTRADER_LIVE_EXECUTION: "false"
+  ZTRADER_INTEL_PORT: "8218"
+  ZKSATO_BASE_URL: "http://zksato:9569"
+  ZWALLET_BASE_URL: "http://zwallet-api:8000"
+  ZAIMAN_BASE_URL: "http://zaiman:20128/v1"
+  ZDASH_BASE_URL: "http://zdash:4173"
