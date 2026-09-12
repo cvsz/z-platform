@@ -21,27 +21,3 @@ spec:
     - name: http
       port: 9569
       targetPort: http
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: zwallet-api
-spec:
-  selector:
-    app.kubernetes.io/name: zwallet-api
-  ports:
-    - name: http
-      port: 8000
-      targetPort: http
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: zaiman
-spec:
-  selector:
-    app.kubernetes.io/name: zaiman
-  ports:
-    - name: http
-      port: 20128
-      targetPort: http
