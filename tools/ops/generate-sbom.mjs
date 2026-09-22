@@ -19,13 +19,22 @@ async function packageFiles(root) {
   return out;
 }
 
-const files = (await Promise.all(roots.map(packageFiles))).flat();
+function packageIdentity(pkg, file) {
+  const name = typeof pkg.name === "string" && pkg.name.trim()
+    ? pkg.name.trim()
+    : file.replace(/\\/g, "/").replace(/\/package\.json$/, "");
+  const spdxName = name.replace(/[^A-Za-z0-9.-]/g, "-");
+  return { name, spdxName };
+}
+
+const files = (await Promise.all(roots.map(packageFiles))).flat().sort();
 const packages = [];
 for (const file of files) {
   const pkg = JSON.parse(await readFile(file, "utf8"));
+  const { name, spdxName } = packageIdentity(pkg, file);
   packages.push({
-    SPDXID: `SPDXRef-Package-${pkg.name.replace(/[^A-Za-z0-9.-]/g, "-")}`,
-    name: pkg.name,
+    SPDXID: `SPDXRef-Package-${spdxName}`,
+    name,
     versionInfo: pkg.version || "0.0.0",
     downloadLocation: "NOASSERTION",
     filesAnalyzed: false,
