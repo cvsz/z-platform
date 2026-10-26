@@ -12,7 +12,8 @@ from zeaz_enterprise.wif import (
 )
 
 ASSERTION = "header.payload.signature"
-ACCESS_TOKEN = "sk-ant-oat01-short-lived-test-token"
+# Deliberately synthetic fixture; never use provider-shaped credentials in tests.
+MOCK_ACCESS_TOKEN = "synthetic-test-token"
 ORG_UUID = "abcdef01-2345-6789-abcd-ef0123456789"
 
 
@@ -29,7 +30,7 @@ def config(**changes) -> AnthropicWIFConfig:
 
 def response(**changes) -> dict:
     values = {
-        "access_token": ACCESS_TOKEN,
+        "access_token": MOCK_ACCESS_TOKEN,
         "token_type": "Bearer",
         "expires_in": 600,
         "scope": "workspace:inference",
@@ -77,8 +78,8 @@ async def test_exchange_uses_rfc7523_body_and_returns_secret_credential() -> Non
         "service_account_id": "svac_account1",
         "workspace_id": "wrkspc_workspace1",
     }
-    assert result.authorization_header() == f"Bearer {ACCESS_TOKEN}"
-    assert ACCESS_TOKEN not in repr(result)
+    assert result.authorization_header() == f"Bearer {MOCK_ACCESS_TOKEN}"
+    assert MOCK_ACCESS_TOKEN not in repr(result)
     assert ASSERTION not in repr(vars(client))
     await client.aclose()
 
