@@ -192,3 +192,81 @@ test('Anthropic Messages transport rejects malformed requests before upstream se
     if (server) await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('Anthropic Messages transport authenticates before selecting provider credentials', async () => {
+  const previousToken = process.env.Z_PLATFORM_SERVICE_TOKEN;
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  let server;
+  let upstreamCalls = 0;
+  const redis = {
+    on() {},
+    async srandmember() {
+      throw new Error('credential lookup must not run for unauthorized requests');
+    }
+  };
+
+  try {
+    const { app } = createGatewayApp({
+      redis,
+      fetchImpl: async () => {
+        upstreamCalls += 1;
+        throw new Error('upstream must not be called for unauthorized requests');
+      },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+    const { port } = server.address();
+
+    const response = await postJson(port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 128,
+      messages: [{ role: 'user', content: 'Hello' }]
+    }, { authorization: 'Bearer invalid-token' });
+
+    assert.equal(response.status, 401);
+    assert.equal(response.body.error.code, 'UNAUTHORIZED');
+    assert.equal(upstreamCalls, 0);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousToken);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('Anthropic Messages transport does not retry or expose upstream error bodies', async () => {
+  const previousToken = process.env.Z_PLATFORM_SERVICE_TOKEN;
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  let server;
+  let upstreamCalls = 0;
+
+  try {
+    const { app } = createGatewayApp({
+      redis: createRedisStub(),
+      fetchImpl: async () => {
+        upstreamCalls += 1;
+        return new Response('sensitive-provider-diagnostic', {
+          status: 429,
+          headers: { 'content-type': 'text/plain' }
+        });
+      },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+    const { port } = server.address();
+
+    const response = await postJson(port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 128,
+      messages: [{ role: 'user', content: 'Hello' }]
+    });
+
+    assert.equal(response.status, 503);
+    assert.equal(response.body.error.code, 'UPSTREAM_RATE_LIMITED');
+    assert.equal(JSON.stringify(response.body).includes('sensitive-provider-diagnostic'), false);
+    assert.equal(upstreamCalls, 1);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousToken);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
