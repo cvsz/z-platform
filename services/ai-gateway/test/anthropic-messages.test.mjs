@@ -508,3 +508,55 @@ test('Anthropic Messages never returns upstream error bodies to callers', async 
     if (server) await new Promise((resolve) => server.close(resolve));
   }
 });
+
+
+test('Anthropic Messages does not forward an unsafe upstream request-id header', async () => {
+  const previous = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    enabled: process.env.ANTHROPIC_MESSAGES_ENABLED,
+    allowedModels: process.env.ANTHROPIC_ALLOWED_MODELS_JSON,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_MESSAGES_ENABLED = 'true';
+  process.env.ANTHROPIC_ALLOWED_MODELS_JSON = JSON.stringify(['claude-sonnet-5']);
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
+  let server;
+
+  try {
+    const { app } = createGatewayApp({
+      redis: createRedisStub(),
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        headers: {
+          get(name) {
+            return name === 'request-id' ? 'bad\\r\\nX-Injected: true' : null;
+          }
+        },
+        async json() {
+          return { id: 'msg_test', type: 'message' };
+        }
+      }),
+      logger: createSilentLogger()
+    });
+
+    server = app.listen(0);
+    await once(server, 'listening');
+    const { port } = server.address();
+    const response = await postJson(port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 16,
+      messages: [{ role: 'user', content: 'test' }]
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.body.id, 'msg_test');
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previous.token);
+    restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previous.enabled);
+    restoreEnv('ANTHROPIC_ALLOWED_MODELS_JSON', previous.allowedModels);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previous.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
