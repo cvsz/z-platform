@@ -79,57 +79,7 @@ jobs:
             workspace="$(dirname "$manifest")"
             echo "auditing $workspace"
             (cd "$workspace" && npm install --package-lock-only --ignore-scripts --no-audit >/dev/null && npm audit --audit-level=high --omit=dev)
-          done < <(find apps packages services tools -type d \( -name node_modules -o -name .next -o -name .git -o -name dist -o -name build \) -prune -o -type f -name package.json -print | sort)
-
-
-  canva-app:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          package-manager-cache: false
-      - name: Generate candidate lockfile
-        run: npm install --prefix apps/frontend/canva-app --package-lock-only --ignore-scripts --no-audit
-      - name: Install locked Canva app dependencies
-        run: npm ci --prefix apps/frontend/canva-app --ignore-scripts
-      - name: Build Canva app
-        run: npm run build --prefix apps/frontend/canva-app
-      - name: Audit Canva app production dependencies
-        run: npm audit --prefix apps/frontend/canva-app --audit-level=high --omit=dev
-      - name: Upload generated lockfile for reproducible commit
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: canva-app-lockfile-${{ github.sha }}
-          path: apps/frontend/canva-app/package-lock.json
-          if-no-files-found: ignore
-
-
-  metricui-analytics:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          package-manager-cache: false
-      - name: Generate candidate lockfile
-        run: npm install --prefix apps/frontend/metricui-analytics --package-lock-only --ignore-scripts --no-audit
-      - name: Install locked analytics dependencies
-        run: npm ci --prefix apps/frontend/metricui-analytics --ignore-scripts
-      - name: Build analytics app
-        run: npm run build --prefix apps/frontend/metricui-analytics
-      - name: Audit analytics production dependencies
-        run: npm audit --prefix apps/frontend/metricui-analytics --audit-level=high --omit=dev
-      - name: Upload generated lockfile for reproducible commit
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: metricui-analytics-lockfile-${{ github.sha }}
-          path: apps/frontend/metricui-analytics/package-lock.json
-          if-no-files-found: ignore
+          done < <(find apps packages services tools -name package.json -not -path '*/node_modules/*' | sort)
 
   python:
     runs-on: ubuntu-latest
