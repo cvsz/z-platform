@@ -397,3 +397,61 @@ test('Anthropic Messages requires an explicit model allowlist before selecting k
     if (server) await new Promise((resolve) => server.close(resolve));
   }
 });
+
+
+test('Anthropic Messages rejects non-HTTPS upstream configuration before key selection', async () => {
+  const previous = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    enabled: process.env.ANTHROPIC_MESSAGES_ENABLED,
+    allowedModels: process.env.ANTHROPIC_ALLOWED_MODELS_JSON,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_MESSAGES_ENABLED = 'true';
+  process.env.ANTHROPIC_ALLOWED_MODELS_JSON = JSON.stringify(['claude-sonnet-5']);
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'http://anthropic.test/v1';
+  let server;
+  let keyLookups = 0;
+  let upstreamCalls = 0;
+
+  try {
+    const { app } = createGatewayApp({
+      redis: {
+        on() {},
+        async srandmember() {
+          keyLookups += 1;
+          return 'synthetic-provider-key';
+        },
+        async get() { return null; },
+        async srem() {},
+        async set() {},
+        async sadd() {}
+      },
+      fetchImpl: async () => {
+        upstreamCalls += 1;
+        throw new Error('insecure upstream must not be contacted');
+      },
+      logger: createSilentLogger()
+    });
+
+    server = app.listen(0);
+    await once(server, 'listening');
+    const { port } = server.address();
+    const response = await postJson(port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 16,
+      messages: [{ role: 'user', content: 'test' }]
+    });
+
+    assert.equal(response.status, 503);
+    assert.equal(response.body.error.code, 'SERVICE_UNAVAILABLE');
+    assert.equal(keyLookups, 0);
+    assert.equal(upstreamCalls, 0);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previous.token);
+    restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previous.enabled);
+    restoreEnv('ANTHROPIC_ALLOWED_MODELS_JSON', previous.allowedModels);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previous.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
