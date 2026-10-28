@@ -75,10 +75,12 @@ test('Anthropic Messages transport forwards latest message options and provider 
     upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL,
     version: process.env.ANTHROPIC_VERSION,
     beta: process.env.ANTHROPIC_BETA,
-    enabled: process.env.ANTHROPIC_MESSAGES_ENABLED
+    enabled: process.env.ANTHROPIC_MESSAGES_ENABLED,
+    allowedModels: process.env.ANTHROPIC_ALLOWED_MODELS_JSON
   };
   process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
   process.env.ANTHROPIC_MESSAGES_ENABLED = 'true';
+  process.env.ANTHROPIC_ALLOWED_MODELS_JSON = JSON.stringify(['claude-sonnet-5']);
   process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
   process.env.ANTHROPIC_VERSION = '2023-06-01';
   process.env.ANTHROPIC_BETA = 'messages-2026-01-01';
@@ -158,6 +160,7 @@ test('Anthropic Messages transport forwards latest message options and provider 
     restoreEnv('ANTHROPIC_VERSION', previousEnv.version);
     restoreEnv('ANTHROPIC_BETA', previousEnv.beta);
     restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previousEnv.enabled);
+    restoreEnv('ANTHROPIC_ALLOWED_MODELS_JSON', previousEnv.allowedModels);
     if (server) await new Promise((resolve) => server.close(resolve));
   }
 });
@@ -256,10 +259,12 @@ test('Anthropic Messages does not retry a rate-limited POST and stores only a ke
   const previous = {
     token: process.env.Z_PLATFORM_SERVICE_TOKEN,
     enabled: process.env.ANTHROPIC_MESSAGES_ENABLED,
-    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL,
+    allowedModels: process.env.ANTHROPIC_ALLOWED_MODELS_JSON
   };
   process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
   process.env.ANTHROPIC_MESSAGES_ENABLED = 'true';
+  process.env.ANTHROPIC_ALLOWED_MODELS_JSON = JSON.stringify(['claude-sonnet-5']);
   process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
   const providerKey = 'synthetic-anthropic-provider-key';
   let upstreamCalls = 0;
@@ -319,6 +324,68 @@ test('Anthropic Messages does not retry a rate-limited POST and stores only a ke
     restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previous.token);
     restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previous.enabled);
     restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previous.upstream);
+    restoreEnv('ANTHROPIC_ALLOWED_MODELS_JSON', previous.allowedModels);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+
+test('Anthropic Messages requires an explicit model allowlist before selecting keys', async () => {
+  const previous = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    enabled: process.env.ANTHROPIC_MESSAGES_ENABLED,
+    allowedModels: process.env.ANTHROPIC_ALLOWED_MODELS_JSON
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_MESSAGES_ENABLED = 'true';
+  delete process.env.ANTHROPIC_ALLOWED_MODELS_JSON;
+  let server;
+  let keyLookups = 0;
+  let upstreamCalls = 0;
+
+  try {
+    const { app } = createGatewayApp({
+      redis: {
+        on() {},
+        async srandmember() {
+          keyLookups += 1;
+          return 'synthetic-provider-key';
+        },
+        async get() { return null; },
+        async srem() {},
+        async set() {},
+        async sadd() {}
+      },
+      fetchImpl: async () => {
+        upstreamCalls += 1;
+        throw new Error('upstream must not be called without an allowed model');
+      },
+      logger: createSilentLogger()
+    });
+
+    server = app.listen(0);
+    await once(server, 'listening');
+    const { port } = server.address();
+    const requestBody = {
+      model: 'claude-sonnet-5',
+      max_tokens: 16,
+      messages: [{ role: 'user', content: 'test' }]
+    };
+
+    const missingAllowlist = await postJson(port, '/v1/messages', requestBody);
+    assert.equal(missingAllowlist.status, 503);
+    assert.equal(missingAllowlist.body.error.code, 'SERVICE_UNAVAILABLE');
+
+    process.env.ANTHROPIC_ALLOWED_MODELS_JSON = JSON.stringify(['claude-haiku-4']);
+    const disallowedModel = await postJson(port, '/v1/messages', requestBody);
+    assert.equal(disallowedModel.status, 403);
+    assert.equal(disallowedModel.body.error.code, 'MODEL_NOT_ALLOWED');
+    assert.equal(keyLookups, 0);
+    assert.equal(upstreamCalls, 0);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previous.token);
+    restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previous.enabled);
+    restoreEnv('ANTHROPIC_ALLOWED_MODELS_JSON', previous.allowedModels);
     if (server) await new Promise((resolve) => server.close(resolve));
   }
 });
