@@ -93,6 +93,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
   // Anthropic Messages API. Disabled by default to prevent accidental provider spend.
   // Enable only after operator approval, quota policy, and staging verification.
   app.post('/v1/messages', requireAuth, async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
     if (process.env.ANTHROPIC_MESSAGES_ENABLED !== 'true') {
       return res.status(503).json({
         error: { code: 'FEATURE_DISABLED', message: 'Anthropic Messages is not enabled' }
