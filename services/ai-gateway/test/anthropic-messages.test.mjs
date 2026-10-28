@@ -71,9 +71,11 @@ test('Anthropic Messages transport forwards latest message options and provider 
     token: process.env.Z_PLATFORM_SERVICE_TOKEN,
     upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL,
     version: process.env.ANTHROPIC_VERSION,
-    beta: process.env.ANTHROPIC_BETA
+    beta: process.env.ANTHROPIC_BETA,
+    enabled: process.env.ANTHROPIC_MESSAGES_ENABLED
   };
   process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_MESSAGES_ENABLED = 'true';
   process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
   process.env.ANTHROPIC_VERSION = '2023-06-01';
   process.env.ANTHROPIC_BETA = 'messages-2026-01-01';
@@ -152,13 +154,16 @@ test('Anthropic Messages transport forwards latest message options and provider 
     restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previousEnv.upstream);
     restoreEnv('ANTHROPIC_VERSION', previousEnv.version);
     restoreEnv('ANTHROPIC_BETA', previousEnv.beta);
+    restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previousEnv.enabled);
     if (server) await new Promise((resolve) => server.close(resolve));
   }
 });
 
 test('Anthropic Messages transport rejects malformed requests before upstream selection', async () => {
   const previousToken = process.env.Z_PLATFORM_SERVICE_TOKEN;
+  const previousEnabled = process.env.ANTHROPIC_MESSAGES_ENABLED;
   process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_MESSAGES_ENABLED = 'true';
   let server;
 
   try {
@@ -189,6 +194,56 @@ test('Anthropic Messages transport rejects malformed requests before upstream se
     assert.equal(missingMessages.body.error.code, 'BAD_REQUEST');
   } finally {
     restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousToken);
+    restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previousEnabled);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+
+test('Anthropic Messages stays disabled by default and does not select a provider key', async () => {
+  const previousToken = process.env.Z_PLATFORM_SERVICE_TOKEN;
+  const previousEnabled = process.env.ANTHROPIC_MESSAGES_ENABLED;
+  delete process.env.ANTHROPIC_MESSAGES_ENABLED;
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  let server;
+  let keyLookups = 0;
+  let upstreamCalls = 0;
+
+  try {
+    const { app } = createGatewayApp({
+      redis: {
+        on() {},
+        async srandmember() {
+          keyLookups += 1;
+          return 'must-not-be-read';
+        },
+        async srem() {},
+        async sadd() {},
+        async set() {}
+      },
+      fetchImpl: async () => {
+        upstreamCalls += 1;
+        throw new Error('upstream must not be called while disabled');
+      },
+      logger: createSilentLogger()
+    });
+
+    server = app.listen(0);
+    await once(server, 'listening');
+    const { port } = server.address();
+    const response = await postJson(port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 16,
+      messages: [{ role: 'user', content: 'test' }]
+    });
+
+    assert.equal(response.status, 503);
+    assert.equal(response.body.error.code, 'FEATURE_DISABLED');
+    assert.equal(keyLookups, 0);
+    assert.equal(upstreamCalls, 0);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousToken);
+    restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previousEnabled);
     if (server) await new Promise((resolve) => server.close(resolve));
   }
 });
