@@ -118,6 +118,32 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
       });
     }
 
+    let allowedModels;
+    try {
+      const configuredModels = JSON.parse(process.env.ANTHROPIC_ALLOWED_MODELS_JSON || 'null');
+      if (
+        !Array.isArray(configuredModels) || configuredModels.length < 1 || configuredModels.length > 100 ||
+        !configuredModels.every((model) =>
+          typeof model === 'string' && model.length > 0 && model.length <= 256 &&
+          model === model.trim() && !/[\\x00-\\x1f\\x7f]/.test(model)
+        ) ||
+        new Set(configuredModels).size !== configuredModels.length
+      ) {
+        throw new Error('invalid model allowlist');
+      }
+      allowedModels = new Set(configuredModels);
+    } catch {
+      appLogger.error({ provider: 'anthropic' }, 'Anthropic model allowlist is missing or invalid');
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'AI provider unavailable' }
+      });
+    }
+    if (!allowedModels.has(body.model)) {
+      return res.status(403).json({
+        error: { code: 'MODEL_NOT_ALLOWED', message: 'Requested model is not allowed' }
+      });
+    }
+
     const version = process.env.ANTHROPIC_VERSION || '2023-06-01';
     const beta = process.env.ANTHROPIC_BETA;
     if (
