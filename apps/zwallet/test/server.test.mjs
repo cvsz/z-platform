@@ -214,7 +214,7 @@ test("maps transport failure to generic 503 and makes exactly one attempt", asyn
         throw new Error("private socket and host details");
       },
     }),
-    "/api/credits",
+    "/api/invoice-intents",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
