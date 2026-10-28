@@ -9,6 +9,7 @@ on:
       - services/ai-gateway/package.json
       - services/zc/webapp/frontend-src/package.json
       - services/zc/webapp/frontend-src/package-lock.json
+      - .github/workflows/refresh-lockfile-run11.yml
 
 permissions:
   contents: write
@@ -38,7 +39,7 @@ jobs:
       - name: Refresh workspace lockfile without lifecycle scripts
         run: pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
       - name: Refresh standalone ZC frontend lockfile without lifecycle scripts
-        run: npm audit fix --package-lock-only --ignore-scripts --prefix services/zc/webapp/frontend-src
+        run: npm audit fix --package-lock-only --ignore-scripts --omit=dev --prefix services/zc/webapp/frontend-src
       - name: Verify production dependency audit
         run: npm audit --omit=dev --prefix services/zc/webapp/frontend-src
       - name: Commit only generated lockfiles to this PR branch
