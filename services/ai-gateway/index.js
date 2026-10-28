@@ -125,7 +125,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
         !Array.isArray(configuredModels) || configuredModels.length < 1 || configuredModels.length > 100 ||
         !configuredModels.every((model) =>
           typeof model === 'string' && model.length > 0 && model.length <= 256 &&
-          model === model.trim() && !/[\\x00-\\x1f\\x7f]/.test(model)
+          model === model.trim() && !/[\x00-\x1f\x7f]/.test(model)
         ) ||
         new Set(configuredModels).size !== configuredModels.length
       ) {
