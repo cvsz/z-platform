@@ -81,6 +81,31 @@ jobs:
             (cd "$workspace" && npm install --package-lock-only --ignore-scripts --no-audit >/dev/null && npm audit --audit-level=high --omit=dev)
           done < <(find apps packages services tools -name package.json -not -path '*/node_modules/*' | sort)
 
+
+  canva-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Generate candidate lockfile
+        run: npm install --prefix apps/frontend/canva-app --package-lock-only --ignore-scripts --no-audit
+      - name: Install locked Canva app dependencies
+        run: npm ci --prefix apps/frontend/canva-app --ignore-scripts
+      - name: Build Canva app
+        run: npm run build --prefix apps/frontend/canva-app
+      - name: Audit Canva app production dependencies
+        run: npm audit --prefix apps/frontend/canva-app --audit-level=high --omit=dev
+      - name: Upload generated lockfile for reproducible commit
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: canva-app-lockfile-${{ github.sha }}
+          path: apps/frontend/canva-app/package-lock.json
+          if-no-files-found: ignore
+
   python:
     runs-on: ubuntu-latest
     steps:
