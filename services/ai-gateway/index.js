@@ -159,6 +159,22 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
       });
     }
 
+    const keyFingerprint = createHash('sha256').update(key).digest('hex');
+    let coolingDown;
+    try {
+      coolingDown = await redisClient.get(`provider:anthropic:cooldown:${keyFingerprint}`);
+    } catch (error) {
+      appLogger.error({ provider: 'anthropic', err: { name: error?.name || 'Error' } }, 'Provider cooldown lookup failed');
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'AI provider temporarily unavailable' }
+      });
+    }
+    if (coolingDown) {
+      return res.status(503).json({
+        error: { code: 'UPSTREAM_RATE_LIMITED', message: 'AI provider temporarily unavailable' }
+      });
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120000);
     timeout.unref?.();
@@ -195,10 +211,17 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
 
       if (upstream.status === 429) {
         try {
-          await redisClient.srem('provider:anthropic:active_keys', key);
-          const keyFingerprint = createHash('sha256').update(key).digest('hex');
+          // Keep the key in the pool; the hashed cooldown marker prevents use
+          // until expiry without putting the secret in a Redis key name.
           await redisClient.set(`provider:anthropic:cooldown:${keyFingerprint}`, 'cooldown', 'EX', 3600);
         } catch (error) {
+          // If cooldown persistence fails, remove this key from the active pool
+          // rather than repeatedly sending requests to a rate-limited provider.
+          try {
+            await redisClient.srem('provider:anthropic:active_keys', key);
+          } catch {
+            // The response remains fail-closed even if the pool cannot be updated.
+          }
           appLogger.error({ provider: 'anthropic', err: { name: error?.name || 'Error' } }, 'Provider cooldown state update failed');
         }
         return res.status(503).json({
