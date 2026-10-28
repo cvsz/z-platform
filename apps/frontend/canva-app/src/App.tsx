@@ -1,173 +1,91 @@
-import { useEffect, useState } from 'react'
-import { createRoot } from 'react-dom/client'
+import { useState, useEffect } from 'react'
 import {
   AppUiProvider,
-  Badge,
   Button,
-  FormField,
   Rows,
   Text,
-  TextInput,
   Title,
+  FormField,
+  TextInput,
+  Select,
+  Option,
+  Toggle,
+  Badge,
+  Divider,
 } from '@canva/app-ui-kit'
 import type { DesignEditorIntent } from '@canva/intents/design'
 import { prepareDesignEditor } from '@canva/intents/design'
 
-type Theme = 'light' | 'dark' | 'system'
-
-type DashboardSettings = {
-  title: string
-  theme: Theme
-  notifications: boolean
-}
-
-const STORAGE_KEY = 'z-platform.canva-app.settings.v1'
-const DEFAULT_SETTINGS: DashboardSettings = {
-  title: 'z-platform Dashboard',
-  theme: 'system',
-  notifications: true,
-}
-
-function readSettings(): DashboardSettings | null {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-
-    const parsed: unknown = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object') return null
-
-    const candidate = parsed as Partial<DashboardSettings>
-    if (
-      typeof candidate.title !== 'string' ||
-      candidate.title.length < 1 ||
-      candidate.title.length > 80 ||
-      (candidate.theme !== 'light' && candidate.theme !== 'dark' && candidate.theme !== 'system') ||
-      typeof candidate.notifications !== 'boolean'
-    ) {
-      return null
-    }
-
-    return {
-      title: candidate.title,
-      theme: candidate.theme,
-      notifications: candidate.notifications,
-    }
-  } catch {
-    return null
-  }
-}
-
 function DesignEditor() {
-  const [title, setTitle] = useState(DEFAULT_SETTINGS.title)
-  const [theme, setTheme] = useState<Theme>(DEFAULT_SETTINGS.theme)
-  const [notifications, setNotifications] = useState(DEFAULT_SETTINGS.notifications)
-  const [saveStatus, setSaveStatus] = useState('Changes are not saved')
+  const [title, setTitle] = useState('z-platform Dashboard')
+  const [theme, setTheme] = useState('light')
+  const [notifications, setNotifications] = useState(true)
 
   useEffect(() => {
-    const stored = readSettings()
-    if (!stored) return
-
-    setTitle(stored.title)
-    setTheme(stored.theme)
-    setNotifications(stored.notifications)
-    setSaveStatus('Loaded local settings')
+    console.log('Canva App UI Kit mounted')
   }, [])
-
-  function saveSettings() {
-    const normalizedTitle = title.trim()
-    if (!normalizedTitle || normalizedTitle.length > 80) {
-      setSaveStatus('Title must contain 1–80 characters')
-      return
-    }
-
-    const settings: DashboardSettings = {
-      title: normalizedTitle,
-      theme,
-      notifications,
-    }
-
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-      setTitle(normalizedTitle)
-      setSaveStatus('Saved locally')
-    } catch {
-      setSaveStatus('Could not save settings in this browser')
-    }
-  }
 
   return (
     <div style={{ padding: '16px', maxWidth: '400px' }}>
       <Rows spacing="2u">
         <Title>z-platform Dashboard</Title>
         <Text>
-          Configure dashboard preferences. These settings are saved in this browser;
-          they are not synced to a server or Canva account.
+          Configure your dashboard settings. Changes sync with Canva design context.
         </Text>
 
+        <Divider />
+
         <FormField
-          label="Dashboard title"
+          label="Dashboard Title"
           value={title}
           control={(props) => (
             <TextInput
               {...props}
-              onChange={(value) => {
-                setTitle(value)
-                setSaveStatus('Unsaved changes')
-              }}
+              onChange={(value) => setTitle(value)}
             />
           )}
         />
 
-        <label style={{ display: 'grid', gap: '8px' }}>
-          <span>Theme</span>
-          <select
-            aria-label="Theme"
-            value={theme}
-            onChange={(event) => {
-              setTheme(event.target.value as Theme)
-              setSaveStatus('Unsaved changes')
-            }}
-          >
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="system">System</option>
-          </select>
-        </label>
+        <FormField
+          label="Theme"
+          control={(props) => (
+            <Select
+              {...props}
+              value={theme}
+              onValueChange={(value) => setTheme(value)}
+            >
+              <Option value="light">Light</Option>
+              <Option value="dark">Dark</Option>
+              <Option value="system">System</Option>
+            </Select>
+          )}
+        />
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <input
-            type="checkbox"
-            checked={notifications}
-            onChange={(event) => {
-              setNotifications(event.target.checked)
-              setSaveStatus('Unsaved changes')
-            }}
-          />
-          Notifications
-        </label>
+        <FormField
+          label="Notifications"
+          control={(props) => (
+            <Toggle
+              {...props}
+              checked={notifications}
+              onChange={(checked) => setNotifications(checked)}
+            />
+          )}
+        />
 
         <Rows spacing="1u">
-          <Text>Status</Text>
-          {saveStatus === 'Saved locally' ? (
-            <Badge tone="positive">Saved locally</Badge>
-          ) : (
-            <Text>{saveStatus}</Text>
-          )}
+          <Text variant="secondary">Status</Text>
+          <Badge tone="success">Connected</Badge>
         </Rows>
 
-        <Button variant="primary" stretch onClick={saveSettings}>
-          Save settings locally
+        <Button
+          variant="primary"
+          stretch
+          onClick={() => alert('Dashboard settings saved!')}
+        >
+          Save Settings
         </Button>
       </Rows>
     </div>
-  )
-}
-
-export function App() {
-  return (
-    <AppUiProvider>
-      <DesignEditor />
-    </AppUiProvider>
   )
 }
 
@@ -178,7 +96,8 @@ const designEditor: DesignEditorIntent = {
       throw new Error('Unable to find element with id of root')
     }
 
-    createRoot(rootElement).render(
+    const root = ReactDOM.createRoot(rootElement)
+    root.render(
       <AppUiProvider>
         <DesignEditor />
       </AppUiProvider>,
