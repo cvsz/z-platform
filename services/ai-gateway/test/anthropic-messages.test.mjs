@@ -531,7 +531,7 @@ test('Anthropic Messages does not forward an unsafe upstream request-id header',
         status: 200,
         headers: {
           get(name) {
-            return name === 'request-id' ? 'bad\\r\\nX-Injected: true' : null;
+            return name === 'request-id' ? `bad${String.fromCharCode(13, 10)}X-Injected: true` : null;
           }
         },
         async json() {
@@ -552,6 +552,7 @@ test('Anthropic Messages does not forward an unsafe upstream request-id header',
 
     assert.equal(response.status, 200);
     assert.equal(response.body.id, 'msg_test');
+    assert.equal(response.headers.get('request-id'), null);
   } finally {
     restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previous.token);
     restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previous.enabled);
