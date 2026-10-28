@@ -266,6 +266,7 @@ test('Anthropic Messages does not retry a rate-limited POST and stores only a ke
   let removedFromActive = 0;
   let cooldownKey = '';
   let cooldownArgs = [];
+  let server;
 
   try {
     const { app } = createGatewayApp({
