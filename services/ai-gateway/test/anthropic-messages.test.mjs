@@ -146,6 +146,7 @@ test('Anthropic Messages transport forwards latest message options and provider 
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('request-id'), 'req_test');
+    assert.match(response.headers.get('cache-control') || '', /no-store/i);
     assert.deepEqual(response.body.content, [{ type: 'text', text: 'ok' }]);
     assert.equal(upstreamCalls.length, 1);
     assert.equal(upstreamCalls[0].url, 'https://anthropic.test/v1/messages');
