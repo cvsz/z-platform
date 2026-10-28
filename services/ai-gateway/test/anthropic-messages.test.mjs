@@ -198,6 +198,14 @@ test('Anthropic Messages transport rejects malformed requests before upstream se
     });
     assert.equal(missingMessages.status, 400);
     assert.equal(missingMessages.body.error.code, 'BAD_REQUEST');
+
+    const oversizedOutput = await postJson(port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32769,
+      messages: [{ role: 'user', content: 'Hello' }]
+    });
+    assert.equal(oversizedOutput.status, 400);
+    assert.equal(oversizedOutput.body.error.code, 'BAD_REQUEST');
   } finally {
     restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousToken);
     restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previousEnabled);
