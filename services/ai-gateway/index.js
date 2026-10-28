@@ -104,7 +104,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
       !body || typeof body !== 'object' || Array.isArray(body) ||
       typeof body.model !== 'string' || !body.model.trim() ||
       body.model.length > 256 || /[\x00-\x1f\x7f]/.test(body.model) ||
-      !Number.isSafeInteger(body.max_tokens) || body.max_tokens < 1 || body.max_tokens > 200000 ||
+      !Number.isSafeInteger(body.max_tokens) || body.max_tokens < 1 || body.max_tokens > 32768 ||
       !Array.isArray(body.messages) || body.messages.length < 1 || body.messages.length > 1000 ||
       !body.messages.every((message) =>
         message && typeof message === 'object' && !Array.isArray(message) &&
