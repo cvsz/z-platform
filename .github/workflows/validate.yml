@@ -79,7 +79,7 @@ jobs:
             workspace="$(dirname "$manifest")"
             echo "auditing $workspace"
             (cd "$workspace" && npm install --package-lock-only --ignore-scripts --no-audit >/dev/null && npm audit --audit-level=high --omit=dev)
-          done < <(find apps packages services tools -type d \\( -name node_modules -o -name .next -o -name .git -o -name dist -o -name build \\) -prune -o -type f -name package.json -print | sort)
+          done < <(find apps packages services tools -type d \( -name node_modules -o -name .next -o -name .git -o -name dist -o -name build \) -prune -o -type f -name package.json -print | sort)
 
 
   canva-app:
