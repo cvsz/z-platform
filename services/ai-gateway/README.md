@@ -16,7 +16,7 @@ Required operator-controlled settings:
 - `ANTHROPIC_VERSION` — optional date-formatted API version; defaults to `2023-06-01`.
 - `ANTHROPIC_BETA` — optional bounded beta header value.
 
-The route validates `model`, `max_tokens` (hard-capped at 32,768 per request), `messages`, and `stream`; requires an exact model allowlist; does not retry provider POST requests; applies a 120-second upstream timeout; aborts on client disconnect; quarantines rate-limited/invalid keys without logging their values; and returns generic provider errors. It forwards only a validated `request-id` response header. Streaming is proxied through the gateway.
+The route validates `model`, `max_tokens` (hard-capped at 32,768 per request), `messages`, and `stream`; requires an exact model allowlist; does not retry provider POST requests; applies a 120-second upstream timeout; aborts on client disconnect; quarantines rate-limited/invalid keys without logging their values; and returns generic provider errors. It forwards only a validated `request-id` response header. Responses use `Cache-Control: no-store`; streaming is proxied through the gateway.
 
 The feature gate must remain off until an operator has verified provider/model allowlists, spend quotas, request-size policy, usage accounting, observability redaction, staging behavior, and rollback. This code change does not authorize production traffic or provider spend.
 
