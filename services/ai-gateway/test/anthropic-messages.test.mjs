@@ -11,6 +11,9 @@ function createRedisStub() {
       assert.equal(key, 'provider:anthropic:active_keys');
       return 'anthropic-provider-key';
     },
+    async get() {
+      return null;
+    },
     async srem() {},
     async set() {},
     async sadd() {}
@@ -244,6 +247,77 @@ test('Anthropic Messages stays disabled by default and does not select a provide
   } finally {
     restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousToken);
     restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previousEnabled);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+
+test('Anthropic Messages does not retry a rate-limited POST and stores only a key fingerprint', async () => {
+  const previous = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    enabled: process.env.ANTHROPIC_MESSAGES_ENABLED,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_MESSAGES_ENABLED = 'true';
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
+  const providerKey = 'synthetic-anthropic-provider-key';
+  let upstreamCalls = 0;
+  let removedFromActive = 0;
+  let cooldownKey = '';
+  let cooldownArgs = [];
+
+  try {
+    const { app } = createGatewayApp({
+      redis: {
+        on() {},
+        async srandmember(key) {
+          assert.equal(key, 'provider:anthropic:active_keys');
+          return providerKey;
+        },
+        async get(key) {
+          assert.ok(key.startsWith('provider:anthropic:cooldown:'));
+          return null;
+        },
+        async srem() {
+          removedFromActive += 1;
+        },
+        async set(key, ...args) {
+          cooldownKey = key;
+          cooldownArgs = args;
+        },
+        async sadd() {}
+      },
+      fetchImpl: async () => {
+        upstreamCalls += 1;
+        return new Response(JSON.stringify({ error: { type: 'rate_limit_error' } }), {
+          status: 429,
+          headers: { 'content-type': 'application/json' }
+        });
+      },
+      logger: createSilentLogger()
+    });
+
+    server = app.listen(0);
+    await once(server, 'listening');
+    const { port } = server.address();
+    const response = await postJson(port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 16,
+      messages: [{ role: 'user', content: 'test' }]
+    });
+
+    assert.equal(response.status, 503);
+    assert.equal(response.body.error.code, 'UPSTREAM_RATE_LIMITED');
+    assert.equal(upstreamCalls, 1);
+    assert.equal(removedFromActive, 0);
+    assert.ok(cooldownKey.startsWith('provider:anthropic:cooldown:'));
+    assert.equal(cooldownKey.includes(providerKey), false);
+    assert.deepEqual(cooldownArgs, ['cooldown', 'EX', 3600]);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previous.token);
+    restoreEnv('ANTHROPIC_MESSAGES_ENABLED', previous.enabled);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previous.upstream);
     if (server) await new Promise((resolve) => server.close(resolve));
   }
 });
