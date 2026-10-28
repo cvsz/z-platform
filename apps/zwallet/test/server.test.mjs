@@ -542,8 +542,8 @@ test("tenant and idempotency fields reject control characters before upstream ac
     return Response.json({ unexpected: true });
   };
   const invalidInputs = [
-    { tenant_id: "tenant-1\\nforged", idempotency_key: "invoice-control-tenant", currency: "USD", amount_minor: 500 },
-    { tenant_id: "tenant-1", idempotency_key: "invoice-1\\nforged", currency: "USD", amount_minor: 500 },
+    { tenant_id: "tenant-1\nforged", idempotency_key: "invoice-control-tenant", currency: "USD", amount_minor: 500 },
+    { tenant_id: "tenant-1", idempotency_key: "invoice-1\nforged", currency: "USD", amount_minor: 500 },
   ];
 
   for (const input of invalidInputs) {
