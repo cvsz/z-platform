@@ -13,5 +13,10 @@ allowBuilds:
 
 minimumReleaseAge: "0"
 
+# Keep these patched versions exact; npm audit mirrors the service-scoped overrides.
 overrides:
-  postcss: ">=8.5.10"
+  postcss: "8.5.32"
+  body-parser: "2.4.0"
+  ip-address: "10.7.4"
+  proxy-addr: "2.0.8"
+  qs: "6.16.1"

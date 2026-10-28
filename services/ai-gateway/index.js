@@ -1,5 +1,7 @@
 import express from 'express';
+import { createHash } from 'node:crypto';
 import { Readable } from 'stream';
+import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import Redis from 'ioredis';
 import helmet from 'helmet';
@@ -85,6 +87,249 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
       ? models.map((id) => ({ id: String(id), object: 'model', owned_by: 'z-platform' }))
       : [{ id: fallback, object: 'model', owned_by: 'z-platform' }];
     return res.json({ object: 'list', data });
+  });
+
+
+  // Anthropic Messages API. Disabled by default to prevent accidental provider spend.
+  // Enable only after operator approval, quota policy, and staging verification.
+  app.post('/v1/messages', requireAuth, async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    if (process.env.ANTHROPIC_MESSAGES_ENABLED !== 'true') {
+      return res.status(503).json({
+        error: { code: 'FEATURE_DISABLED', message: 'Anthropic Messages is not enabled' }
+      });
+    }
+
+    const body = req.body;
+    if (
+      !body || typeof body !== 'object' || Array.isArray(body) ||
+      typeof body.model !== 'string' || !body.model.trim() ||
+      body.model.length > 256 || /[\x00-\x1f\x7f]/.test(body.model) ||
+      !Number.isSafeInteger(body.max_tokens) || body.max_tokens < 1 || body.max_tokens > 32768 ||
+      !Array.isArray(body.messages) || body.messages.length < 1 || body.messages.length > 1000 ||
+      !body.messages.every((message) =>
+        message && typeof message === 'object' && !Array.isArray(message) &&
+        (message.role === 'user' || message.role === 'assistant') &&
+        Object.hasOwn(message, 'content')
+      ) ||
+      (body.stream !== undefined && typeof body.stream !== 'boolean')
+    ) {
+      return res.status(400).json({
+        error: { code: 'BAD_REQUEST', message: 'Invalid Anthropic Messages request' }
+      });
+    }
+
+    let allowedModels;
+    try {
+      const configuredModels = JSON.parse(process.env.ANTHROPIC_ALLOWED_MODELS_JSON || 'null');
+      if (
+        !Array.isArray(configuredModels) || configuredModels.length < 1 || configuredModels.length > 100 ||
+        !configuredModels.every((model) =>
+          typeof model === 'string' && model.length > 0 && model.length <= 256 &&
+          model === model.trim() && !/[\x00-\x1f\x7f]/.test(model)
+        ) ||
+        new Set(configuredModels).size !== configuredModels.length
+      ) {
+        throw new Error('invalid model allowlist');
+      }
+      allowedModels = new Set(configuredModels);
+    } catch {
+      appLogger.error({ provider: 'anthropic' }, 'Anthropic model allowlist is missing or invalid');
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'AI provider unavailable' }
+      });
+    }
+    if (!allowedModels.has(body.model)) {
+      return res.status(403).json({
+        error: { code: 'MODEL_NOT_ALLOWED', message: 'Requested model is not allowed' }
+      });
+    }
+
+    const version = process.env.ANTHROPIC_VERSION || '2023-06-01';
+    const beta = process.env.ANTHROPIC_BETA;
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(version) ||
+      (beta !== undefined && (!/^[A-Za-z0-9][A-Za-z0-9,._-]{0,255}$/.test(beta)))
+    ) {
+      appLogger.error({ provider: 'anthropic' }, 'Invalid Anthropic gateway configuration');
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'AI provider unavailable' }
+      });
+    }
+
+    let upstreamUrl;
+    try {
+      const base = new URL(process.env.ANTHROPIC_UPSTREAM_BASE_URL || 'https://api.anthropic.com/v1');
+      if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) {
+        throw new Error('unsafe upstream URL');
+      }
+      upstreamUrl = `${base.origin}${base.pathname.replace(/\/+$/, '')}/messages`;
+    } catch {
+      appLogger.error({ provider: 'anthropic' }, 'Invalid Anthropic upstream URL configuration');
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'AI provider unavailable' }
+      });
+    }
+
+    let key;
+    try {
+      key = await redisClient.srandmember('provider:anthropic:active_keys');
+    } catch (error) {
+      appLogger.error({ err: { name: error?.name || 'Error' }, provider: 'anthropic' }, 'Provider key lookup failed');
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'AI provider unavailable' }
+      });
+    }
+    if (typeof key !== 'string' || !key.trim()) {
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'No upstream provider keys available' }
+      });
+    }
+
+    const keyFingerprint = createHash('sha256').update(key).digest('hex');
+    let coolingDown;
+    try {
+      coolingDown = await redisClient.get(`provider:anthropic:cooldown:${keyFingerprint}`);
+    } catch (error) {
+      appLogger.error({ provider: 'anthropic', err: { name: error?.name || 'Error' } }, 'Provider cooldown lookup failed');
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'AI provider temporarily unavailable' }
+      });
+    }
+    if (coolingDown) {
+      return res.status(503).json({
+        error: { code: 'UPSTREAM_RATE_LIMITED', message: 'AI provider temporarily unavailable' }
+      });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
+    timeout.unref?.();
+    const abortUpstream = () => controller.abort();
+    req.once('aborted', abortUpstream);
+    const abortOnClientClose = () => {
+      if (!res.writableEnded) abortUpstream();
+    };
+    res.once('close', abortOnClientClose);
+
+    try {
+      let upstream;
+      try {
+        const headers = {
+          'content-type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': version
+        };
+        if (beta) headers['anthropic-beta'] = beta;
+        upstream = await fetchImpl(upstreamUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+          redirect: 'error',
+          signal: controller.signal
+        });
+      } catch (error) {
+        if (controller.signal.aborted && (req.aborted || res.destroyed)) return;
+        appLogger.warn({ provider: 'anthropic', err: { name: error?.name || 'Error' } }, 'Anthropic upstream transport failed');
+        return res.status(502).json({
+          error: { code: 'BAD_GATEWAY', message: 'Upstream provider unavailable' }
+        });
+      }
+
+      if (upstream.status === 429) {
+        try {
+          // Keep the key in the pool; the hashed cooldown marker prevents use
+          // until expiry without putting the secret in a Redis key name.
+          await redisClient.set(`provider:anthropic:cooldown:${keyFingerprint}`, 'cooldown', 'EX', 3600);
+        } catch (error) {
+          // If cooldown persistence fails, remove this key from the active pool
+          // rather than repeatedly sending requests to a rate-limited provider.
+          try {
+            await redisClient.srem('provider:anthropic:active_keys', key);
+          } catch {
+            // The response remains fail-closed even if the pool cannot be updated.
+          }
+          appLogger.error({ provider: 'anthropic', err: { name: error?.name || 'Error' } }, 'Provider cooldown state update failed');
+        }
+        return res.status(503).json({
+          error: { code: 'UPSTREAM_RATE_LIMITED', message: 'AI provider temporarily unavailable' }
+        });
+      }
+
+      if (upstream.status === 401 || upstream.status === 403) {
+        try {
+          await redisClient.srem('provider:anthropic:active_keys', key);
+          await redisClient.sadd('provider:anthropic:invalid_keys', key);
+        } catch (error) {
+          appLogger.error({ provider: 'anthropic', err: { name: error?.name || 'Error' } }, 'Provider key quarantine failed');
+        }
+        return res.status(503).json({
+          error: { code: 'SERVICE_UNAVAILABLE', message: 'AI provider unavailable' }
+        });
+      }
+
+      if (!upstream.ok) {
+        appLogger.warn({ provider: 'anthropic', status: upstream.status }, 'Anthropic upstream returned an error');
+        return res.status(502).json({
+          error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' }
+        });
+      }
+
+      const requestId = upstream.headers.get('request-id');
+      if (requestId && /^[\x21-\x7e]{1,128}$/.test(requestId)) {
+        res.setHeader('request-id', requestId);
+      }
+
+      if (body.stream === true) {
+        if (!upstream.body) {
+          return res.status(502).json({
+            error: { code: 'BAD_GATEWAY', message: 'Streaming response body is unavailable' }
+          });
+        }
+        res.status(upstream.status);
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache, no-store');
+        res.setHeader('X-Accel-Buffering', 'no');
+        const upstreamStream = Readable.fromWeb(upstream.body);
+        const abortStream = () => {
+          if (!res.writableEnded) {
+            controller.abort();
+            upstreamStream.destroy();
+          }
+        };
+        res.once('close', abortStream);
+        try {
+          await pipeline(upstreamStream, res);
+        } catch (error) {
+          if (!res.destroyed) {
+            appLogger.warn({ provider: 'anthropic', err: { name: error?.name || 'Error' } }, 'Anthropic stream terminated');
+            res.destroy();
+          }
+        } finally {
+          res.removeListener('close', abortStream);
+        }
+        return;
+      }
+
+      let payload;
+      try {
+        payload = await upstream.json();
+      } catch {
+        return res.status(502).json({
+          error: { code: 'BAD_GATEWAY', message: 'Invalid upstream provider response' }
+        });
+      }
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return res.status(502).json({
+          error: { code: 'BAD_GATEWAY', message: 'Invalid upstream provider response' }
+        });
+      }
+      return res.status(upstream.status).json(payload);
+    } finally {
+      clearTimeout(timeout);
+      req.removeListener('aborted', abortUpstream);
+      res.removeListener('close', abortOnClientClose);
+    }
   });
 
   // Primary Gateway Route

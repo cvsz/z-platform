@@ -19,6 +19,8 @@ jobs:
           package-manager-cache: false
       - name: Dependency check
         run: node tools/ops/check-dependencies.mjs
+      - name: Test SBOM package identity
+        run: node --test tools/ops/tests/generate-sbom.test.mjs
       - name: Generate SBOM
         run: node tools/ops/generate-sbom.mjs > sbom.spdx.json
       - name: Verify provenance manifest
