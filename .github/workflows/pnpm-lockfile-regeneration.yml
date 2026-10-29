@@ -1,31 +1,33 @@
 name: Candidate pnpm lockfile regeneration
 
 on:
-  pull_request:
+  push:
+    branches:
+      - fix/pnpm-lockfile-agent-control-panel-20261029-run11
     paths:
       - ".github/workflows/pnpm-lockfile-regeneration.yml"
       - "apps/agent-control-panel/package.json"
-      - "pnpm-lock.yaml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: pnpm-lockfile-regeneration-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: pnpm-lockfile-regeneration-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   regenerate:
-    if: github.event_name == 'pull_request'
+    if: github.ref == 'refs/heads/fix/pnpm-lockfile-agent-control-panel-20261029-run11'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: read
+      contents: write
     steps:
-      - name: Checkout candidate
+      - name: Checkout candidate branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
+          persist-credentials: true
+          ref: fix/pnpm-lockfile-agent-control-panel-20261029-run11
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -39,10 +41,18 @@ jobs:
         run: pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts --reporter=append-only
       - name: Verify frozen lockfile consistency
         run: pnpm install --lockfile-only --frozen-lockfile --ignore-scripts --reporter=append-only
-      - name: Upload generated lockfile for reviewed import
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: pnpm-lock-regenerated-${{ github.sha }}
-          path: pnpm-lock.yaml
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit only the generated lockfile to this candidate branch
+        env:
+          TARGET_BRANCH: fix/pnpm-lockfile-agent-control-panel-20261029-run11
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/$TARGET_BRANCH"
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "pnpm-lock.yaml is already consistent; no commit required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- pnpm-lock.yaml
+          git commit -m "fix(ci): regenerate pnpm lockfile for agent control panel"
+          git push origin "HEAD:$TARGET_BRANCH"
