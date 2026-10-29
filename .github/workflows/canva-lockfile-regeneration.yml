@@ -1,0 +1,62 @@
+name: Candidate Canva app lockfile and build
+
+on:
+  push:
+    branches:
+      - fix/canva-app-sdk-deps-20261029-run11
+    paths:
+      - ".github/workflows/canva-lockfile-regeneration.yml"
+      - "apps/frontend/canva-app/package.json"
+      - "apps/frontend/canva-app/src/App.tsx"
+      - "scripts/test/canva-app-manifest.test.mjs"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: canva-app-lockfile-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/fix/canva-app-sdk-deps-20261029-run11'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+          ref: fix/canva-app-sdk-deps-20261029-run11
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Generate app lockfile without lifecycle scripts
+        working-directory: apps/frontend/canva-app
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install from generated lockfile without lifecycle scripts
+        working-directory: apps/frontend/canva-app
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build Canva app
+        working-directory: apps/frontend/canva-app
+        run: npm run build
+      - name: Commit only generated app lockfile to candidate branch
+        env:
+          TARGET_BRANCH: fix/canva-app-sdk-deps-20261029-run11
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/$TARGET_BRANCH"
+          test -f apps/frontend/canva-app/package-lock.json
+          git add -- apps/frontend/canva-app/package-lock.json
+          if git diff --cached --quiet -- apps/frontend/canva-app/package-lock.json; then
+            echo "package-lock.json is already tracked and unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build(canva): pin app dependency lockfile"
+          git push origin "HEAD:$TARGET_BRANCH"
