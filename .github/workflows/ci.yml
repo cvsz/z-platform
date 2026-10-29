@@ -60,3 +60,6 @@ jobs:
             echo "test $workspace"
             npm test --prefix "$workspace" --if-present
           done
+
+      - name: Test repository-level regression contracts
+        run: node --test scripts/test/*.test.mjs
