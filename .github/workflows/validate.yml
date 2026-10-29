@@ -71,6 +71,8 @@ jobs:
               echo "skip $workspace: no node test files"
             fi
           done
+      - name: Test repository-level regression contracts
+        run: node --test scripts/test/*.test.mjs
       - name: Audit Node manifests
         shell: bash
         run: |
