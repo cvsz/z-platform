@@ -10,8 +10,8 @@ const metricuiPackage = JSON.parse(
 );
 
 test("workspace override keeps PostCSS on the patched 8.x release line", () => {
-  assert.match(workspace, /^  postcss: ["']?\\^8\\.5\\.23["']?$/m);
-  assert.match(lockfile, /^  postcss: \\^8\\.5\\.23$/m);
+  assert.match(workspace, /^  postcss: ["']?\^8\.5\.23["']?$/m);
+  assert.match(lockfile, /^  postcss: \^8\.5\.23$/m);
 });
 
 test("Next.js nested PostCSS override is present in the independently audited app", () => {
