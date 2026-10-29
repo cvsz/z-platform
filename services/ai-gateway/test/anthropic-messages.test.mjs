@@ -192,3 +192,402 @@ test('Anthropic Messages transport rejects malformed requests before upstream se
     if (server) await new Promise((resolve) => server.close(resolve));
   }
 });
+
+
+test('Anthropic Messages rejects unauthenticated requests before provider selection', async () => {
+  const previousToken = process.env.Z_PLATFORM_SERVICE_TOKEN;
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  let keyLookups = 0;
+  let upstreamCalls = 0;
+  let server;
+
+  try {
+    const redis = {
+      on() {},
+      async srandmember() { keyLookups += 1; return 'anthropic-provider-key'; },
+      async srem() {},
+      async set() {},
+      async sadd() {}
+    };
+    const { app } = createGatewayApp({
+      redis,
+      fetchImpl: async () => { upstreamCalls += 1; return Response.json({}); },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+    const response = await postJson(server.address().port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'hello' }]
+    }, { authorization: 'Bearer wrong-token' });
+
+    assert.equal(response.status, 401);
+    assert.equal(response.body.error.code, 'UNAUTHORIZED');
+    assert.equal(keyLookups, 0);
+    assert.equal(upstreamCalls, 0);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousToken);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('Anthropic Messages maps non-JSON upstream responses to a generic 502', async () => {
+  const previousEnv = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
+  let server;
+
+  try {
+    const { app } = createGatewayApp({
+      redis: createRedisStub(),
+      fetchImpl: async () => new Response('<!doctype html><html>upstream failure</html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' }
+      }),
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+    const response = await postJson(server.address().port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'hello' }]
+    });
+
+    assert.equal(response.status, 502);
+    assert.equal(response.body.error.code, 'BAD_GATEWAY');
+    assert.doesNotMatch(JSON.stringify(response.body), /doctype|upstream failure/i);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousEnv.token);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previousEnv.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('Anthropic Messages maps an upstream abort to a bounded timeout response', async () => {
+  const previousEnv = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
+  let server;
+
+  try {
+    const { app } = createGatewayApp({
+      redis: createRedisStub(),
+      fetchImpl: async () => { throw new DOMException('synthetic timeout detail', 'AbortError'); },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+    const response = await postJson(server.address().port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'hello' }]
+    });
+
+    assert.equal(response.status, 504);
+    assert.equal(response.body.error.code, 'UPSTREAM_TIMEOUT');
+    assert.doesNotMatch(JSON.stringify(response.body), /synthetic timeout detail/i);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousEnv.token);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previousEnv.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('Anthropic Messages rejects insecure upstream URLs before provider-key selection', async () => {
+  const previousEnv = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'http://127.0.0.1:8080/v1';
+  let keyLookups = 0;
+  let upstreamCalls = 0;
+  let server;
+
+  try {
+    const redis = {
+      on() {},
+      async srandmember() { keyLookups += 1; return 'anthropic-provider-key'; },
+      async srem() {},
+      async set() {},
+      async sadd() {}
+    };
+    const { app } = createGatewayApp({
+      redis,
+      fetchImpl: async () => { upstreamCalls += 1; return Response.json({}); },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+    const response = await postJson(server.address().port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'hello' }]
+    });
+
+    assert.equal(response.status, 503);
+    assert.equal(response.body.error.code, 'SERVICE_UNAVAILABLE');
+    assert.equal(keyLookups, 0);
+    assert.equal(upstreamCalls, 0);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousEnv.token);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previousEnv.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+
+function createKeyPoolRedis(initialKeys) {
+  const activeKeys = new Set(initialKeys);
+  const cooldownKeys = new Set();
+  const invalidKeys = new Set();
+  return {
+    activeKeys,
+    cooldownKeys,
+    invalidKeys,
+    on() {},
+    async smembers(key) {
+      assert.equal(key, 'provider:anthropic:active_keys');
+      return [...activeKeys];
+    },
+    async exists(key) {
+      const prefix = 'provider:anthropic:cooldown_keys:';
+      return cooldownKeys.has(key.slice(prefix.length)) ? 1 : 0;
+    },
+    async srem(key, value) {
+      if (key === 'provider:anthropic:active_keys') activeKeys.delete(value);
+      if (key === 'provider:anthropic:cooldown_keys') cooldownKeys.delete(value);
+    },
+    async sadd(key, ...values) {
+      if (key === 'provider:anthropic:invalid_keys') {
+        for (const value of values) invalidKeys.add(value);
+      }
+    },
+    async set(key, value, mode, ttl) {
+      assert.equal(value, 'cooldown');
+      assert.equal(mode, 'EX');
+      assert.equal(ttl, 3600);
+      const prefix = 'provider:anthropic:cooldown_keys:';
+      cooldownKeys.add(key.slice(prefix.length));
+    }
+  };
+}
+
+
+test('Anthropic rotates the first eligible key across requests', async () => {
+  const previousEnv = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
+  const redis = createKeyPoolRedis(['key-a', 'key-b']);
+  const usedKeys = [];
+  let selection = 0;
+  let server;
+
+  try {
+    const { app } = createGatewayApp({
+      redis,
+      randomIntImpl: (max) => selection++ % max,
+      fetchImpl: async (_url, options) => {
+        usedKeys.push(options.headers['x-api-key']);
+        return Response.json({ id: 'msg_ok', content: [] });
+      },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+
+    for (const prompt of ['first request', 'second request']) {
+      const response = await postJson(server.address().port, '/v1/messages', {
+        model: 'claude-sonnet-5',
+        max_tokens: 32,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      assert.equal(response.status, 200);
+    }
+
+    assert.deepEqual(usedKeys, ['key-a', 'key-b']);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousEnv.token);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previousEnv.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('Anthropic 429 cooldown keeps the key recoverable and retries a healthy key', async () => {
+  const previousEnv = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
+  const redis = createKeyPoolRedis(['rate-limited-key', 'healthy-key']);
+  const usedKeys = [];
+  let rateLimitOnce = true;
+  let server;
+
+  try {
+    const cancelledKeys = [];
+    const { app } = createGatewayApp({
+      redis,
+      randomIntImpl: () => 0,
+      fetchImpl: async (_url, options) => {
+        const key = options.headers['x-api-key'];
+        usedKeys.push(key);
+        if (key === 'rate-limited-key' && rateLimitOnce) {
+          rateLimitOnce = false;
+          return {
+            status: 429,
+            ok: false,
+            headers: new Headers(),
+            body: { async cancel() { cancelledKeys.push(key); } }
+          };
+        }
+        return Response.json({ id: 'msg_ok', content: [] });
+      },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+
+    const first = await postJson(server.address().port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'hello' }]
+    });
+    assert.equal(first.status, 200);
+    assert.deepEqual(usedKeys, ['rate-limited-key', 'healthy-key']);
+    assert.equal(redis.activeKeys.has('rate-limited-key'), true);
+    assert.equal(redis.cooldownKeys.has('rate-limited-key'), true);
+    assert.deepEqual(cancelledKeys, ['rate-limited-key']);
+
+    redis.cooldownKeys.delete('rate-limited-key');
+    usedKeys.length = 0;
+    const second = await postJson(server.address().port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'hello again' }]
+    });
+    assert.equal(second.status, 200);
+    assert.equal(usedKeys[0], 'rate-limited-key');
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousEnv.token);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previousEnv.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('Anthropic retries a healthy key after removing a rejected credential', async () => {
+  const previousEnv = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
+  const redis = createKeyPoolRedis(['revoked-key', 'healthy-key']);
+  const usedKeys = [];
+  let server;
+
+  try {
+    const cancelledKeys = [];
+    const { app } = createGatewayApp({
+      redis,
+      randomIntImpl: () => 0,
+      fetchImpl: async (_url, options) => {
+        const key = options.headers['x-api-key'];
+        usedKeys.push(key);
+        if (key === 'revoked-key') {
+          return {
+            status: 401,
+            ok: false,
+            headers: new Headers(),
+            body: { async cancel() { cancelledKeys.push(key); } }
+          };
+        }
+        return Response.json({ id: 'msg_ok', content: [] });
+      },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+
+    const response = await postJson(server.address().port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'hello' }]
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(usedKeys, ['revoked-key', 'healthy-key']);
+    assert.deepEqual(cancelledKeys, ['revoked-key']);
+    assert.equal(redis.activeKeys.has('revoked-key'), false);
+    assert.equal(redis.invalidKeys.has('revoked-key'), true);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousEnv.token);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previousEnv.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('Anthropic streaming keeps the upstream timeout active until the stream ends', async () => {
+  const previousEnv = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
+  const redis = createKeyPoolRedis(['stream-key']);
+  let observedSignal;
+  let server;
+
+  try {
+    const { app } = createGatewayApp({
+      redis,
+      upstreamTimeoutMs: 40,
+      fetchImpl: async (_url, options) => {
+        observedSignal = options.signal;
+        const body = new ReadableStream({
+          start(controller) {
+            options.signal.addEventListener('abort', () => {
+              try {
+                controller.error(new DOMException('synthetic stream timeout', 'AbortError'));
+              } catch {
+                // The stream may already have been cancelled by the response close handler.
+              }
+            }, { once: true });
+          }
+        });
+        return new Response(body, {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' }
+        });
+      },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+
+    const response = await postJson(server.address().port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'stream' }],
+      stream: true
+    });
+    assert.equal(response.status, 504);
+    assert.equal(response.body.error.code, 'UPSTREAM_TIMEOUT');
+    assert.equal(observedSignal.aborted, true);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousEnv.token);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previousEnv.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
