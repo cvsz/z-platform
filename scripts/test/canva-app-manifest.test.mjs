@@ -8,6 +8,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const appRoot = resolve(repoRoot, "apps/frontend/canva-app");
 const manifest = JSON.parse(readFileSync(resolve(appRoot, "package.json"), "utf8"));
 const appSource = readFileSync(resolve(appRoot, "src/App.tsx"), "utf8");
+const entrypoint = readFileSync(resolve(appRoot, "src/main.tsx"), "utf8");
 
 test("Canva app manifest contains published SDK dependencies, not placeholder versions", () => {
   const dependencies = manifest.dependencies ?? {};
