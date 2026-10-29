@@ -24,9 +24,10 @@ test("Canva app manifest contains published SDK dependencies, not placeholder ve
 });
 
 test("Canva Design Editor uses the documented intent and React root imports", () => {
-  assert.match(appSource, /from '@canva\/intents\/design'/);
-  assert.match(appSource, /from 'react-dom\/client'/);
-  assert.match(appSource, /import '@canva\/app-ui-kit\/styles\.css'/);
-  assert.match(appSource, /prepareDesignEditor\(designEditor\)/);
+  assert.match(entrypoint, /from '@canva\/intents\/design'/);
+  assert.match(entrypoint, /from 'react-dom\/client'/);
+  assert.match(entrypoint, /import '@canva\/app-ui-kit\/styles\.css'/);
+  assert.match(entrypoint, /prepareDesignEditor\(designEditor\)/);
+  assert.match(appSource, /export function App\(\)/);
   assert.doesNotMatch(appSource, /ReactDOM\.createRoot/);
 });
