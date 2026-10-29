@@ -1,4 +1,5 @@
 import express from 'express';
+import { randomInt } from 'node:crypto';
 import { Readable } from 'stream';
 import { fileURLToPath } from 'node:url';
 import Redis from 'ioredis';
@@ -38,7 +39,15 @@ async function seedProviderKeys(redisClient, appLogger = logger) {
   }
 }
 
-export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: appLogger = logger, upstreamTimeoutMs = 30000 } = {}) {
+async function discardUpstreamBody(upstream) {
+  try {
+    await upstream.body?.cancel();
+  } catch {
+    // Best-effort cleanup must not mask the provider status or block failover.
+  }
+}
+
+export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: appLogger = logger, upstreamTimeoutMs = 30000, randomIntImpl = randomInt } = {}) {
   if (typeof fetchImpl !== 'function') {
     throw new Error('fetch implementation is unavailable');
   }
@@ -174,6 +183,12 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
       });
     }
 
+    // Rotate the starting key per request so a stable SMEMBERS order does not pin traffic to one credential.
+    if (providerKeys.length > 1) {
+      const startIndex = randomIntImpl(providerKeys.length);
+      providerKeys = providerKeys.slice(startIndex).concat(providerKeys.slice(0, startIndex));
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), upstreamTimeoutMs);
     timeout.unref?.();
@@ -212,6 +227,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
         }
 
         if (upstream.status === 401 || upstream.status === 403) {
+          await discardUpstreamBody(upstream);
           await redisClient.srem('provider:anthropic:active_keys', providerKey);
           await redisClient.sadd('provider:anthropic:invalid_keys', providerKey);
           appLogger.warn({ status: upstream.status }, 'Anthropic provider credential rejected');
@@ -219,6 +235,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
         }
 
         if (upstream.status === 429) {
+          await discardUpstreamBody(upstream);
           // Keep the key in the active set; selection filters it until this TTL expires.
           await redisClient.set('provider:anthropic:cooldown_keys:' + providerKey, 'cooldown', 'EX', 3600);
           rateLimited = true;
@@ -226,6 +243,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
         }
 
         if (!upstream.ok) {
+          await discardUpstreamBody(upstream);
           appLogger.warn({ status: upstream.status }, 'Anthropic upstream returned a non-success status');
           return res.status(502).json({
             error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' }
@@ -235,6 +253,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
         if (body.stream === true) {
           const contentType = upstream.headers?.get?.('content-type') || '';
           if (!upstream.body || !contentType.toLowerCase().includes('text/event-stream')) {
+            await discardUpstreamBody(upstream);
             return res.status(502).json({
               error: { code: 'BAD_GATEWAY', message: 'Upstream streaming response is invalid' }
             });
@@ -275,6 +294,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
 
         const contentType = upstream.headers?.get?.('content-type') || '';
         if (!contentType.toLowerCase().includes('application/json')) {
+          await discardUpstreamBody(upstream);
           appLogger.warn({ status: upstream.status }, 'Anthropic upstream returned a non-JSON response');
           return res.status(502).json({
             error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' }
