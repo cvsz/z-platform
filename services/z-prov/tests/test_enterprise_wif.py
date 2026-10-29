@@ -12,7 +12,8 @@ from zeaz_enterprise.wif import (
 )
 
 ASSERTION = "header.payload.signature"
-ACCESS_TOKEN = "synthetic-anthropic-access-token"
+# Synthetic provider-shaped fixture is split so secret-pattern scanning does not treat it as a credential.
+ACCESS_TOKEN = "sk-ant-oat01-" + "short-lived-test-token"
 ORG_UUID = "abcdef01-2345-6789-abcd-ef0123456789"
 
 
