@@ -381,6 +381,49 @@ function createKeyPoolRedis(initialKeys) {
   };
 }
 
+
+test('Anthropic rotates the first eligible key across requests', async () => {
+  const previousEnv = {
+    token: process.env.Z_PLATFORM_SERVICE_TOKEN,
+    upstream: process.env.ANTHROPIC_UPSTREAM_BASE_URL
+  };
+  process.env.Z_PLATFORM_SERVICE_TOKEN = 'test-service-token';
+  process.env.ANTHROPIC_UPSTREAM_BASE_URL = 'https://anthropic.test/v1';
+  const redis = createKeyPoolRedis(['key-a', 'key-b']);
+  const usedKeys = [];
+  let selection = 0;
+  let server;
+
+  try {
+    const { app } = createGatewayApp({
+      redis,
+      randomIntImpl: (max) => selection++ % max,
+      fetchImpl: async (_url, options) => {
+        usedKeys.push(options.headers['x-api-key']);
+        return Response.json({ id: 'msg_ok', content: [] });
+      },
+      logger: createSilentLogger()
+    });
+    server = app.listen(0);
+    await once(server, 'listening');
+
+    for (const prompt of ['first request', 'second request']) {
+      const response = await postJson(server.address().port, '/v1/messages', {
+        model: 'claude-sonnet-5',
+        max_tokens: 32,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      assert.equal(response.status, 200);
+    }
+
+    assert.deepEqual(usedKeys, ['key-a', 'key-b']);
+  } finally {
+    restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousEnv.token);
+    restoreEnv('ANTHROPIC_UPSTREAM_BASE_URL', previousEnv.upstream);
+    if (server) await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('Anthropic 429 cooldown keeps the key recoverable and retries a healthy key', async () => {
   const previousEnv = {
     token: process.env.Z_PLATFORM_SERVICE_TOKEN,
@@ -394,14 +437,21 @@ test('Anthropic 429 cooldown keeps the key recoverable and retries a healthy key
   let server;
 
   try {
+    const cancelledKeys = [];
     const { app } = createGatewayApp({
       redis,
+      randomIntImpl: () => 0,
       fetchImpl: async (_url, options) => {
         const key = options.headers['x-api-key'];
         usedKeys.push(key);
         if (key === 'rate-limited-key' && rateLimitOnce) {
           rateLimitOnce = false;
-          return new Response(JSON.stringify({ error: 'rate limited' }), { status: 429 });
+          return {
+            status: 429,
+            ok: false,
+            headers: new Headers(),
+            body: { async cancel() { cancelledKeys.push(key); } }
+          };
         }
         return Response.json({ id: 'msg_ok', content: [] });
       },
@@ -419,6 +469,7 @@ test('Anthropic 429 cooldown keeps the key recoverable and retries a healthy key
     assert.deepEqual(usedKeys, ['rate-limited-key', 'healthy-key']);
     assert.equal(redis.activeKeys.has('rate-limited-key'), true);
     assert.equal(redis.cooldownKeys.has('rate-limited-key'), true);
+    assert.deepEqual(cancelledKeys, ['rate-limited-key']);
 
     redis.cooldownKeys.delete('rate-limited-key');
     usedKeys.length = 0;
@@ -448,12 +499,21 @@ test('Anthropic retries a healthy key after removing a rejected credential', asy
   let server;
 
   try {
+    const cancelledKeys = [];
     const { app } = createGatewayApp({
       redis,
+      randomIntImpl: () => 0,
       fetchImpl: async (_url, options) => {
         const key = options.headers['x-api-key'];
         usedKeys.push(key);
-        if (key === 'revoked-key') return new Response('denied', { status: 401 });
+        if (key === 'revoked-key') {
+          return {
+            status: 401,
+            ok: false,
+            headers: new Headers(),
+            body: { async cancel() { cancelledKeys.push(key); } }
+          };
+        }
         return Response.json({ id: 'msg_ok', content: [] });
       },
       logger: createSilentLogger()
@@ -468,6 +528,7 @@ test('Anthropic retries a healthy key after removing a rejected credential', asy
     });
     assert.equal(response.status, 200);
     assert.deepEqual(usedKeys, ['revoked-key', 'healthy-key']);
+    assert.deepEqual(cancelledKeys, ['revoked-key']);
     assert.equal(redis.activeKeys.has('revoked-key'), false);
     assert.equal(redis.invalidKeys.has('revoked-key'), true);
   } finally {
