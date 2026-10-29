@@ -1,0 +1,48 @@
+name: Candidate pnpm lockfile regeneration
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/pnpm-lockfile-regeneration.yml"
+      - "apps/agent-control-panel/package.json"
+      - "pnpm-lock.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pnpm-lockfile-regeneration-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.4.0
+      - name: Regenerate lockfile without executing dependency lifecycle scripts
+        run: pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts --reporter=append-only
+      - name: Verify frozen lockfile consistency
+        run: pnpm install --lockfile-only --frozen-lockfile --ignore-scripts --reporter=append-only
+      - name: Upload generated lockfile for reviewed import
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pnpm-lock-regenerated-${{ github.sha }}
+          path: pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 1
