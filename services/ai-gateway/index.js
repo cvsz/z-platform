@@ -254,7 +254,9 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
             };
             upstreamStream.once('error', (error) => {
               appLogger.warn({ errorName: error?.name }, 'Anthropic response stream failed');
-              if (!res.headersSent) {
+              if (!res.headersSent && controller.signal.aborted) {
+                res.status(504).json({ error: { code: 'UPSTREAM_TIMEOUT', message: 'Anthropic provider request timed out' } });
+              } else if (!res.headersSent) {
                 res.status(502).json({ error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' } });
               } else {
                 res.destroy();
