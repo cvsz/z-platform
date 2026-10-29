@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { createRoot } from 'react-dom/client'
+import '@canva/app-ui-kit/styles.css'
 import {
   AppUiProvider,
   Button,
@@ -96,7 +98,7 @@ const designEditor: DesignEditorIntent = {
       throw new Error('Unable to find element with id of root')
     }
 
-    const root = ReactDOM.createRoot(rootElement)
+    const root = createRoot(rootElement)
     root.render(
       <AppUiProvider>
         <DesignEditor />
