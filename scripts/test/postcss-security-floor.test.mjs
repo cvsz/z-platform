@@ -10,6 +10,7 @@ const readPackage = (path) =>
 const metricuiPackage = readPackage("apps/frontend/metricui-analytics/package.json");
 const reuiPackage = readPackage("apps/frontend/reui-dashboard/package.json");
 const gatewayPackage = readPackage("services/ai-gateway/package.json");
+const gatewayLock = readPackage("services/ai-gateway/package-lock.json");
 
 test("workspace overrides keep PostCSS and Express dependencies on patched floors", () => {
   assert.match(workspace, /^  postcss: ["']?\^8\.5\.23["']?$/m);
@@ -40,4 +41,13 @@ test("AI gateway declares patched versions for vulnerable transitive dependencie
   assert.equal(gatewayPackage.overrides?.["ip-address"], "10.7.4");
   assert.equal(gatewayPackage.overrides?.["proxy-addr"], "2.0.8");
   assert.equal(gatewayPackage.overrides?.qs, "6.17.1");
+});
+
+test("AI gateway npm lockfile resolves patched packages and matches its manifest", () => {
+  const locked = gatewayLock.packages || {};
+  assert.equal(locked["node_modules/body-parser"]?.version, "2.4.0");
+  assert.equal(locked["node_modules/ip-address"]?.version, "10.7.4");
+  assert.equal(locked["node_modules/proxy-addr"]?.version, "2.0.8");
+  assert.equal(locked["node_modules/qs"]?.version, "6.17.1");
+  assert.deepEqual(locked[""]?.dependencies, gatewayPackage.dependencies);
 });
