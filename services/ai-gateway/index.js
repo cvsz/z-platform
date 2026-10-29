@@ -87,6 +87,185 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
     return res.json({ object: 'list', data });
   });
 
+  // Anthropic Messages API. Provider credentials remain server-side.
+  app.post('/v1/messages', requireAuth, async (req, res) => {
+    const body = req.body;
+    const validBody = body &&
+      typeof body === 'object' &&
+      !Array.isArray(body) &&
+      typeof body.model === 'string' &&
+      body.model.trim().length > 0 &&
+      Number.isSafeInteger(body.max_tokens) &&
+      body.max_tokens > 0 &&
+      Array.isArray(body.messages) &&
+      body.messages.length > 0 &&
+      body.messages.every((message) =>
+        message &&
+        typeof message === 'object' &&
+        !Array.isArray(message) &&
+        (message.role === 'user' || message.role === 'assistant') &&
+        (typeof message.content === 'string' || Array.isArray(message.content))
+      );
+
+    if (!validBody) {
+      return res.status(400).json({
+        error: { code: 'BAD_REQUEST', message: 'A model, positive max_tokens, and valid messages are required' }
+      });
+    }
+
+    const configuredBase = process.env.ANTHROPIC_UPSTREAM_BASE_URL || 'https://api.anthropic.com/v1';
+    let parsedBase;
+    try {
+      parsedBase = new URL(configuredBase);
+    } catch {
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Anthropic upstream is not configured safely' }
+      });
+    }
+
+    if (
+      parsedBase.protocol !== 'https:' ||
+      parsedBase.username ||
+      parsedBase.password ||
+      parsedBase.search ||
+      parsedBase.hash
+    ) {
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Anthropic upstream is not configured safely' }
+      });
+    }
+
+    const upstreamUrl = parsedBase.toString().replace(/\/+$/, '') + '/messages';
+    let providerKey;
+    try {
+      providerKey = await redisClient.srandmember('provider:anthropic:active_keys');
+    } catch (error) {
+      appLogger.error({ errorName: error?.name }, 'Anthropic provider-key lookup failed');
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'No upstream provider keys available' }
+      });
+    }
+
+    if (typeof providerKey !== 'string' || !providerKey.trim()) {
+      return res.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'No upstream provider keys available' }
+      });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    timeout.unref?.();
+    req.once('aborted', () => controller.abort());
+    res.once('close', () => {
+      if (!res.writableEnded) controller.abort();
+    });
+
+    try {
+      const headers = {
+        'content-type': 'application/json',
+        'x-api-key': providerKey,
+        'anthropic-version': process.env.ANTHROPIC_VERSION || '2023-06-01'
+      };
+      const beta = process.env.ANTHROPIC_BETA;
+      if (typeof beta === 'string' && beta.trim()) headers['anthropic-beta'] = beta;
+
+      const upstream = await fetchImpl(upstreamUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+        redirect: 'error'
+      });
+
+      const requestId = upstream.headers?.get?.('request-id');
+      if (typeof requestId === 'string' && /^[\x21-\x7e]{1,128}$/.test(requestId)) {
+        res.setHeader('request-id', requestId);
+      }
+
+      if (upstream.status === 401 || upstream.status === 403) {
+        await redisClient.srem('provider:anthropic:active_keys', providerKey);
+        await redisClient.sadd('provider:anthropic:invalid_keys', providerKey);
+        appLogger.warn({ status: upstream.status }, 'Anthropic provider credential rejected');
+        return res.status(502).json({
+          error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' }
+        });
+      }
+
+      if (upstream.status === 429) {
+        await redisClient.srem('provider:anthropic:active_keys', providerKey);
+        await redisClient.set('provider:anthropic:cooldown_keys:' + providerKey, 'cooldown', 'EX', 3600);
+        res.setHeader('Retry-After', '60');
+        return res.status(503).json({
+          error: { code: 'SERVICE_UNAVAILABLE', message: 'Anthropic provider is temporarily unavailable' }
+        });
+      }
+
+      if (!upstream.ok) {
+        appLogger.warn({ status: upstream.status }, 'Anthropic upstream returned a non-success status');
+        return res.status(502).json({
+          error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' }
+        });
+      }
+
+      if (body.stream === true) {
+        const contentType = upstream.headers?.get?.('content-type') || '';
+        if (!upstream.body || !contentType.toLowerCase().includes('text/event-stream')) {
+          return res.status(502).json({
+            error: { code: 'BAD_GATEWAY', message: 'Upstream streaming response is invalid' }
+          });
+        }
+
+        const upstreamStream = Readable.fromWeb(upstream.body);
+        res.status(upstream.status);
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        upstreamStream.on('error', (error) => {
+          appLogger.warn({ errorName: error?.name }, 'Anthropic response stream failed');
+          if (!res.headersSent) {
+            res.status(502).json({ error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' } });
+          } else {
+            res.destroy();
+          }
+        });
+        res.once('close', () => upstreamStream.destroy());
+        return upstreamStream.pipe(res);
+      }
+
+      const contentType = upstream.headers?.get?.('content-type') || '';
+      if (!contentType.toLowerCase().includes('application/json')) {
+        appLogger.warn({ status: upstream.status }, 'Anthropic upstream returned a non-JSON response');
+        return res.status(502).json({
+          error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' }
+        });
+      }
+
+      let data;
+      try {
+        data = await upstream.json();
+      } catch (error) {
+        appLogger.warn({ errorName: error?.name }, 'Anthropic upstream returned invalid JSON');
+        return res.status(502).json({
+          error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' }
+        });
+      }
+      return res.status(upstream.status).json(data);
+    } catch (error) {
+      if (req.aborted || res.destroyed) return;
+      if (controller.signal.aborted || error?.name === 'AbortError') {
+        return res.status(504).json({
+          error: { code: 'UPSTREAM_TIMEOUT', message: 'Anthropic provider request timed out' }
+        });
+      }
+      appLogger.warn({ errorName: error?.name }, 'Anthropic upstream request failed');
+      return res.status(502).json({
+        error: { code: 'BAD_GATEWAY', message: 'Upstream provider error' }
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
+
   // Primary Gateway Route
   app.post('/v1/chat/completions', requireAuth, async (req, res) => {
     const provider = req.headers['x-provider'] || process.env.AI_DEFAULT_PROVIDER || 'openai-compatible';
