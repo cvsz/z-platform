@@ -1,0 +1,65 @@
+# TEMPORARY: remove after the ZC web npm lockfile refresh completes.
+name: Temporary ZC web lockfile refresh
+
+on:
+  push:
+    branches:
+      - fix/ai-gateway-anthropic-messages-20261029-r11
+    paths:
+      - "services/zc/webapp/frontend-src/package.json"
+      - ".github/workflows/refresh-zc-lock-temp.yml"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: temporary-zc-lock-refresh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    if: ${{ github.ref == 'refs/heads/fix/ai-gateway-anthropic-messages-20261029-r11' && github.actor == 'cvsz' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout candidate branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: fix/ai-gateway-anthropic-messages-20261029-r11
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - name: Reconcile ZC web npm lockfile without lifecycle scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit --prefix services/zc/webapp/frontend-src
+
+      - name: Verify only the nested lockfile changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          expected='services/zc/webapp/frontend-src/package-lock.json'
+          actual="$(git diff --name-only)"
+          test "$actual" = "$expected"
+
+      - name: Commit lockfile and dispatch exact-head validation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: fix/ai-gateway-anthropic-messages-20261029-r11
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add services/zc/webapp/frontend-src/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "fix(security): refresh ZC web dependency lockfile"
+            git push origin "HEAD:refs/heads/${BRANCH}"
+          fi
+          gh workflow run validate.yml --ref "${BRANCH}" --repo cvsz/z-platform
