@@ -77,7 +77,7 @@ test("ZC web frontend pins patched Vite and vulnerable transitive dependency flo
 test("ZC web frontend lockfile resolves patched versions and matches its manifest", () => {
   const locked = zcWebLock.packages || {};
   assert.equal(locked[""]?.dependencies?.vite, zcWebPackage.dependencies.vite);
-  assert.equal(locked["node_modules/vite"]?.version, "6.4.4");
+  assert.ok(versionAtLeast(locked["node_modules/vite"]?.version, "6.4.4"));
   assert.equal(locked["node_modules/baseline-browser-mapping"]?.version, "2.11.0");
   assert.equal(locked["node_modules/browserslist"]?.version, "4.28.7");
   assert.equal(locked["node_modules/nanoid"]?.version, "3.3.18");
