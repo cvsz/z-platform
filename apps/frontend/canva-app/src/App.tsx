@@ -31,15 +31,15 @@ export function App() {
         <Rows spacing="1u">
           <Text>Notifications: {notifications ? 'On' : 'Off'}</Text>
           <Button
-            variant="primary"
+            variant="secondary"
             stretch
             onClick={() => setNotifications((enabled) => !enabled)}
           >
-            Turn notifications {notifications ? 'off' : 'on'}
+            {`Turn notifications ${notifications ? "off" : "on"}`}
           </Button>
         </Rows>
 
-        <Button variant="primary" stretch onClick={() => setSaved(true)}>
+        <Button variant="secondary" stretch onClick={() => setSaved(true)}>
           Save settings locally
         </Button>
         {saved && (
