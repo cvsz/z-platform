@@ -142,7 +142,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
       });
     }
 
-    const upstreamUrl = parsedBase.toString().replace(/\\/+$/, '') + '/messages';
+    const upstreamUrl = parsedBase.toString().replace(/\/+$/, '') + '/messages';
     let providerKeys;
     try {
       const activeKeySet = 'provider:anthropic:active_keys';
@@ -207,7 +207,7 @@ export function createGatewayApp({ redis, fetchImpl = globalThis.fetch, logger: 
         }
 
         const requestId = upstream.headers?.get?.('request-id');
-        if (typeof requestId === 'string' && /^[\\x21-\\x7e]{1,128}$/.test(requestId)) {
+        if (typeof requestId === 'string' && /^[\x21-\x7e]{1,128}$/.test(requestId)) {
           res.setHeader('request-id', requestId);
         }
 
