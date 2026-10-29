@@ -7,6 +7,17 @@ const workspace = readFileSync(new URL("pnpm-workspace.yaml", root), "utf8");
 const lockfile = readFileSync(new URL("pnpm-lock.yaml", root), "utf8");
 const readPackage = (path) =>
   JSON.parse(readFileSync(new URL(path, root), "utf8"));
+const versionAtLeast = (actual, minimum) => {
+  const parse = (value) => value.split(".").map((part) => Number.parseInt(part, 10));
+  const a = parse(actual || "0.0.0");
+  const b = parse(minimum);
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+    const left = a[index] || 0;
+    const right = b[index] || 0;
+    if (left !== right) return left > right;
+  }
+  return true;
+};
 const metricuiPackage = readPackage("apps/frontend/metricui-analytics/package.json");
 const reuiPackage = readPackage("apps/frontend/reui-dashboard/package.json");
 const gatewayPackage = readPackage("services/ai-gateway/package.json");
@@ -70,6 +81,6 @@ test("ZC web frontend lockfile resolves patched versions and matches its manifes
   assert.equal(locked["node_modules/baseline-browser-mapping"]?.version, "2.11.0");
   assert.equal(locked["node_modules/browserslist"]?.version, "4.28.7");
   assert.equal(locked["node_modules/nanoid"]?.version, "3.3.18");
-  assert.ok((locked["node_modules/postcss"]?.version || "") >= "8.5.23");
-  assert.ok((locked["node_modules/source-map-js"]?.version || "") >= "1.2.2");
+  assert.ok(versionAtLeast(locked["node_modules/postcss"]?.version, "8.5.23"));
+  assert.ok(versionAtLeast(locked["node_modules/source-map-js"]?.version, "1.2.2"));
 });
