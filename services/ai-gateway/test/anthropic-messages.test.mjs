@@ -515,21 +515,14 @@ test('Anthropic streaming keeps the upstream timeout active until the stream end
     server = app.listen(0);
     await once(server, 'listening');
 
-    const response = await fetch(`http://127.0.0.1:${server.address().port}/v1/messages`, {
-      method: 'POST',
-      headers: {
-        authorization: 'Bearer test-service-token',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 32,
-        messages: [{ role: 'user', content: 'stream' }],
-        stream: true
-      })
+    const response = await postJson(server.address().port, '/v1/messages', {
+      model: 'claude-sonnet-5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'stream' }],
+      stream: true
     });
-    assert.equal(response.status, 200);
-    await assert.rejects(response.text());
+    assert.equal(response.status, 504);
+    assert.equal(response.body.error.code, 'UPSTREAM_TIMEOUT');
     assert.equal(observedSignal.aborted, true);
   } finally {
     restoreEnv('Z_PLATFORM_SERVICE_TOKEN', previousEnv.token);
