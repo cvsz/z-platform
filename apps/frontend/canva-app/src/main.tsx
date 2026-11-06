@@ -1,11 +1,23 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { App } from './App'
+import { AppUiProvider } from '@canva/app-ui-kit'
 import '@canva/app-ui-kit/styles.css'
+import { prepareDesignEditor, type DesignEditorIntent } from '@canva/intents/design'
+import { createRoot } from 'react-dom/client'
+import { App } from './App'
 import './index.css'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+const designEditor: DesignEditorIntent = {
+  render: async () => {
+    const rootElement = document.getElementById('root')
+    if (!(rootElement instanceof Element)) {
+      throw new Error('Unable to find element with id of root')
+    }
+
+    createRoot(rootElement).render(
+      <AppUiProvider>
+        <App />
+      </AppUiProvider>,
+    )
+  },
+}
+
+prepareDesignEditor(designEditor)
