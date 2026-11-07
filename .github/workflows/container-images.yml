@@ -4,20 +4,60 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      approved_sha:
+        description: Full immutable Main SHA approved for publication
+        required: true
+        type: string
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
 
 concurrency:
   group: container-images-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  admission:
+    name: Exact-SHA release admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      - name: Checkout exact source SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Test admission policy
+        run: node --test scripts/test/verify-container-image-admission.test.mjs
+
+      - name: Verify exact Main SHA, signature, and required checks
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVED_SHA: ${{ inputs.approved_sha || '' }}
+          ADMISSION_MAX_WAIT_SECONDS: "1200"
+          ADMISSION_POLL_INTERVAL_SECONDS: "20"
+        run: node scripts/verify-container-image-admission.mjs
+
   publish:
     name: Publish ${{ matrix.name }}
+    needs: admission
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+      packages: write
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -37,8 +77,28 @@ jobs:
             service_path: apps/zchat
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v5
+      - name: Checkout exact source SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Revalidate admission immediately before publication
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVED_SHA: ${{ inputs.approved_sha || '' }}
+          ADMISSION_MAX_WAIT_SECONDS: "0"
+        run: node scripts/verify-container-image-admission.mjs
+
+      - name: Resolve immutable source metadata
+        id: source
+        run: echo "created=$(git show -s --format=%cI "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
@@ -57,7 +117,6 @@ jobs:
           images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
           tags: |
             type=sha,format=long,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and publish immutable image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
@@ -73,7 +132,7 @@ jobs:
             SERVICE_PATH=${{ matrix.service_path }}
             OCI_REVISION=${{ github.sha }}
             OCI_SOURCE=https://github.com/${{ github.repository }}
-            OCI_CREATED=${{ github.event.head_commit.timestamp }}
+            OCI_CREATED=${{ steps.source.outputs.created }}
             OCI_VERSION=sha-${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
