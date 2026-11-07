@@ -1,4 +1,6 @@
 import { appendFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 export const REQUIRED_CHECKS = Object.freeze([
   "Node workspace",
@@ -218,7 +220,7 @@ async function main() {
 
 const isDirectExecution =
   process.argv[1] &&
-  new URL(import.meta.url).href === new URL(`file://${process.argv[1]}`).href;
+  import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
 
 if (isDirectExecution) {
   main().catch((error) => {
