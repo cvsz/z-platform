@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -19,13 +20,25 @@ async function packageFiles(root) {
   return out;
 }
 
-const files = (await Promise.all(roots.map(packageFiles))).flat();
+function packageIdentity(pkg, file) {
+  const normalizedFile = file.replace(/\\/g, "/");
+  const name = typeof pkg.name === "string" && pkg.name.trim()
+    ? pkg.name.trim()
+    : normalizedFile.replace(/\/package\.json$/, "");
+  const spdxName = name.replace(/[^A-Za-z0-9.-]/g, "-") || "unnamed";
+  // Distinct workspaces may share names or sanitize to the same identifier.
+  const pathDigest = createHash("sha256").update(normalizedFile).digest("hex");
+  return { name, spdxId: `SPDXRef-Package-${spdxName}-${pathDigest}` };
+}
+
+const files = (await Promise.all(roots.map(packageFiles))).flat().sort();
 const packages = [];
 for (const file of files) {
   const pkg = JSON.parse(await readFile(file, "utf8"));
+  const { name, spdxId } = packageIdentity(pkg, file);
   packages.push({
-    SPDXID: `SPDXRef-Package-${pkg.name.replace(/[^A-Za-z0-9.-]/g, "-")}`,
-    name: pkg.name,
+    SPDXID: spdxId,
+    name,
     versionInfo: pkg.version || "0.0.0",
     downloadLocation: "NOASSERTION",
     filesAnalyzed: false,
