@@ -80,6 +80,14 @@ jobs:
             echo "auditing $workspace"
             (cd "$workspace" && npm install --package-lock-only --ignore-scripts --no-audit >/dev/null && npm audit --audit-level=high --omit=dev)
           done < <(find apps packages services tools -name package.json -not -path '*/node_modules/*' | sort)
+      - name: Export Canva app lockfile candidate for review
+        if: always() && hashFiles('apps/frontend/canva-app/package-lock.json') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: canva-app-lockfile-candidate
+          path: apps/frontend/canva-app/package-lock.json
+          if-no-files-found: ignore
+          retention-days: 1
 
   python:
     runs-on: ubuntu-latest
