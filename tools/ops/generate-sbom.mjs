@@ -23,9 +23,14 @@ const files = (await Promise.all(roots.map(packageFiles))).flat();
 const packages = [];
 for (const file of files) {
   const pkg = JSON.parse(await readFile(file, "utf8"));
+  const declaredName =
+    typeof pkg.name === "string" && pkg.name.trim()
+      ? pkg.name.trim()
+      : file.replace(/[/\\]package\.json$/, "").replace(/[/\\]/g, "-");
+  const packageId = `${declaredName}-${file}`.replace(/[^A-Za-z0-9.-]/g, "-");
   packages.push({
-    SPDXID: `SPDXRef-Package-${pkg.name.replace(/[^A-Za-z0-9.-]/g, "-")}`,
-    name: pkg.name,
+    SPDXID: `SPDXRef-Package-${packageId}`,
+    name: declaredName,
     versionInfo: pkg.version || "0.0.0",
     downloadLocation: "NOASSERTION",
     filesAnalyzed: false,

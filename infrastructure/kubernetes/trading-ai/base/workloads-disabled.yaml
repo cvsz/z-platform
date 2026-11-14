@@ -1,0 +1,72 @@
+# Disabled-by-default deployment placeholders.
+# Promotion automation MUST replace every example.invalid image with an immutable digest
+# and set replicas only after release/security evidence exists.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ztrader-intelligence
+spec:
+  replicas: 0
+  selector:
+    matchLabels: {app.kubernetes.io/name: ztrader-intelligence}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: ztrader-intelligence, app.kubernetes.io/part-of: zeaz-trading}
+    spec:
+      serviceAccountName: z-trading-runtime
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: app
+          image: example.invalid/replace-with-ztrader-image@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          ports: [{name: http, containerPort: 8218}]
+          envFrom: [{configMapRef: {name: z-trading-contract}}]
+          env:
+            - name: ZTRADER_LIVE_EXECUTION
+              value: "false"
+            - name: ZAIMAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: z-trading-runtime-secrets
+                  key: Z_PLATFORM_SERVICE_TOKEN
+            - name: ZTRADER_INTEL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: z-trading-runtime-secrets
+                  key: ZTRADER_INTEL_SERVICE_TOKEN
+            - name: ZKSATO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: z-trading-runtime-secrets
+                  key: ZKSATO_API_KEY
+          readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 20}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 1, memory: 512Mi}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zksato
+spec:
+  replicas: 0
+  selector:
+    matchLabels: {app.kubernetes.io/name: zksato}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: zksato, app.kubernetes.io/part-of: zeaz-trading}
+    spec:
+      serviceAccountName: z-trading-runtime
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: app
+          image: example.invalid/replace-with-zksato-image@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          ports: [{name: http, containerPort: 9569}]
+          env:
+            - name: TRADING_MODE
+              value: "paper"
+            - name: LIVE_TRADING_ENABLED
+              value: "false"
+          readinessProbe: {httpGet: {path: /readyz, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /livez, port: http}, periodSeconds: 20}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 1, memory: 512Mi}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
